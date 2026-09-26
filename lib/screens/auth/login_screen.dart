@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/supabase_auth_service.dart'; // เช็ก path ให้ตรงกับโฟลเดอร์ของคุณนะครับ
+import '../home_screen.dart'; // [เพิ่ม] import หน้า HomeScreen เข้ามา
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -34,7 +35,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('ล็อกอินสำเร็จ! User ID: $userId')),
                       );
-                      // TODO: เมื่อมีหน้า Home ค่อยใส่คำสั่ง Navigator เด้งไปหน้า Home ตรงนี้
+                      
+                      // [แก้ไข] เปลี่ยนจากคอมเมนต์ TODO เป็นคำสั่งพาไปหน้า Home
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (_) => const HomeScreen()),
+                      );
                     }
                   } catch (e) {
                     if (!context.mounted) return;

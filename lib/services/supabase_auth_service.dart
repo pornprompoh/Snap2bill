@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // เพิ่ม import สำหรับ dotenv
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -12,8 +13,9 @@ class SupabaseAuthService {
   Future<void> _ensureInitialized() async {
     if (!_isInitialized) {
       await _googleSignIn.initialize(
-        clientId: '400887731254-ipi7qcbn006uucpuehvc2ur2f18oq6c7.apps.googleusercontent.com',
-        serverClientId: '400887731254-1d2b056maqqtsgloh488fg36qe0r0upv.apps.googleusercontent.com',
+        // เปลี่ยนมาดึงค่าจากไฟล์ .env แทนการฝัง String ตรงๆ
+        clientId: dotenv.env['GOOGLE_CLIENT_ID'],
+        serverClientId: dotenv.env['GOOGLE_SERVER_CLIENT_ID'],
       );
       _isInitialized = true;
     }

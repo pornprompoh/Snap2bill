@@ -1,0 +1,53 @@
+import 'package:flutter/material.dart';
+import '../../services/supabase_auth_service.dart'; // เช็ก path ให้ตรงกับโฟลเดอร์ของคุณนะครับ
+
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  bool _isLoading = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('ทดสอบระบบ Login')),
+      body: Center(
+        child: _isLoading
+            ? const CircularProgressIndicator()
+            : ElevatedButton(
+                // TODO: (ฝากเพื่อนฝั่ง UI) ตกแต่งปุ่มนี้ให้เป็นปุ่ม "Continue with Google" สวยๆ
+                // ห้ามลบ/แก้ไขโค้ดใน onPressed เด็ดขาด เพราะผูกหลังบ้านไว้แล้ว
+                onPressed: () async {
+                  setState(() => _isLoading = true);
+                  try {
+                    final response = await SupabaseAuthService().signInWithGoogle();
+                    
+                    if (!context.mounted) return;
+                    
+                    if (response != null && response.user != null) {
+                      // ดึง User ID ออกมาโชว์เพื่อยืนยันว่าหลังบ้านทำงานสำเร็จ
+                      final userId = response.user!.id;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('ล็อกอินสำเร็จ! User ID: $userId')),
+                      );
+                      // TODO: เมื่อมีหน้า Home ค่อยใส่คำสั่ง Navigator เด้งไปหน้า Home ตรงนี้
+                    }
+                  } catch (e) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('ล็อกอินล้มเหลว: $e')),
+                    );
+                  } finally {
+                    if (context.mounted) setState(() => _isLoading = false);
+                  }
+                },
+                child: const Text('Sign in with Google'),
+              ),
+      ),
+    );
+  }
+}

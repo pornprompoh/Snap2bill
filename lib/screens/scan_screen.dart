@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../services/ocr_service.dart';
+import 'loading_screen.dart'; // import หน้าโหลดเข้ามา
 
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
@@ -12,9 +12,7 @@ class ScanScreen extends StatefulWidget {
 
 class _ScanScreenState extends State<ScanScreen> {
   File? _image;
-  bool _isProcessing = false;
   final ImagePicker _picker = ImagePicker();
-  final OcrService _ocrService = OcrService();
 
   Future<void> _pickImage(ImageSource source) async {
     final pickedFile = await _picker.pickImage(source: source);
@@ -25,39 +23,15 @@ class _ScanScreenState extends State<ScanScreen> {
     }
   }
 
-  Future<void> _processImage() async {
+  void _goToLoadingScreen() {
     if (_image == null) return;
-    setState(() => _isProcessing = true);
-
-    try {
-      final result = await _ocrService.processReceipt(_image!);
-      if (!mounted) return;
-      
-      // TODO: (ใน Step 6) จะนำข้อมูล result ส่งต่อไปหน้าเช็กความถูกต้องและบันทึกบิล
-      // สำหรับสเตปนี้ ขอโชว์ผลลัพธ์ใส่ Dialog ให้ดูก่อนว่า AI ดึงข้อมูลได้จริง
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('ผลลัพธ์จาก AI 🎉'),
-          content: SingleChildScrollView(
-            child: Text(result.toString()),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('ตกลง'),
-            )
-          ],
-        )
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
-    } finally {
-      if (mounted) setState(() => _isProcessing = false);
-    }
+    // โยนไฟล์รูปแล้วกระโดดไปหน้า Loading ทันที
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LoadingScreen(image: _image!),
+      ),
+    );
   }
 
   @override
@@ -92,38 +66,30 @@ class _ScanScreenState extends State<ScanScreen> {
                   ElevatedButton.icon(
                     icon: const Icon(Icons.camera_alt),
                     label: const Text('ถ่ายรูป'),
-                    onPressed: _isProcessing ? null : () => _pickImage(ImageSource.camera),
+                    onPressed: () => _pickImage(ImageSource.camera),
                   ),
                   const SizedBox(width: 16),
                   ElevatedButton.icon(
                     icon: const Icon(Icons.photo_library),
                     label: const Text('คลังภาพ'),
-                    onPressed: _isProcessing ? null : () => _pickImage(ImageSource.gallery),
+                    onPressed: () => _pickImage(ImageSource.gallery),
                   ),
                 ],
               ),
               const SizedBox(height: 30),
               if (_image != null)
-                _isProcessing
-                    ? const Column(
-                        children: [
-                          CircularProgressIndicator(),
-                          SizedBox(height: 16),
-                          Text('AI กำลังถอดรหัสใบเสร็จ...'),
-                        ],
-                      )
-                    : SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Theme.of(context).colorScheme.primary,
-                            foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                          ),
-                          onPressed: _processImage,
-                          child: const Text('ให้ AI ช่วยอ่านบิล', style: TextStyle(fontSize: 16)),
-                        ),
-                      ),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                    ),
+                    onPressed: _goToLoadingScreen, // เปลี่ยนมาเรียกฟังก์ชันนำทาง
+                    child: const Text('ให้ AI ช่วยอ่านบิล', style: TextStyle(fontSize: 16)),
+                  ),
+                ),
             ],
           ),
         ),

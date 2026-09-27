@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'claim_screen.dart'; // TODO: สร้างในสเตปต่อไป
+import '../../routes/app_routes.dart'; // 🚀 นำเข้าระบบนำทาง
+import '../../widgets/custom_button.dart'; // 🚀 นำเข้าปุ่มสำเร็จรูป
+import '../../widgets/friend_item.dart'; // 🚀 นำเข้าการ์ดแสดงชื่อเพื่อน
 
 class LobbyScreen extends StatefulWidget {
   final Map<String, dynamic> receiptData;
@@ -26,9 +28,8 @@ class _LobbyScreenState extends State<LobbyScreen> {
       final shopName = widget.receiptData['shop_name'] ?? 'ไม่ระบุชื่อร้าน';
       final totalAmount = double.tryParse(widget.receiptData['total_amount']?.toString() ?? '0') ?? 0.0;
 
-      // 1. สร้างห้องใหม่ใน Supabase
       final response = await _supabase.from('lobbies').insert({
-        'host_id': '11111111-1111-1111-1111-111111111111', // ใช้ ID จำลองสำหรับ PoC ไปก่อน
+        'host_id': '11111111-1111-1111-1111-111111111111', // ใช้ ID จำลอง
         'shop_name': shopName,
         'total_amount': totalAmount,
         'receipt_json': widget.receiptData,
@@ -36,7 +37,6 @@ class _LobbyScreenState extends State<LobbyScreen> {
 
       final lobbyId = response['id'];
 
-      // 2. จับตัวเอง (Host) ยัดใส่เข้าห้องเป็นคนแรก
       await _supabase.from('participants').insert({
         'lobby_id': lobbyId,
         'user_name': 'ฉัน (Host)',
@@ -76,7 +76,6 @@ class _LobbyScreenState extends State<LobbyScreen> {
       body: Column(
         children: [
           const SizedBox(height: 20),
-          // ส่วนจำลอง QR Code ให้เพื่อนแสกน
           const Text('ให้เพื่อนสแกน QR Code นี้', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
           Container(
@@ -101,7 +100,6 @@ class _LobbyScreenState extends State<LobbyScreen> {
             ),
           ),
           
-          // ระบบ Real-time ดักฟังตาราง participants
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: _supabase
@@ -119,15 +117,10 @@ class _LobbyScreenState extends State<LobbyScreen> {
                   itemCount: participants.length,
                   itemBuilder: (context, index) {
                     final p = participants[index];
-                    final isHost = p['is_host'] == true;
-                    
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: isHost ? Colors.amber : Colors.blue.shade100,
-                        child: Icon(isHost ? Icons.star : Icons.person, color: isHost ? Colors.white : Colors.blue),
-                      ),
-                      title: Text(p['user_name']),
-                      subtitle: Text(isHost ? 'หัวหน้าห้อง' : 'เข้าร่วมแล้ว'),
+                    // 🚀 เรียกใช้ FriendItem แทน ListTile เดิม
+                    return FriendItem(
+                      name: p['user_name'],
+                      isHost: p['is_host'] == true,
                     );
                   },
                 );
@@ -137,33 +130,24 @@ class _LobbyScreenState extends State<LobbyScreen> {
 
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                ),
-                onPressed: () {
-                  if (_lobbyId == null) return;
-                  
-                  // อัปเดตสถานะห้องเป็น splitting (เริ่มหาร)
-                  _supabase.from('lobbies').update({'status': 'splitting'}).eq('id', _lobbyId!);
+            // 🚀 เรียกใช้ CustomButton แบบคลีนๆ
+            child: CustomButton(
+              text: 'เริ่มเลือกเมนูอาหาร',
+              onPressed: () {
+                if (_lobbyId == null) return;
+                
+                _supabase.from('lobbies').update({'status': 'splitting'}).eq('id', _lobbyId!);
 
-                  // พาไปหน้า Claim พร้อมแนบรหัสห้อง
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ClaimScreen(
-                        lobbyId: _lobbyId!,
-                        receiptData: widget.receiptData,
-                      ),
-                    ),
-                  );
-                },
-                child: const Text('เริ่มเลือกเมนูอาหาร', style: TextStyle(fontSize: 16)),
-              ),
+                // 🚀 ใช้ PushReplacementNamed ส่งข้อมูลกระโดดไปหน้า Claim
+                Navigator.pushReplacementNamed(
+                  context,
+                  AppRoutes.claim,
+                  arguments: {
+                    'lobbyId': _lobbyId!,
+                    'receiptData': widget.receiptData,
+                  },
+                );
+              },
             ),
           ),
         ],

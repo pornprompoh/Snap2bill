@@ -1,7 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'loading_screen.dart'; // import หน้าโหลดเข้ามา
+import '../routes/app_routes.dart'; // นำเข้าระบบนำทาง
+import '../widgets/custom_button.dart'; // นำเข้าปุ่มสำเร็จรูป
 
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
@@ -25,12 +26,12 @@ class _ScanScreenState extends State<ScanScreen> {
 
   void _goToLoadingScreen() {
     if (_image == null) return;
-    // โยนไฟล์รูปแล้วกระโดดไปหน้า Loading ทันที
-    Navigator.push(
+    
+    // 🚀 ใช้ระบบ Route ใหม่ ส่งไฟล์ภาพไปเป็น Arguments แบบคลีนๆ
+    Navigator.pushNamed(
       context,
-      MaterialPageRoute(
-        builder: (_) => LoadingScreen(image: _image!),
-      ),
+      AppRoutes.loading,
+      arguments: _image!,
     );
   }
 
@@ -78,17 +79,10 @@ class _ScanScreenState extends State<ScanScreen> {
               ),
               const SizedBox(height: 30),
               if (_image != null)
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                    ),
-                    onPressed: _goToLoadingScreen, // เปลี่ยนมาเรียกฟังก์ชันนำทาง
-                    child: const Text('ให้ AI ช่วยอ่านบิล', style: TextStyle(fontSize: 16)),
-                  ),
+                // 🚀 เรียกใช้ชิ้นส่วน CustomButton ที่เราสร้างไว้
+                CustomButton(
+                  text: 'ให้ AI ช่วยอ่านบิล',
+                  onPressed: _goToLoadingScreen,
                 ),
             ],
           ),

@@ -1,80 +1,52 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../providers/bill_provider.dart';
-import '../providers/user_provider.dart';
-import '../services/supabase_auth_service.dart';
-import 'auth/login_screen.dart';
-import 'friends/friend_list_screen.dart';
-import 'scan_screen.dart';
+import '../routes/app_routes.dart'; // 🚀 นำเข้าระบบนำทาง
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  @override
-  void initState() {
-    super.initState();
-    // สั่งให้ Provider โหลดข้อมูลทันทีที่เปิดหน้านี้ขึ้นมา
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<UserProvider>(context, listen: false).loadProfile();
-      Provider.of<BillProvider>(context, listen: false).loadMyBills();
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final billProvider = Provider.of<BillProvider>(context);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Snap2Bill'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.people),
+            icon: const Icon(Icons.person),
             onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const FriendListScreen()));
+              // 🚀 ไปหน้าโปรไฟล์
+              Navigator.pushNamed(context, AppRoutes.profile);
             },
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await SupabaseAuthService().signOut();
-              if (context.mounted) {
-                Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
-              }
+            icon: const Icon(Icons.people),
+            onPressed: () {
+              Navigator.pushNamed(context, AppRoutes.friends);
             },
           ),
         ],
       ),
-      body: billProvider.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : billProvider.bills.isEmpty
-              ? const Center(child: Text('ยังไม่มีบิล กดปุ่ม + ด้านล่างเพื่อจำลองการสร้างบิลเลย'))
-              : ListView.builder(
-                  itemCount: billProvider.bills.length,
-                  itemBuilder: (context, index) {
-                    final bill = billProvider.bills[index];
-                    return ListTile(
-                      leading: const Icon(Icons.receipt_long),
-                      title: Text(bill.shopName ?? 'บิลไม่มีชื่อร้าน'),
-                      subtitle: Text('ยอดสุทธิ: ${bill.totalAmount} บาท'),
-                      trailing: Text(bill.status),
-                    );
-                  },
-                ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          // ทดสอบระบบ: พอกด + จะสร้างบิลจำลองส่งไป Supabase ทันที (จะเปลี่ยนเป็นไปหน้ากล้องใน Step 5)
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const ScanScreen()),
-          );
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.receipt_long, size: 80, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(
+              'ยังไม่มีประวัติการหารบิล\nกดปุ่มด้านล่างเพื่อเริ่มสแกนได้เลย!',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+            ),
+          ],
+        ),
+      ),
+      // 🚀 ปุ่มลอยสำหรับสแกนบิลใหม่
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          // 🚀 วิ่งไปหน้า ScanScreen เพื่อเริ่มกระบวนการ
+          Navigator.pushNamed(context, AppRoutes.scan);
         },
-        child: const Icon(Icons.add_a_photo),
+        icon: const Icon(Icons.add_a_photo),
+        label: const Text('สแกนบิลใหม่', style: TextStyle(fontWeight: FontWeight.bold)),
       ),
     );
   }

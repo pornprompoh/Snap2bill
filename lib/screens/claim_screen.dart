@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'summary_screen.dart'; // import หน้าสรุปยอดเข้ามา
+import '../../routes/app_routes.dart'; // 🚀 นำเข้าระบบนำทาง
+import '../../widgets/custom_button.dart'; // 🚀 นำเข้าปุ่ม
+import '../../utils/formatters.dart'; // 🚀 นำเข้าตัวจัดรูปแบบเงิน
 
 class ClaimScreen extends StatefulWidget {
   final String lobbyId;
@@ -19,8 +21,6 @@ class ClaimScreen extends StatefulWidget {
 class _ClaimScreenState extends State<ClaimScreen> {
   final _supabase = Supabase.instance.client;
   List<Map<String, dynamic>> _participants = [];
-  
-  // เก็บข้อมูลว่า เมนูบรรทัดไหน (index) มีเพื่อนคนไหน (Map ข้อมูลเพื่อน) จ่ายบ้าง
   final Map<int, List<Map<String, dynamic>>> _itemSharers = {};
 
   @override
@@ -29,7 +29,6 @@ class _ClaimScreenState extends State<ClaimScreen> {
     _fetchParticipants();
   }
 
-  // ดึงรายชื่อคนที่อยู่ในห้องจาก Supabase
   Future<void> _fetchParticipants() async {
     try {
       final data = await _supabase
@@ -65,7 +64,6 @@ class _ClaimScreenState extends State<ClaimScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: _participants.map((person) {
-                          // เช็กว่าเลือกคนนี้ไว้หรือยัง (เทียบด้วย id)
                           final isSelected = tempSelection.any((p) => p['id'] == person['id']);
                           return CheckboxListTile(
                             title: Text(person['user_name']),
@@ -128,7 +126,8 @@ class _ClaimScreenState extends State<ClaimScreen> {
               itemBuilder: (context, index) {
                 final item = items[index];
                 final itemName = item['item_name'] ?? 'ไม่มีชื่อ';
-                final itemTotal = item['total_price']?.toString() ?? '0';
+                // แปลงค่าเงินเพื่อเอาเข้า Formatter
+                final itemTotal = double.tryParse(item['total_price']?.toString() ?? '0') ?? 0.0;
                 final sharers = _itemSharers[index] ?? [];
                 
                 return Card(
@@ -138,7 +137,8 @@ class _ClaimScreenState extends State<ClaimScreen> {
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('ราคา: $itemTotal บาท'),
+                        // 🚀 ใช้ AppFormatters แสดงค่าเงิน
+                        Text('ราคา: ${AppFormatters.formatCurrency(itemTotal)}'),
                         if (sharers.isNotEmpty)
                           Text(
                             'คนจ่าย: ${sharers.map((s) => s['user_name']).join(", ")}', 
@@ -157,37 +157,28 @@ class _ClaimScreenState extends State<ClaimScreen> {
           ),
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                ),
-                onPressed: () {
-                  // เช็กว่ามีการเลือกคนจ่ายอย่างน้อย 1 รายการหรือยัง
-                  if (_itemSharers.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('กรุณาเลือกคนจ่ายอย่างน้อย 1 รายการ')),
-                    );
-                    return;
-                  }
-
-                  // ส่งข้อมูลทั้งหมดไปคำนวณที่หน้า Summary
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => SummaryScreen(
-                        lobbyId: widget.lobbyId,
-                        receiptData: widget.receiptData,
-                        itemSharers: _itemSharers, // ส่ง Map ที่บอกว่าใครจิ้มอะไรไป
-                      ),
-                    ),
+            // 🚀 เรียกใช้ CustomButton 
+            child: CustomButton(
+              text: 'สรุปยอดและเคลียร์บิล',
+              onPressed: () {
+                if (_itemSharers.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('กรุณาเลือกคนจ่ายอย่างน้อย 1 รายการ')),
                   );
-                },
-                child: const Text('สรุปยอดและเคลียร์บิล', style: TextStyle(fontSize: 16)),
-              ),
+                  return;
+                }
+
+                // 🚀 ใช้ AppRoutes ยิงข้อมูลเข้าหน้า Summary
+                Navigator.pushReplacementNamed(
+                  context,
+                  AppRoutes.summary,
+                  arguments: {
+                    'lobbyId': widget.lobbyId,
+                    'receiptData': widget.receiptData,
+                    'itemSharers': _itemSharers,
+                  },
+                );
+              },
             ),
           ),
         ],

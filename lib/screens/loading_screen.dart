@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../services/ocr_service.dart';
-import 'review_screen.dart'; // TODO: เดี๋ยวเราจะสร้างไฟล์นี้ในสเตปต่อไป
+import '../../routes/app_routes.dart'; // 🚀 นำเข้าระบบนำทาง
 
 class LoadingScreen extends StatefulWidget {
   final File image;
@@ -17,7 +17,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
   @override
   void initState() {
     super.initState();
-    _processReceipt(); // เริ่มอ่านบิลทันทีที่เปิดหน้านี้
+    _processReceipt();
   }
 
   Future<void> _processReceipt() async {
@@ -26,17 +26,12 @@ class _LoadingScreenState extends State<LoadingScreen> {
       if (!mounted) return;
 
       if (result != null) {
-        // AI อ่านสำเร็จ (ชั่วคราว: แจ้งเตือนก่อนเดี๋ยวค่อยเชื่อมไปหน้า Review)
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('AI อ่านบิลเสร็จแล้ว! 🎉')),
+        // 🚀 ใช้ AppRoutes ในการเปลี่ยนไปหน้า Review พร้อมส่ง JSON ไปด้วย
+        Navigator.pushReplacementNamed(
+          context,
+          AppRoutes.review,
+          arguments: result,
         );
-        Navigator.pop(context); 
-        
-        // โค้ดจริงที่จะใช้เด้งไปหน้า Review (คอมเมนต์ไว้ก่อน)
-         Navigator.pushReplacement(
-           context,
-           MaterialPageRoute(builder: (_) => ReviewScreen(receiptData: result)),
-         );
       } else {
         _showError('ไม่สามารถอ่านข้อมูลใบเสร็จได้');
       }

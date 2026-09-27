@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../routes/app_routes.dart';
+import '../../utils/formatters.dart';
+import '../../widgets/friend_item.dart';
+import '../../widgets/custom_button.dart';
 
-class SummaryScreen extends StatelessWidget {
+class SummaryScreen extends StatefulWidget {
   final String lobbyId;
   final Map<String, dynamic> receiptData;
   final Map<int, List<Map<String, dynamic>>> itemSharers;
@@ -12,18 +17,24 @@ class SummaryScreen extends StatelessWidget {
     required this.itemSharers,
   });
 
+  @override
+  State<SummaryScreen> createState() => _SummaryScreenState();
+}
+
+class _SummaryScreenState extends State<SummaryScreen> {
+  bool _isSaving = false;
+
   // ฟังก์ชันคณิตศาสตร์: คำนวณว่าแต่ละคนต้องจ่ายกี่บาท
   Map<String, double> _calculateTotals() {
     final totals = <String, double>{};
-    final items = receiptData['items'] as List<dynamic>? ?? [];
+    final items = widget.receiptData['items'] as List<dynamic>? ?? [];
 
     for (int i = 0; i < items.length; i++) {
       final item = items[i];
       final price = double.tryParse(item['total_price']?.toString() ?? '0') ?? 0.0;
-      final sharers = itemSharers[i] ?? [];
+      final sharers = widget.itemSharers[i] ?? [];
 
       if (sharers.isNotEmpty) {
-        // เอาค่าอาหารจานนั้น หารด้วยจำนวนคนที่จิ้ม
         final splitPrice = price / sharers.length;
         for (var sharer in sharers) {
           final name = sharer['user_name'] as String;
@@ -34,10 +45,55 @@ class SummaryScreen extends StatelessWidget {
     return totals;
   }
 
+  // ฟังก์ชันบันทึกข้อมูลลงฐานข้อมูลและปิดจบ
+  Future<void> _saveAndFinish() async {
+    setState(() => _isSaving = true); // เปิดสถานะ Loading ที่ปุ่ม
+    
+    try {
+      // 1. ดึง ID ของคนที่ล็อกอินอยู่ (Host)
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      final rawTotalAmount = double.tryParse(widget.receiptData['total_amount']?.toString() ?? '0') ?? 0.0;
+      
+      if (userId != null) {
+        // 2. บันทึกข้อมูลลงตาราง bills
+        await Supabase.instance.client.from('bills').insert({
+          'owner_id': userId,
+          'shop_name': widget.receiptData['shop_name'] ?? 'ไม่ระบุชื่อร้าน',
+          'sub_total': rawTotalAmount,
+        });
+      }
+
+      // 3. ปิดห้อง Lobby เดิม (อัปเดตสถานะเป็น completed)
+      await Supabase.instance.client
+          .from('lobbies')
+          .update({'status': 'completed'})
+          .eq('id', widget.lobbyId);
+
+      // 4. ล้างประวัติหน้าจอทั้งหมดแล้วกลับหน้า Home
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(
+          context, 
+          AppRoutes.home, 
+          (route) => false
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('เกิดข้อผิดพลาดในการบันทึกบิล: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false); // ปิดสถานะ Loading
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final totals = _calculateTotals();
-    final totalAmount = receiptData['total_amount']?.toString() ?? '0';
+    final rawTotalAmount = double.tryParse(widget.receiptData['total_amount']?.toString() ?? '0') ?? 0.0;
 
     return Scaffold(
       appBar: AppBar(title: const Text('สรุปยอดและเคลียร์บิล')),
@@ -52,7 +108,10 @@ class SummaryScreen extends StatelessWidget {
               child: Column(
                 children: [
                   const Text('ยอดรวมทั้งหมด', style: TextStyle(fontSize: 16)),
-                  Text('$totalAmount บาท', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+                  Text(
+                    AppFormatters.formatCurrency(rawTotalAmount), 
+                    style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)
+                  ),
                 ],
               ),
             ),
@@ -65,7 +124,7 @@ class SummaryScreen extends StatelessWidget {
               ),
             ),
             
-            // ลิสต์แสดงชื่อเพื่อนและยอดเงินที่ต้องจ่าย
+            // ลิสต์แสดงรายชื่อคนและยอดที่ต้องจ่าย
             ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -73,16 +132,9 @@ class SummaryScreen extends StatelessWidget {
               itemBuilder: (context, index) {
                 final name = totals.keys.elementAt(index);
                 final amount = totals[name]!;
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.blue.shade100,
-                    child: const Icon(Icons.person, color: Colors.blue),
-                  ),
-                  title: Text(name),
-                  trailing: Text(
-                    '${amount.toStringAsFixed(2)} ฿', 
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red),
-                  ),
+                return FriendItem(
+                  name: name,
+                  amountText: AppFormatters.formatCurrency(amount),
                 );
               },
             ),
@@ -92,7 +144,7 @@ class SummaryScreen extends StatelessWidget {
             const Text('สแกนจ่ายผ่าน PromptPay', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             
-            // จำลองพื้นที่วาง QR Code (สำหรับให้เพื่อน UX/UI ไปใส่ภาพคิวอาร์โค้ดจริงทีหลัง)
+            // จำลองพื้นที่วาง QR Code
             Container(
               width: 200,
               height: 200,
@@ -109,23 +161,14 @@ class SummaryScreen extends StatelessWidget {
             const Text('089-123-XXXX\nนายทดสอบ ระบบหารบิล', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
             const SizedBox(height: 32),
             
-            // ปุ่มจบการทำงาน
+            // ปุ่มกดเสร็จสิ้น
             Padding(
               padding: const EdgeInsets.all(16.0),
-              child: SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed: () {
-                    // กลับไปหน้าแรกสุด (Home) เพื่อเริ่มบิลใหม่
-                    Navigator.popUntil(context, (route) => route.isFirst);
-                  },
-                  child: const Text('เสร็จสิ้นการหารบิล (กลับหน้าแรก)', style: TextStyle(fontSize: 16)),
-                ),
+              child: CustomButton(
+                text: 'เสร็จสิ้นการหารบิล (บันทึก & กลับหน้าแรก)',
+                backgroundColor: Colors.green,
+                isLoading: _isSaving, // 🚀 ส่งค่า Loading ไปให้ปุ่ม
+                onPressed: _isSaving ? null : _saveAndFinish, // ป้องกันการกดเบิ้ล
               ),
             ),
           ],

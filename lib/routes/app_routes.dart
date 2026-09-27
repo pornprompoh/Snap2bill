@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 
 // นำเข้าหน้าจอทั้งหมด
 import '../screens/auth/login_screen.dart';
-import '../screens/home_screen.dart';
 import '../screens/scan_screen.dart';
 import '../screens/loading_screen.dart';
 import '../screens/review_screen.dart';

@@ -1,8 +1,9 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../routes/app_routes.dart'; // 🚀 นำเข้าระบบนำทาง
-import '../../widgets/custom_button.dart'; // 🚀 นำเข้าปุ่มสำเร็จรูป
-import '../../widgets/friend_item.dart'; // 🚀 นำเข้าการ์ดแสดงชื่อเพื่อน
+import 'package:qr_flutter/qr_flutter.dart';
+import '../../routes/app_routes.dart';
+import '../../widgets/custom_button.dart';
 
 class LobbyScreen extends StatefulWidget {
   final Map<String, dynamic> receiptData;
@@ -14,142 +15,186 @@ class LobbyScreen extends StatefulWidget {
 
 class _LobbyScreenState extends State<LobbyScreen> {
   final _supabase = Supabase.instance.client;
-  String? _lobbyId;
-  bool _isLoading = true;
+  late RealtimeChannel _lobbyChannel;
+  List<Map<String, dynamic>> _participants = [];
+  late String _lobbyId;
+  final bool _isHost = true;
 
   @override
   void initState() {
     super.initState();
-    _createLobby();
-  }
-
-  Future<void> _createLobby() async {
-    try {
-      final shopName = widget.receiptData['shop_name'] ?? 'ไม่ระบุชื่อร้าน';
-      final totalAmount = double.tryParse(widget.receiptData['total_amount']?.toString() ?? '0') ?? 0.0;
-
-      final response = await _supabase.from('lobbies').insert({
-        'host_id': '11111111-1111-1111-1111-111111111111', // ใช้ ID จำลอง
-        'shop_name': shopName,
-        'total_amount': totalAmount,
-        'receipt_json': widget.receiptData,
-      }).select().single();
-
-      final lobbyId = response['id'];
-
-      await _supabase.from('participants').insert({
-        'lobby_id': lobbyId,
+    _lobbyId = (100000 + Random().nextInt(900000)).toString();
+    
+    // 🚀 เพิ่มตัวเราเอง (Host) เข้าไปในลิสต์ตั้งต้นทันที ตั้งแต่เปิดหน้าจอ
+    final userId = _supabase.auth.currentUser?.id ?? 'host_id';
+    _participants = [
+      {
+        'user_id': userId,
         'user_name': 'ฉัน (Host)',
         'is_host': true,
-      });
-
-      setState(() {
-        _lobbyId = lobbyId;
-        _isLoading = false;
-      });
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
       }
-    }
+    ];
+
+    _setupRealtime();
+  }
+
+  void _setupRealtime() {
+    final userId = _supabase.auth.currentUser?.id ?? 'host_id';
+    final userName = 'ฉัน (Host)'; 
+
+    _lobbyChannel = _supabase.channel('room_$_lobbyId');
+
+    _lobbyChannel
+        .onPresenceSync((payload) {
+          final newState = _lobbyChannel.presenceState();
+          final List<Map<String, dynamic>> usersInRoom = [];
+          
+          // บังคับให้มี Host ตั้งต้นเสมอ
+          usersInRoom.add({
+            'user_id': userId,
+            'user_name': userName,
+            'is_host': true,
+          });
+
+          // ดึงรายชื่อเพื่อนคนอื่นๆ ที่กดเข้ามาเพิ่ม
+          for (var presence in newState) {
+            for (var item in presence.presences) {
+              final pUserId = item.payload['user_id'];
+              // ถ้าไม่ใช่ไอดีซ้ำกับ Host ค่อย 
+              if (pUserId != userId) {
+                usersInRoom.add({
+                  'user_id': pUserId,
+                  'user_name': item.payload['user_name'],
+                  'is_host': item.payload['is_host'] ?? false,
+                });
+              }
+            }
+          }
+          
+          setState(() {
+            _participants = usersInRoom;
+          });
+        })
+        .subscribe((status, [error]) async {
+          if (status == 'SUBSCRIBED') {
+            await _lobbyChannel.track({
+              'user_id': userId,
+              'user_name': userName,
+              'is_host': _isHost,
+            });
+          }
+        });
+  }
+
+  @override
+  void dispose() {
+    _supabase.removeChannel(_lobbyChannel);
+    super.dispose();
+  }
+
+  void _goToClaimScreen() {
+    final data = Map<String, dynamic>.from(widget.receiptData);
+    data['lobbyId'] = _lobbyId;
+
+    Navigator.pushReplacementNamed(
+      context,
+      AppRoutes.claim,
+      arguments: data,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('กำลังสร้างห้อง...'),
-            ],
-          ),
-        ),
-      );
-    }
-
     return Scaffold(
       appBar: AppBar(title: const Text('รอเพื่อนเข้าห้อง (Lobby)')),
       body: Column(
         children: [
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           const Text('ให้เพื่อนสแกน QR Code นี้', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: const Icon(Icons.qr_code_2, size: 150),
-          ),
-          const SizedBox(height: 10),
-          Text('รหัสห้อง: ${_lobbyId?.substring(0, 8)}...', style: const TextStyle(color: Colors.grey)),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           
-          const Divider(),
-          const Padding(
-            padding: EdgeInsets.all(8.0),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text('เพื่อนที่อยู่ในห้องตอนนี้:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Center(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+              ),
+              child: QrImageView(
+                data: 'https://snap2bill.com/join/$_lobbyId',
+                version: QrVersions.auto,
+                size: 200.0,
+                backgroundColor: Colors.white,
+              ),
             ),
           ),
+          
+          const SizedBox(height: 16),
+          Text('หรือกรอกรหัสห้อง: $_lobbyId', style: const TextStyle(fontSize: 16, color: Colors.grey)),
+          const SizedBox(height: 32),
           
           Expanded(
-            child: StreamBuilder<List<Map<String, dynamic>>>(
-              stream: _supabase
-                  .from('participants')
-                  .stream(primaryKey: ['id'])
-                  .eq('lobby_id', _lobbyId!)
-                  .order('joined_at', ascending: true),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                final participants = snapshot.data!;
-                return ListView.builder(
-                  itemCount: participants.length,
-                  itemBuilder: (context, index) {
-                    final p = participants[index];
-                    // 🚀 เรียกใช้ FriendItem แทน ListTile เดิม
-                    return FriendItem(
-                      name: p['user_name'],
-                      isHost: p['is_host'] == true,
-                    );
-                  },
-                );
-              },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                boxShadow: [BoxShadow(color: Colors.grey.shade200, blurRadius: 10, offset: const Offset(0, -5))],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('เพื่อนที่อยู่ในห้องตอนนี้:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      Text('${_participants.length} คน', style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: _participants.length,
+                      itemBuilder: (context, index) {
+                        final p = _participants[index];
+                        final isHost = p['is_host'] == true;
+                        
+                        return Card(
+                          elevation: 0,
+                          color: isHost ? Colors.orange.shade50 : Colors.grey.shade50,
+                          shape: RoundedRectangleBorder(
+                            side: BorderSide(color: isHost ? Colors.orange.shade200 : Colors.grey.shade200),
+                            borderRadius: BorderRadius.circular(12)
+                          ),
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: isHost ? Colors.orange : Colors.grey,
+                              child: Icon(isHost ? Icons.star : Icons.person, color: Colors.white),
+                            ),
+                            title: Text(p['user_name'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            subtitle: Text(isHost ? 'หัวหน้าห้อง' : 'ผู้เข้าร่วม'),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-
+          
           Padding(
             padding: const EdgeInsets.all(16.0),
-            // 🚀 เรียกใช้ CustomButton แบบคลีนๆ
             child: CustomButton(
-              text: 'เริ่มเลือกเมนูอาหาร',
-              onPressed: () {
-                if (_lobbyId == null) return;
-                
-                _supabase.from('lobbies').update({'status': 'splitting'}).eq('id', _lobbyId!);
-
-                // 🚀 ใช้ PushReplacementNamed ส่งข้อมูลกระโดดไปหน้า Claim
-                Navigator.pushReplacementNamed(
-                  context,
-                  AppRoutes.claim,
-                  arguments: {
-                    'lobbyId': _lobbyId!,
-                    'receiptData': widget.receiptData,
-                  },
-                );
-              },
+              text: 'เพื่อนครบแล้ว เริ่มแย่งเมนูเลย!',
+              // ปลดล็อกให้กดได้ทันที เพราะมีตัวเราอยู่ในห้องอย่างน้อย 1 คนเสมอ
+              onPressed: _goToClaimScreen, 
             ),
-          ),
+          )
         ],
       ),
     );

@@ -1,59 +1,64 @@
 import 'dart:io';
 import 'dart:convert';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class OcrService {
   Future<Map<String, dynamic>?> processReceipt(File imageFile) async {
-    final apiKey = dotenv.env['GEMINI_API_KEY'];
-    if (apiKey == null || apiKey.isEmpty) throw 'ไม่พบคีย์ GEMINI_API_KEY ในไฟล์ .env';
+    try {
+      // ดึง API Key จากไฟล์ .env
+      final apiKey = dotenv.env['GEMINI_API_KEY'];
+      if (apiKey == null || apiKey.isEmpty) {
+        throw Exception('ไม่พบ GEMINI_API_KEY ในไฟล์ .env');
+      }
 
-    // กลับมาใช้แพ็กเกจเดิมที่คุ้นเคย และใช้โมเดล flash ที่อ่านรูปได้เร็ว
-    final model = GenerativeModel(
-      model: 'gemini-3.8-flash', 
-      apiKey: apiKey,
-      // [แก้ไข] เอา generationConfig (responseMimeType) ออก เพื่อไม่ให้เกิด Error unsupported
-    );
+      final model = GenerativeModel(
+        model: 'gemini-3.8-flash',
+        apiKey: apiKey,
+      );
 
-    final imageBytes = await imageFile.readAsBytes();
-    
-    final prompt = TextPart('''
-โปรดอ่านข้อมูลจากใบเสร็จนี้และแปลงเป็นรูปแบบ JSON ให้ตรงกับโครงสร้างต่อไปนี้อย่างเคร่งครัด:
+      final imageBytes = await imageFile.readAsBytes();
+      
+      // 🚀 ปรับ Prompt ใหม่ให้ AI คาย Qty และแยก VAT ออกจาก items
+      final prompt = TextPart('''
+กรุณาอ่านข้อมูลใบเสร็จนี้และแปลงเป็น JSON format อย่างเคร่งครัด โดยใช้โครงสร้างดังนี้:
 {
-  "shop_name": "ชื่อร้านอาหาร (ถ้าไม่มีให้คืนค่า null)",
-  "receipt_date": "วันที่บนใบเสร็จ รูปแบบ YYYY-MM-DD (ถ้าไม่มีให้คืนค่า null)",
-  "sub_total": ยอดรวมอาหารก่อนภาษีและ service charge (ตัวเลขทศนิยม),
-  "vat_amount": ยอด VAT 7% หรือภาษี (ตัวเลขทศนิยม),
-  "service_charge": ยอด Service Charge (ตัวเลขทศนิยม),
-  "total_amount": ยอดสุทธิรวมทั้งหมด (ตัวเลขทศนิยม),
+  "shop_name": "ชื่อร้าน",
+  "sub_total": ยอดรวมเฉพาะค่าอาหาร/สินค้าก่อนรวม VAT (number),
+  "vat_amount": ภาษีมูลค่าเพิ่ม ถ้าไม่มีให้เป็น 0 (number),
+  "service_charge": เซอร์วิสชาร์จ ถ้าไม่มีให้เป็น 0 (number),
+  "discount": ส่วนลด ถ้าไม่มีให้เป็น 0 (number),
+  "total_amount": ยอดเงินสุทธิที่ต้องจ่ายทั้งหมด (number),
   "items": [
     {
-      "item_name": "ชื่อเมนูอาหาร",
-      "price": ราคาต่อหน่วย (ตัวเลขทศนิยม),
-      "quantity": จำนวนที่สั่ง (ตัวเลขจำนวนเต็ม),
-      "total_price": ราคารวมของเมนูนี้ (ตัวเลขทศนิยม)
+      "item_name": "ชื่อเมนูอาหาร/สินค้า (ตัดตัวเลขจำนวนออกจากชื่อ)",
+      "qty": จำนวนชิ้น (integer),
+      "unit_price": ราคาต่อหน่วย (number),
+      "total_price": ราคารวมของรายการนี้ (number)
     }
   ]
 }
-ส่งกลับมาเฉพาะก้อน JSON เท่านั้น ห้ามพิมพ์ข้อความอธิบายหรือเครื่องหมาย markdown ใดๆ เพิ่มเติม
+
+กฎเหล็กที่ต้องทำตาม:
+1. ในอาร์เรย์ "items" ห้ามใส่รายการที่เป็น VAT, Service Charge, ส่วนลด, เงินทอน หรือ ยอดรวมเด็ดขาด ให้ใส่เฉพาะสินค้าที่จับต้องได้เท่านั้น
+2. ถ้าเมนูไหนไม่ได้ระบุจำนวนชัดเจน ให้ถือว่า qty = 1
+3. ส่งกลับมาเฉพาะ JSON text เท่านั้น ห้ามมีคำอธิบายอื่น และห้ามมี markdown ```json ครอบ
 ''');
 
-    final imagePart = DataPart('image/jpeg', imageBytes);
+      final imagePart = DataPart('image/jpeg', imageBytes);
 
-    try {
       final response = await model.generateContent([
         Content.multi([prompt, imagePart])
       ]);
 
-      var text = response.text;
-      if (text != null && text.isNotEmpty) {
-        // [แก้ไข] เพิ่มตัวช่วยทำความสะอาดข้อความ เผื่อ AI แอบส่งสัญลักษณ์ ```json มาคล่อม
-        text = text.replaceAll('```json', '').replaceAll('```', '').trim();
-        return jsonDecode(text);
-      }
-      return null;
+      final text = response.text ?? '';
+      // ทำความสะอาดข้อความ เผื่อ AI เผลอส่ง markdown ติดมา
+      final cleanText = text.replaceAll('```json', '').replaceAll('```', '').trim();
+      
+      return jsonDecode(cleanText) as Map<String, dynamic>;
     } catch (e) {
-      throw 'เกิดข้อผิดพลาดในการประมวลผลรูปภาพ: $e';
+      print('OCR Error: $e');
+      return null;
     }
   }
 }

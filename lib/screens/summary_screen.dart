@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../routes/app_routes.dart';
@@ -24,69 +25,89 @@ class SummaryScreen extends StatefulWidget {
 class _SummaryScreenState extends State<SummaryScreen> {
   bool _isSaving = false;
 
-  // ฟังก์ชันคณิตศาสตร์: คำนวณว่าแต่ละคนต้องจ่ายกี่บาท
+  // 🚀 ฟังก์ชันคำนวณยอดรวม + หาร VAT และ Service Charge ตามสัดส่วน
   Map<String, double> _calculateTotals() {
     final totals = <String, double>{};
     final items = widget.receiptData['items'] as List<dynamic>? ?? [];
 
+    double totalClaimedValue = 0.0;
+    final userItemTotals = <String, double>{};
+
+    // 1. รวมยอดค่าอาหาร/สินค้าเพียวๆ ของแต่ละคน
     for (int i = 0; i < items.length; i++) {
       final item = items[i];
-      final price = double.tryParse(item['total_price']?.toString() ?? '0') ?? 0.0;
+      // ใช้ unit_price เพราะ 1 itemSharer = 1 ชิ้น
+      final unitPrice = double.tryParse(item['unit_price']?.toString() ?? '0') ?? 0.0;
       final sharers = widget.itemSharers[i] ?? [];
 
-      if (sharers.isNotEmpty) {
-        final splitPrice = price / sharers.length;
-        for (var sharer in sharers) {
-          final name = sharer['user_name'] as String;
-          totals[name] = (totals[name] ?? 0) + splitPrice;
-        }
+      for (var sharer in sharers) {
+        final name = sharer['user_name'] as String;
+        userItemTotals[name] = (userItemTotals[name] ?? 0) + unitPrice;
+        totalClaimedValue += unitPrice;
       }
     }
+
+    // 2. ดึงค่าส่วนเกิน (VAT, Service Charge, ส่วนลด)
+    final vat = double.tryParse(widget.receiptData['vat_amount']?.toString() ?? '0') ?? 0.0;
+    final sc = double.tryParse(widget.receiptData['service_charge']?.toString() ?? '0') ?? 0.0;
+    final discount = double.tryParse(widget.receiptData['discount']?.toString() ?? '0') ?? 0.0;
+    final extraCharges = vat + sc - discount;
+
+    // 3. กระจายส่วนเกินให้แต่ละคนตามสัดส่วนที่กิน
+    userItemTotals.forEach((name, itemTotal) {
+      if (totalClaimedValue > 0) {
+        final proportion = itemTotal / totalClaimedValue; // หารสัดส่วน
+        final userExtra = extraCharges * proportion;
+        totals[name] = itemTotal + userExtra;
+      } else {
+        totals[name] = itemTotal;
+      }
+    });
+
     return totals;
   }
 
-  // ฟังก์ชันบันทึกข้อมูลลงฐานข้อมูลและปิดจบ
   Future<void> _saveAndFinish() async {
-    setState(() => _isSaving = true); // เปิดสถานะ Loading ที่ปุ่ม
+    setState(() => _isSaving = true);
     
     try {
-      // 1. ดึง ID ของคนที่ล็อกอินอยู่ (Host)
-      final userId = Supabase.instance.client.auth.currentUser?.id;
-      final rawTotalAmount = double.tryParse(widget.receiptData['total_amount']?.toString() ?? '0') ?? 0.0;
-      
-      if (userId != null) {
-        // 2. บันทึกข้อมูลลงตาราง bills
-        await Supabase.instance.client.from('bills').insert({
-          'owner_id': userId,
-          'shop_name': widget.receiptData['shop_name'] ?? 'ไม่ระบุชื่อร้าน',
-          'sub_total': rawTotalAmount,
-        });
+      final supabase = Supabase.instance.client;
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) throw 'ไม่พบรหัสผู้ใช้งาน กรุณาล็อกอินใหม่';
+
+      String? imageUrl;
+      final localImagePath = widget.receiptData['local_image_path'];
+
+      if (localImagePath != null) {
+        final file = File(localImagePath);
+        final fileName = '${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        await supabase.storage.from('receipts').upload(fileName, file);
+        imageUrl = supabase.storage.from('receipts').getPublicUrl(fileName);
       }
 
-      // 3. ปิดห้อง Lobby เดิม (อัปเดตสถานะเป็น completed)
-      await Supabase.instance.client
-          .from('lobbies')
-          .update({'status': 'completed'})
-          .eq('id', widget.lobbyId);
+      final sharersJson = widget.itemSharers.map((key, value) => MapEntry(key.toString(), value));
+      final rawTotalAmount = double.tryParse(widget.receiptData['total_amount']?.toString() ?? '0') ?? 0.0;
 
-      // 4. ล้างประวัติหน้าจอทั้งหมดแล้วกลับหน้า Home
+      await supabase.from('bills').insert({
+        'owner_id': userId,
+        'shop_name': widget.receiptData['shop_name'] ?? 'ไม่ระบุชื่อร้าน',
+        'sub_total': rawTotalAmount,
+        'image_url': imageUrl,
+        'receipt_json': widget.receiptData,
+        'sharers_json': sharersJson,
+      });
+
+      await supabase.from('lobbies').update({'status': 'completed'}).eq('id', widget.lobbyId);
+
       if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(
-          context, 
-          AppRoutes.home, 
-          (route) => false
-        );
+        Navigator.pushNamedAndRemoveUntil(context, AppRoutes.home, (route) => false);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('เกิดข้อผิดพลาดในการบันทึกบิล: $e')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
       }
     } finally {
-      if (mounted) {
-        setState(() => _isSaving = false); // ปิดสถานะ Loading
-      }
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -100,7 +121,6 @@ class _SummaryScreenState extends State<SummaryScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // ส่วนหัวแสดงยอดรวมทั้งหมด
             Container(
               padding: const EdgeInsets.all(24),
               color: Theme.of(context).colorScheme.primaryContainer,
@@ -111,6 +131,11 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   Text(
                     AppFormatters.formatCurrency(rawTotalAmount), 
                     style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '*คำนวณ VAT และ Service Charge ตามสัดส่วนแล้ว',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
                 ],
               ),
@@ -123,8 +148,6 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 child: Text('สรุปยอดรายบุคคล', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ),
             ),
-            
-            // ลิสต์แสดงรายชื่อคนและยอดที่ต้องจ่าย
             ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -138,13 +161,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 );
               },
             ),
-            
             const Divider(thickness: 2),
             const SizedBox(height: 16),
             const Text('สแกนจ่ายผ่าน PromptPay', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
-            
-            // จำลองพื้นที่วาง QR Code
             Container(
               width: 200,
               height: 200,
@@ -160,15 +180,13 @@ class _SummaryScreenState extends State<SummaryScreen> {
             const SizedBox(height: 8),
             const Text('089-123-XXXX\nนายทดสอบ ระบบหารบิล', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
             const SizedBox(height: 32),
-            
-            // ปุ่มกดเสร็จสิ้น
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: CustomButton(
                 text: 'เสร็จสิ้นการหารบิล (บันทึก & กลับหน้าแรก)',
                 backgroundColor: Colors.green,
-                isLoading: _isSaving, // 🚀 ส่งค่า Loading ไปให้ปุ่ม
-                onPressed: _isSaving ? null : _saveAndFinish, // ป้องกันการกดเบิ้ล
+                isLoading: _isSaving, 
+                onPressed: _isSaving ? null : _saveAndFinish, 
               ),
             ),
           ],

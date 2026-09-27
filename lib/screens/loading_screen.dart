@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../services/ocr_service.dart';
-import '../../routes/app_routes.dart'; // 🚀 นำเข้าระบบนำทาง
+import '../../routes/app_routes.dart';
 
 class LoadingScreen extends StatefulWidget {
   final File image;
@@ -26,7 +26,9 @@ class _LoadingScreenState extends State<LoadingScreen> {
       if (!mounted) return;
 
       if (result != null) {
-        // 🚀 ใช้ AppRoutes ในการเปลี่ยนไปหน้า Review พร้อมส่ง JSON ไปด้วย
+        // 🚀 ทริค: แอบฝากที่อยู่ไฟล์รูปภาพ (Path) ไปกับชุดข้อมูล JSON เลย
+        result['local_image_path'] = widget.image.path; 
+
         Navigator.pushReplacementNamed(
           context,
           AppRoutes.review,
@@ -43,7 +45,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
   void _showError(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-    Navigator.pop(context); // กลับไปหน้าสแกน
+    Navigator.pop(context);
   }
 
   @override

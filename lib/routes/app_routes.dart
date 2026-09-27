@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 
-// Import หน้าจอทั้งหมด
+// นำเข้าหน้าจอทั้งหมด
 import '../screens/auth/login_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/scan_screen.dart';
@@ -12,9 +12,10 @@ import '../screens/claim_screen.dart';
 import '../screens/summary_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/friends/friend_list_screen.dart';
-
+import '../screens/detail_screen.dart';
+import '../screens/main_screen.dart';
 class AppRoutes {
-  // กำหนดชื่อ Route เป็นค่าคงที่
+  // ประกาศชื่อ Route ต่างๆ
   static const String login = '/login';
   static const String home = '/home';
   static const String scan = '/scan';
@@ -25,44 +26,45 @@ class AppRoutes {
   static const String summary = '/summary';
   static const String profile = '/profile';
   static const String friends = '/friends';
+  static const String detail = '/detail';
 
-  // ฟังก์ชันควบคุมการเปลี่ยนหน้าและส่งพารามิเตอร์
+  // ฟังก์ชันจัดการการเปลี่ยนหน้า
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
-      case '/':
+      case '/': // หน้าแรกสุดของแอป
       case login:
         return MaterialPageRoute(builder: (_) => const LoginScreen());
       case home:
-        return MaterialPageRoute(builder: (_) => const HomeScreen());
+        return MaterialPageRoute(builder: (_) => const MainScreen());
       case scan:
         return MaterialPageRoute(builder: (_) => const ScanScreen());
       case profile:
         return MaterialPageRoute(builder: (_) => const ProfileScreen());
-      case friends: // 🚀 เพิ่มเคสนี้
+      case friends:
         return MaterialPageRoute(builder: (_) => const FriendListScreen());
-
         
+      // ส่วนที่มีการส่งข้อมูลพ่วงไปด้วย (Arguments)
+      case detail:
+        final billData = settings.arguments as Map<String, dynamic>? ?? {};
+        return MaterialPageRoute(builder: (_) => DetailScreen(billData: billData));
       case loading:
-        final imageFile = settings.arguments as File;
-        return MaterialPageRoute(builder: (_) => LoadingScreen(image: imageFile));
-        
+        final image = settings.arguments as File;
+        return MaterialPageRoute(builder: (_) => LoadingScreen(image: image));
       case review:
         final receiptData = settings.arguments as Map<String, dynamic>;
         return MaterialPageRoute(builder: (_) => ReviewScreen(receiptData: receiptData));
-        
       case lobby:
         final receiptData = settings.arguments as Map<String, dynamic>;
         return MaterialPageRoute(builder: (_) => LobbyScreen(receiptData: receiptData));
-        
       case claim:
-        final args = settings.arguments as Map<String, dynamic>;
+        // 🚀 ป้องกันค่า null โดยการบังคับแปลงเป็น Map ถ้ายิงมาผิดให้เป็น Map ว่าง
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
         return MaterialPageRoute(
           builder: (_) => ClaimScreen(
-            lobbyId: args['lobbyId'],
-            receiptData: args['receiptData'],
+            lobbyId: args['lobbyId'] ?? 'unknown_room',
+            receiptData: args['receiptData'] ?? {},
           ),
         );
-        
       case summary:
         final args = settings.arguments as Map<String, dynamic>;
         return MaterialPageRoute(
@@ -72,11 +74,13 @@ class AppRoutes {
             itemSharers: args['itemSharers'],
           ),
         );
-        
       default:
+        // กรณีเรียก Route ผิด
         return MaterialPageRoute(
           builder: (_) => Scaffold(
-            body: Center(child: Text('ไม่มีหน้าจอสำหรับ Route: ${settings.name}')),
+            body: Center(
+              child: Text('ไม่มีหน้าจอสำหรับ Route: ${settings.name}'),
+            ),
           ),
         );
     }

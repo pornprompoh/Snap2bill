@@ -1,9 +1,13 @@
 import 'dart:io';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class OcrService {
+  static const String _primaryModelName = 'gemini-3.5-flash-lite';
+  static const String _fallbackModelName = 'gemini-3.1-flash-lite';
+
   Future<Map<String, dynamic>?> processReceipt(File imageFile) async {
     try {
       // ดึง API Key จากไฟล์ .env
@@ -12,13 +16,8 @@ class OcrService {
         throw Exception('ไม่พบ GEMINI_API_KEY ในไฟล์ .env');
       }
 
-      final model = GenerativeModel(
-        model: 'gemini-3.5-flash-lite',
-        apiKey: apiKey,
-      );
-
       final imageBytes = await imageFile.readAsBytes();
-      
+
       // 🚀 ปรับ Prompt ใหม่ให้ AI คาย Qty และแยก VAT ออกจาก items
       final prompt = TextPart('''
 กรุณาอ่านข้อมูลใบเสร็จนี้และแปลงเป็น JSON format อย่างเคร่งครัด โดยใช้โครงสร้างดังนี้:
@@ -47,18 +46,77 @@ class OcrService {
 
       final imagePart = DataPart('image/jpeg', imageBytes);
 
-      final response = await model.generateContent([
-        Content.multi([prompt, imagePart])
-      ]);
+      final content = [
+        Content.multi([prompt, imagePart]),
+      ];
+      final response = await _generateWithFallback(
+        apiKey: apiKey,
+        content: content,
+      );
 
       final text = response.text ?? '';
       // ทำความสะอาดข้อความ เผื่อ AI เผลอส่ง markdown ติดมา
-      final cleanText = text.replaceAll('```json', '').replaceAll('```', '').trim();
-      
+      final cleanText = text
+          .replaceAll('```json', '')
+          .replaceAll('```', '')
+          .trim();
+
       return jsonDecode(cleanText) as Map<String, dynamic>;
-    } catch (e) {
-      print('OCR Error: $e');
-      return null;
+    } catch (error, stackTrace) {
+      debugPrint('OCR Error: $error');
+      Error.throwWithStackTrace(error, stackTrace);
     }
+  }
+
+  Future<GenerateContentResponse> _generateWithFallback({
+    required String apiKey,
+    required List<Content> content,
+  }) async {
+    try {
+      return await _generateWithModel(
+        modelName: _primaryModelName,
+        apiKey: apiKey,
+        content: content,
+      );
+    } catch (primaryError, primaryStackTrace) {
+      if (!_isTransientCapacityError(primaryError)) {
+        Error.throwWithStackTrace(primaryError, primaryStackTrace);
+      }
+
+      debugPrint(
+        'Primary OCR model failed ($primaryError); '
+        'retrying immediately with $_fallbackModelName.',
+      );
+
+      try {
+        return await _generateWithModel(
+          modelName: _fallbackModelName,
+          apiKey: apiKey,
+          content: content,
+        );
+      } catch (fallbackError, fallbackStackTrace) {
+        debugPrint('Fallback OCR model failed: $fallbackError');
+        Error.throwWithStackTrace(
+          Exception(
+            'OCR failed with both models. '
+            'Primary: $primaryError; fallback: $fallbackError',
+          ),
+          fallbackStackTrace,
+        );
+      }
+    }
+  }
+
+  Future<GenerateContentResponse> _generateWithModel({
+    required String modelName,
+    required String apiKey,
+    required List<Content> content,
+  }) {
+    final model = GenerativeModel(model: modelName, apiKey: apiKey);
+    return model.generateContent(content);
+  }
+
+  bool _isTransientCapacityError(Object error) {
+    return RegExp(r'\[(429|503)\]').hasMatch(error.toString());
   }
 }

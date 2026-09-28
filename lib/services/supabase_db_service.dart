@@ -20,6 +20,34 @@ class SupabaseDbService {
     return UserModel.fromJson(response);
   }
 
+  Future<UserModel> updateUserProfile({
+    required String displayName,
+    required Map<String, dynamic>? paymentInfo,
+  }) async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) throw 'ผู้ใช้ยังไม่ได้ล็อกอิน';
+
+    final promptPayType = paymentInfo?['type'];
+    if (promptPayType != null &&
+        promptPayType != 'phone' &&
+        promptPayType != 'id_card') {
+      throw ArgumentError.value(promptPayType, 'paymentInfo.type');
+    }
+
+    final response = await _supabase
+        .from('profiles')
+        .update({
+          'display_name': displayName,
+          'payment_info': paymentInfo,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', userId)
+        .select()
+        .single();
+
+    return UserModel.fromMap(response);
+  }
+
   // 2. ดึงสมุดรายชื่อเพื่อน (ดึงเฉพาะคนที่ยังไม่ถูกซ่อน/ลบ)
   Future<List<FriendModel>> getMyFriends() async {
     final userId = _supabase.auth.currentUser?.id;

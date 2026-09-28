@@ -15,13 +15,54 @@ class UserProvider with ChangeNotifier {
 
   // ดึงข้อมูลโปรไฟล์ (เรียกใช้ตอนเข้าแอป)
   Future<void> loadProfile() async {
+    await fetchCurrentUserProfile();
+  }
+
+  Future<UserModel?> fetchCurrentUserProfile() async {
     _isLoading = true;
     notifyListeners();
 
-    _currentUser = await _dbService.getMyProfile();
+    try {
+      _currentUser = await _dbService.getMyProfile();
+      return _currentUser;
+    } catch (error, stackTrace) {
+      debugPrint('Failed to load profile: $error\n$stackTrace');
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 
-    _isLoading = false;
+  Future<bool> saveProfile({
+    required String name,
+    String? promptPayNumber,
+    String? promptPayType,
+  }) async {
+    _isLoading = true;
     notifyListeners();
+
+    try {
+      final trimmedPromptPayNumber = promptPayNumber?.trim();
+      final paymentInfo = trimmedPromptPayNumber == null || trimmedPromptPayNumber.isEmpty
+          ? null
+          : {
+              'type': promptPayType,
+              'number': trimmedPromptPayNumber,
+            };
+
+      _currentUser = await _dbService.updateUserProfile(
+        displayName: name,
+        paymentInfo: paymentInfo,
+      );
+      return true;
+    } catch (error, stackTrace) {
+      debugPrint('Failed to save profile: $error\n$stackTrace');
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   // ดึงรายชื่อเพื่อนมาแสดง

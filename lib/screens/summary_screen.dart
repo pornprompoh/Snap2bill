@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/user_model.dart';
 import '../../providers/user_provider.dart';
 import '../../routes/app_routes.dart';
+import '../../services/supabase_storage_service.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/custom_button.dart';
 
@@ -202,10 +203,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
       if (!kIsWeb && localImagePath != null && localImagePath.isNotEmpty) {
         final file = File(localImagePath);
         if (file.existsSync()) {
-          final fileName =
-              '${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-          await supabase.storage.from('receipts').upload(fileName, file);
-          imageUrl = supabase.storage.from('receipts').getPublicUrl(fileName);
+          imageUrl = await SupabaseStorageService().uploadReceiptImage(
+            file,
+            widget.lobbyId,
+          );
         }
       }
 

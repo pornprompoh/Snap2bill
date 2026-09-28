@@ -11,6 +11,7 @@ import 'providers/bill_provider.dart';
 import 'providers/user_provider.dart';
 import 'services/supabase_auth_service.dart';
 import 'theme/app_colors.dart';
+import 'theme/app_text_styles.dart';
 
 final _navigatorKey = GlobalKey<NavigatorState>();
 final _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
@@ -193,16 +194,40 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme =
+        ColorScheme.fromSeed(
+          seedColor: AppColors.primary,
+          brightness: Brightness.light,
+        ).copyWith(
+          primary: AppColors.primary,
+          onPrimary: AppColors.surface,
+          primaryContainer: AppColors.secondary,
+          onPrimaryContainer: AppColors.primaryDark,
+          secondary: AppColors.secondary,
+          onSecondary: AppColors.primaryDark,
+          tertiary: AppColors.accent,
+          onTertiary: AppColors.textPrimary,
+          surface: AppColors.surface,
+          onSurface: AppColors.textPrimary,
+          outline: AppColors.border,
+          error: AppColors.error,
+          onError: AppColors.surface,
+        );
+
     return MaterialApp(
       title: 'Snap2Bill',
       navigatorKey: _navigatorKey,
       scaffoldMessengerKey: _scaffoldMessengerKey,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primary,
-          surface: AppColors.surface,
-        ),
+        colorScheme: colorScheme,
+        textTheme: AppTextStyles.textTheme,
         scaffoldBackgroundColor: AppColors.background,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: AppColors.background,
+          foregroundColor: AppColors.textPrimary,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+        ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: AppColors.surface,
@@ -218,6 +243,8 @@ class MyApp extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
           ),
+          labelStyle: AppTextStyles.caption,
+          hintStyle: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
         ),
         useMaterial3: true,
       ),

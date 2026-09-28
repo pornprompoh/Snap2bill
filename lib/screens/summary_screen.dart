@@ -8,6 +8,7 @@ import '../../models/user_model.dart';
 import '../../providers/user_provider.dart';
 import '../../routes/app_routes.dart';
 import '../../services/supabase_storage_service.dart';
+import '../../theme/app_colors.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/custom_button.dart';
 
@@ -525,38 +526,131 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   const SizedBox(height: 16),
 
                   if (_hasValidPromptPay && qrAmount > 0) ...[
-                    const Text(
-                      'สแกนจ่ายผ่าน PromptPay',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
                     Container(
-                      width: 200,
-                      height: 200,
+                      margin: const EdgeInsets.symmetric(horizontal: 20),
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Center(
-                        child: QrImageView(
-                          data: _generatePromptPayPayload(
-                            _hostPromptPay,
-                            qrAmount,
+                        color: AppColors.surface,
+                        border: Border.all(color: AppColors.border),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primaryDark.withValues(
+                              alpha: 0.06,
+                            ),
+                            blurRadius: 20,
+                            offset: const Offset(0, 7),
                           ),
-                          version: QrVersions.auto,
-                          size: 180.0,
+                        ],
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.account_balance_wallet_outlined,
+                                  color: AppColors.primary,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'PROMPTPAY',
+                                  style: Theme.of(context).textTheme.labelLarge
+                                      ?.copyWith(
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'ชำระให้ $_hostName',
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(color: AppColors.textSecondary),
+                            ),
+                            const SizedBox(height: 16),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: AppColors.border),
+                              ),
+                              child: QrImageView(
+                                data: _generatePromptPayPayload(
+                                  _hostPromptPay,
+                                  qrAmount,
+                                ),
+                                version: QrVersions.auto,
+                                size: 190,
+                                eyeStyle: const QrEyeStyle(
+                                  eyeShape: QrEyeShape.square,
+                                  color: AppColors.primaryDark,
+                                ),
+                                dataModuleStyle: const QrDataModuleStyle(
+                                  dataModuleShape: QrDataModuleShape.square,
+                                  color: AppColors.primaryDark,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              _hostPromptPay,
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    color: AppColors.textSecondary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                            ),
+                            const SizedBox(height: 14),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.secondary.withValues(
+                                  alpha: 0.35,
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      _isCurrentUserHost
+                                          ? 'ยอดรวมบิล'
+                                          : 'ยอดที่คุณต้องชำระ',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                            color: AppColors.textSecondary,
+                                          ),
+                                    ),
+                                  ),
+                                  Text(
+                                    AppFormatters.formatCurrency(qrAmount),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(
+                                          color: AppColors.primaryDark,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '$_hostPromptPay\n$_hostName\nยอดชำระ ${AppFormatters.formatCurrency(qrAmount)}',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.grey),
                     ),
                   ],
 
@@ -566,10 +660,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     // 🚀 ถ้าเป็น Host ถึงจะขึ้นปุ่มเซฟบิลสีเขียว ถ้าเป็น Guest จะเป็นปุ่ม "กลับหน้าแรก" เฉยๆ ไม่แตะฐานข้อมูล
                     child: CustomButton(
                       text: _isCurrentUserHost
-                          ? 'เสร็จสิ้นการหารบิล (บันทึก & กลับหน้าแรก)'
+                          ? 'เสร็จสิ้นการหารบิล'
                           : 'กลับหน้าแรก',
                       backgroundColor: _isCurrentUserHost
-                          ? Colors.green
+                          ? AppColors.success
                           : Theme.of(context).colorScheme.primary,
                       isLoading: _isSaving,
                       onPressed: _isSaving ? null : _saveAndFinish,

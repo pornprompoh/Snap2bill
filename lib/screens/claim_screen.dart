@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../routes/app_routes.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_text_styles.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/custom_button.dart';
 
@@ -231,15 +233,44 @@ class _ClaimScreenState extends State<ClaimScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             width: double.infinity,
-            color: Theme.of(context).colorScheme.primaryContainer,
+            color: AppColors.secondary.withValues(alpha: 0.5),
             child: Text(
               'รหัสห้อง: ${widget.lobbyId} | ร้าน: $shopName',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: AppTextStyles.body.copyWith(
+                color: AppColors.primaryDark,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 14, 24, 6),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text('เมนูอาหาร', style: AppTextStyles.caption),
+                ),
+                SizedBox(
+                  width: 104,
+                  child: Text(
+                    'จำนวน',
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.caption,
+                  ),
+                ),
+                SizedBox(
+                  width: 78,
+                  child: Text(
+                    'ราคา/ชิ้น',
+                    textAlign: TextAlign.end,
+                    style: AppTextStyles.caption,
+                  ),
+                ),
+              ],
             ),
           ),
           Expanded(
             child: ListView.builder(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
               itemCount: items.length,
               itemBuilder: (context, index) {
                 final item = items[index];
@@ -252,119 +283,182 @@ class _ClaimScreenState extends State<ClaimScreen> {
 
                 final itemClaims = _claimedItems[index] ?? {};
                 final myClaimedQty = itemClaims[_currentUserId] ?? 0;
-                int totalClaimed = itemClaims.values.fold(
+                final totalClaimed = itemClaims.values.fold(
                   0,
                   (sum, qty) => sum + qty,
                 );
                 final isFullyClaimed = totalClaimed >= maxQty;
+                final isSelected = myClaimedQty > 0;
 
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  shape: RoundedRectangleBorder(
-                    side: BorderSide(
-                      color: isFullyClaimed
-                          ? Colors.green.shade300
-                          : Colors.grey.shade300,
-                      width: isFullyClaimed ? 2 : 1,
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOut,
+                  margin: const EdgeInsets.only(bottom: 10),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.primary.withValues(alpha: 0.07)
+                        : AppColors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isSelected
+                          ? AppColors.primary
+                          : isFullyClaimed
+                          ? AppColors.success.withValues(alpha: 0.5)
+                          : AppColors.border,
+                      width: isSelected ? 1.5 : 1,
                     ),
-                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.08),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ]
+                        : const [],
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 14,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                itemName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${AppFormatters.formatCurrency(unitPrice)} / ชิ้น (มีทั้งหมด $maxQty)',
-                                style: TextStyle(
-                                  color: Colors.grey.shade700,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              if (itemClaims.isNotEmpty) ...[
-                                const SizedBox(height: 8),
-                                Wrap(
-                                  spacing: 6,
-                                  runSpacing: 6,
-                                  children: itemClaims.entries.map((entry) {
-                                    final userId = entry.key;
-                                    final qty = entry.value;
-                                    final name = _userNames[userId] ?? 'เพื่อน';
-                                    final isMe = userId == _currentUserId;
-                                    return Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: isMe
-                                            ? Colors.blue.shade50
-                                            : Colors.orange.shade50,
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: isMe
-                                              ? Colors.blue.shade200
-                                              : Colors.orange.shade200,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        '$name: $qty',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: isMe
-                                              ? Colors.blue.shade700
-                                              : Colors.orange.shade700,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    );
-                                  }).toList(),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            IconButton(
-                              icon: const Icon(Icons.remove_circle_outline),
-                              color: myClaimedQty > 0
-                                  ? Colors.red
-                                  : Colors.grey,
-                              onPressed: myClaimedQty > 0
-                                  ? () => _decrement(index)
-                                  : null,
-                            ),
-                            Text(
-                              '$myClaimedQty',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    itemName,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppTextStyles.body.copyWith(
+                                      color: isSelected
+                                          ? AppColors.primaryDark
+                                          : AppColors.textPrimary,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'ทั้งหมด $maxQty ชิ้น',
+                                    style: AppTextStyles.caption,
+                                  ),
+                                ],
                               ),
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.add_circle_outline),
-                              color: isFullyClaimed
-                                  ? Colors.grey
-                                  : Colors.green,
-                              onPressed: isFullyClaimed
-                                  ? null
-                                  : () => _increment(index, maxQty),
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              width: 104,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  _QuantityButton(
+                                    icon: Icons.remove,
+                                    semanticLabel: 'ลดจำนวน $itemName',
+                                    color: myClaimedQty > 0
+                                        ? AppColors.error
+                                        : AppColors.textMuted,
+                                    onPressed: myClaimedQty > 0
+                                        ? () => _decrement(index)
+                                        : null,
+                                  ),
+                                  SizedBox(
+                                    width: 24,
+                                    child: Text(
+                                      '$myClaimedQty',
+                                      textAlign: TextAlign.center,
+                                      style: AppTextStyles.body.copyWith(
+                                        color: isSelected
+                                            ? AppColors.primaryDark
+                                            : AppColors.textPrimary,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                  _QuantityButton(
+                                    icon: Icons.add,
+                                    semanticLabel: 'เพิ่มจำนวน $itemName',
+                                    color: isFullyClaimed
+                                        ? AppColors.textMuted
+                                        : AppColors.primary,
+                                    onPressed: isFullyClaimed
+                                        ? null
+                                        : () => _increment(index, maxQty),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              width: 70,
+                              child: Text(
+                                AppFormatters.formatCurrency(unitPrice),
+                                textAlign: TextAlign.end,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTextStyles.body.copyWith(
+                                  color: AppColors.textPrimary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                             ),
                           ],
                         ),
+                        if (itemClaims.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: itemClaims.entries.map((entry) {
+                              final userId = entry.key;
+                              final qty = entry.value;
+                              final name = _userNames[userId] ?? 'เพื่อน';
+                              final isMe = userId == _currentUserId;
+                              final claimColor = isMe
+                                  ? AppColors.primary
+                                  : AppColors.accent;
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 9,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: claimColor.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  '$name × $qty',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    height: 1.2,
+                                    color: isMe
+                                        ? AppColors.primaryDark
+                                        : AppColors.textPrimary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ],
+                        if (isFullyClaimed && !isSelected) ...[
+                          const SizedBox(height: 9),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'รายการนี้ถูกเลือกครบแล้ว',
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.success,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -388,6 +482,34 @@ class _ClaimScreenState extends State<ClaimScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _QuantityButton extends StatelessWidget {
+  final IconData icon;
+  final String semanticLabel;
+  final Color color;
+  final VoidCallback? onPressed;
+
+  const _QuantityButton({
+    required this.icon,
+    required this.semanticLabel,
+    required this.color,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: semanticLabel,
+      onPressed: onPressed,
+      icon: Icon(icon),
+      color: color,
+      iconSize: 19,
+      padding: EdgeInsets.zero,
+      visualDensity: VisualDensity.compact,
+      constraints: const BoxConstraints.tightFor(width: 32, height: 36),
     );
   }
 }

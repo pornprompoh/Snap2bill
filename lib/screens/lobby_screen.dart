@@ -1,13 +1,18 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/user_model.dart';
 import '../../providers/bill_provider.dart';
 import '../../routes/app_routes.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_text_styles.dart';
 import '../../widgets/custom_button.dart';
+import '../../widgets/friend_item.dart';
 
 class LobbyScreen extends StatefulWidget {
   final String? lobbyId;
@@ -224,6 +229,23 @@ class _LobbyScreenState extends State<LobbyScreen> {
     pathSegments: [_roomId],
   ).toString();
 
+  Future<void> _copyJoinLink() async {
+    await Clipboard.setData(ClipboardData(text: _joinLink));
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('คัดลอกลิงก์เข้าห้องแล้ว')));
+  }
+
+  Future<void> _shareJoinLink() async {
+    await SharePlus.instance.share(
+      ShareParams(
+        title: 'เข้าร่วมห้อง Snap2Bill',
+        text: 'สแกนหรือเปิดลิงก์เพื่อเข้าร่วมห้อง $_roomId\n$_joinLink',
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final invitees = context.watch<BillProvider>().roomParticipants;
@@ -247,118 +269,183 @@ class _LobbyScreenState extends State<LobbyScreen> {
             };
           }),
     ];
+    final hostName = _participants
+        .where((participant) => participant['is_host'] == true)
+        .map((participant) => participant['user_name']?.toString())
+        .firstOrNull;
 
     return Scaffold(
       appBar: AppBar(title: const Text('รอเพื่อนเข้าห้อง (Lobby)')),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.border),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primaryDark.withValues(alpha: 0.06),
+                    blurRadius: 22,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  children: [
-                    const Text(
-                      'ให้เพื่อนสแกน QR Code นี้',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+              child: Column(
+                children: [
+                  Text('สแกนเพื่อเข้าร่วมห้อง', style: AppTextStyles.title),
+                  const SizedBox(height: 4),
+                  Text(
+                    'แชร์ลิงก์หรือให้เพื่อนกรอกรหัสห้อง',
+                    style: AppTextStyles.caption,
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.border),
                     ),
-                    const SizedBox(height: 16),
-                    QrImageView(
+                    child: QrImageView(
                       data: _joinLink,
                       version: QrVersions.auto,
-                      size: 200.0,
+                      size: 188,
+                      eyeStyle: const QrEyeStyle(
+                        eyeShape: QrEyeShape.square,
+                        color: AppColors.primaryDark,
+                      ),
+                      dataModuleStyle: const QrDataModuleStyle(
+                        dataModuleShape: QrDataModuleShape.square,
+                        color: AppColors.primaryDark,
+                      ),
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'หรือกรอกรหัสห้อง: $_roomId',
-                      style: const TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 14),
+                  Text('รหัสห้อง', style: AppTextStyles.caption),
+                  const SizedBox(height: 3),
+                  SelectableText(
+                    _roomId,
+                    style: AppTextStyles.headline.copyWith(
+                      color: AppColors.primaryDark,
+                      fontSize: 32,
+                      letterSpacing: 4,
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _copyJoinLink,
+                          icon: const Icon(Icons.copy_outlined),
+                          label: const Text('คัดลอกลิงก์'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            side: const BorderSide(color: AppColors.border),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: _shareJoinLink,
+                          icon: const Icon(Icons.share_outlined),
+                          label: const Text('แชร์ห้อง'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: AppColors.surface,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             Row(
               children: [
-                const Expanded(
-                  child: Text(
-                    'สมาชิกในห้อง:',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('สมาชิกในห้อง', style: AppTextStyles.title),
+                      Text(
+                        hostName == null
+                            ? '${roomParticipants.length} คนกำลังเข้าร่วม'
+                            : 'หัวหน้าห้อง: $hostName',
+                        style: AppTextStyles.caption,
+                      ),
+                    ],
                   ),
                 ),
-                Text(
-                  '${roomParticipants.length} คน',
-                  style: const TextStyle(
-                    color: Colors.blue,
-                    fontWeight: FontWeight.bold,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 11,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${roomParticipants.length} คน',
+                    style: const TextStyle(
+                      color: AppColors.primaryDark,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
                 if (_isHost)
                   IconButton(
                     tooltip: 'ดึงเพื่อนเก่าเข้าห้อง',
                     onPressed: _selectPastParticipants,
+                    color: AppColors.primary,
                     icon: const Icon(Icons.person_add_alt_1),
                   ),
               ],
             ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: ListView.builder(
-                itemCount: roomParticipants.length,
-                itemBuilder: (context, index) {
-                  final user = roomParticipants[index];
-                  final isMe = user['user_id'] == _currentUserId;
-                  final isUserHost = user['is_host'] == true;
-                  final isInvited = user['is_invited'] == true;
-
-                  return Card(
-                    color: isUserHost
-                        ? Colors.orange.shade50
-                        : Colors.blue.shade50,
-                    shape: RoundedRectangleBorder(
-                      side: BorderSide(
-                        color: isUserHost
-                            ? Colors.orange.shade200
-                            : Colors.blue.shade200,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: isUserHost
-                            ? Colors.orange
-                            : Colors.blue,
-                        child: Icon(
-                          isUserHost ? Icons.star : Icons.person,
-                          color: Colors.white,
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 82,
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: roomParticipants.map((user) {
+                      final userId = user['user_id']?.toString();
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: FriendAvatar(
+                          name: user['user_name']?.toString() ?? 'เพื่อน',
+                          isHost: user['is_host'] == true,
+                          isCurrentUser: userId == _currentUserId,
+                          isInvited: user['is_invited'] == true,
                         ),
-                      ),
-                      title: Text(
-                        '${user['user_name']} ${isMe ? "(ฉัน)" : ""}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Text(
-                        isUserHost
-                            ? 'หัวหน้าห้อง'
-                            : isInvited
-                            ? 'เพิ่มโดยหัวหน้าห้อง'
-                            : 'ผู้เข้าร่วม',
-                      ),
-                    ),
-                  );
-                },
+                      );
+                    }).toList(),
+                  ),
+                ),
               ),
             ),
             if (_isHost)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16.0),
+                padding: const EdgeInsets.only(top: 12, bottom: 8),
                 child: CustomButton(
                   text: 'เพื่อนครบแล้ว เริ่มแย่งเมนูเลย!',
                   onPressed: _startClaiming,
@@ -366,7 +453,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
               )
             else
               const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24.0),
+                padding: EdgeInsets.symmetric(vertical: 16.0),
                 child: Text(
                   'กำลังรอหัวหน้าห้องกดเริ่ม...',
                   style: TextStyle(color: Colors.grey, fontSize: 16),

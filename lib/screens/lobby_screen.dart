@@ -1,4 +1,4 @@
-import 'dart:async'; // 🚀 นำเข้า async เพื่อใช้ Timer
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -25,20 +25,64 @@ class _LobbyScreenState extends State<LobbyScreen> {
   List<Map<String, dynamic>> _participants = [];
   late String _currentUserId;
   late String _currentUserName;
-  Timer? _checkHostTimer; // 🚀 ตัวแปรสำหรับจับเวลาตรวจหาหัวหน้าห้อง
 
   @override
   void initState() {
     super.initState();
     
     _isHost = widget.receiptData != null;
+    // สุ่มเลข 6 หลักถ้ายังไม่มี
     _roomId = widget.lobbyId ?? (100000 + Random().nextInt(900000)).toString();
 
     _currentUserId = _supabase.auth.currentUser?.id ?? 'guest_${DateTime.now().millisecondsSinceEpoch}';
     final email = _supabase.auth.currentUser?.email;
     _currentUserName = email != null ? email.split('@')[0] : 'ผู้เข้าร่วม';
 
+    // 🚀 สเตป 1: ถ้าเป็น Host ให้สร้างห้องนี้ลงในตาราง lobbies ของ Supabase
+    if (_isHost) {
+      _createLobbyInDB();
+    }
+
     _setupRealtimeLobby();
+  }
+
+  // 🚀 ฟังก์ชันสร้างห้องในฐานข้อมูล
+// 🚀 ฟังก์ชันสร้างห้องในฐานข้อมูล (ฉบับแสดง Error บนหน้าจอ)
+  Future<void> _createLobbyInDB() async {
+    try {
+      final existing = await _supabase
+          .from('lobbies')
+          .select('id')
+          .eq('room_code', _roomId)
+          .maybeSingle();
+
+      if (existing == null && mounted) {
+        // 🚀 ดึงยอดรวมมาใส่ด้วย เผื่อฐานข้อมูลบังคับ (Not Null)
+        final rawTotalAmount = double.tryParse(widget.receiptData?['total_amount']?.toString() ?? '0') ?? 0.0;
+
+        await _supabase.from('lobbies').insert({
+          'host_id': _supabase.auth.currentUser?.id,
+          'room_code': _roomId,
+          'shop_name': widget.receiptData?['shop_name'] ?? 'ไม่ระบุชื่อร้าน',
+          'total_amount': rawTotalAmount, // ส่งยอดเงินเข้าไปด้วย
+          'status': 'waiting',
+          'receipt_json': widget.receiptData, 
+        });
+        debugPrint('✅ สร้างห้องรหัส $_roomId ลงฐานข้อมูลเรียบร้อยแล้ว');
+      }
+    } catch (e) {
+      debugPrint('❌ ตั้งห้องใน DB ไม่สำเร็จ: $e');
+      // 🚀 เด้งแถบแดงเตือนบนหน้าจอให้เรารู้ทันทีว่าฐานข้อมูลติดอะไร!
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('DB Error (Lobby): $e'), 
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          )
+        );
+      }
+    }
   }
 
   void _setupRealtimeLobby() {
@@ -88,38 +132,25 @@ class _LobbyScreenState extends State<LobbyScreen> {
           'user_name': _currentUserName,
           'is_host': _isHost,
         });
-
-        // 🚀 ระบบป้องกันการเข้าห้องมั่ว (สำหรับ Guest)
-        if (!_isHost) {
-          // ให้เวลาดึงข้อมูล 3 วินาที ถ้าไม่เจอ Host จะเด้งออกทันที
-          _checkHostTimer = Timer(const Duration(seconds: 3), () {
-            if (mounted) {
-              final hasHost = _participants.any((p) => p['is_host'] == true);
-              if (!hasHost) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('รหัสห้องไม่ถูกต้อง หรือห้องนี้ถูกปิดไปแล้ว'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-                Navigator.pop(context); // เตะกลับหน้าแรก
-              }
-            }
-          });
-        }
       }
     });
   }
 
   @override
   void dispose() {
-    _checkHostTimer?.cancel(); // 🚀 ล้าง Timer ทิ้งเวลาเปลี่ยนหน้าป้องกัน Error
     _supabase.removeChannel(_lobbyChannel); 
     super.dispose();
   }
 
-  void _startClaiming() {
+  void _startClaiming() async {
     if (!_isHost) return;
+
+    // 🚀 อัปเดตสถานะห้องว่าเริ่มแย่งเมนูแล้ว (เพื่อไม่ให้คนนอกเข้ามั่ว)
+    try {
+      await _supabase.from('lobbies').update({'status': 'claiming'}).eq('room_code', _roomId);
+    } catch (e) {
+      debugPrint('อัปเดตสถานะห้องไม่สำเร็จ: $e');
+    }
 
     _lobbyChannel.sendBroadcastMessage(
       event: 'start_claim',

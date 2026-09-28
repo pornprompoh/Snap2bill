@@ -14,7 +14,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _supabase = Supabase.instance.client;
   
   late final Future<List<Map<String, dynamic>>> _billsFuture;
-  bool _isCheckingRoom = false;
+  bool _isCheckingRoom = false; 
 
   @override
   void initState() {
@@ -28,7 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
         .order('created_at', ascending: false);
   }
 
-  // 🚀 ถอด BuildContext ออก เพื่อให้ฟังก์ชันนี้ใช้ context หลักของ State ได้อย่างปลอดภัย
+  // 🚀 สเตป 2: ฟังก์ชันเช็กรหัสห้องจากตาราง lobbies โดยตรง ไม่ง้อการแอบส่องแล้ว
   Future<void> _joinRoom(String roomCode) async {
     if (roomCode.length != 6) {
       if (!mounted) return;
@@ -41,21 +41,31 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _isCheckingRoom = true);
 
     try {
+      // ค้นหาห้องจากคอลัมน์ room_code ที่เราเพิ่งสร้าง
       final response = await _supabase
           .from('lobbies')
           .select()
-          .eq('host_id', roomCode) 
+          .eq('room_code', roomCode)
           .maybeSingle();
 
-      if (!mounted) return; // เช็กความปลอดภัยของ context หลักก่อนใช้งาน
+      if (!mounted) return;
 
       if (response != null) {
+        // ถ้ารหัสถูกต้อง พบห้องในระบบ ให้ดึงข้อมูลบิล (receipt_json) ส่งไปให้ Guest ด้วย
+        final shopName = response['shop_name'] ?? 'ไม่ระบุชื่อร้าน';
+        final receiptData = response['receipt_json'] as Map<String, dynamic>?;
+        
         Navigator.pushNamed(
           context, 
           AppRoutes.lobby,
-          arguments: {'lobbyId': roomCode, 'shop_name': 'กำลังโหลดข้อมูล...'} 
+          arguments: {
+            'lobbyId': roomCode, 
+            'shop_name': shopName,
+            'receiptData': receiptData, // ส่งข้อมูลบิลไปให้ Guest เลย
+          } 
         );
       } else {
+        // ถ้าไม่พบรหัสห้อง ให้แจ้งเตือนทันที
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('รหัสไม่ถูกต้อง หรือไม่มีห้องนี้อยู่จริง'),
@@ -79,7 +89,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final codeController = TextEditingController();
     showDialog(
       context: context,
-      // 🚀 เปลี่ยนชื่อเป็น dialogContext เพื่อป้องกันการเรียกใช้งานสลับกับ context หลัก
       builder: (dialogContext) => AlertDialog(
         title: const Text('เข้าร่วมห้องหารบิล'),
         content: TextField(
@@ -100,8 +109,8 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: _isCheckingRoom 
                 ? null 
                 : () {
-                    Navigator.pop(dialogContext); // ปิด Dialog ด้วย dialogContext
-                    _joinRoom(codeController.text); // ค้นหาห้องโดยไม่ส่ง context ที่ถูกทำลายแล้วเข้าไป
+                    Navigator.pop(dialogContext); 
+                    _joinRoom(codeController.text); 
                   },
             child: _isCheckingRoom 
                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) 

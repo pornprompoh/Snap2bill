@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../screens/auth/login_screen.dart';
@@ -59,20 +60,15 @@ class AppRoutes {
       
       case lobby:
         final args = settings.arguments as Map<String, dynamic>? ?? {};
-        
-        // 🚀 ดักจับข้อมูล: ถ้าหา 'receiptData' ไม่เจอ ให้ดึงข้อมูลทั้งหมดมาใช้แทน
         String? lobbyId = args['lobbyId']?.toString();
         Map<String, dynamic>? receiptData = args['receiptData'];
+        if (receiptData == null && args.containsKey('items')) receiptData = args;
         
-        if (receiptData == null && args.containsKey('items')) {
-          receiptData = args;
-        }
+        // 🚀 เพิ่มรับค่า isHost
+        bool isHost = args['isHost'] ?? true; 
 
         return MaterialPageRoute(
-          builder: (_) => LobbyScreen(
-            lobbyId: lobbyId, 
-            receiptData: receiptData, 
-          ),
+          builder: (_) => LobbyScreen(lobbyId: lobbyId, receiptData: receiptData, isHost: isHost),
         );
       
       case claim:
@@ -81,6 +77,7 @@ class AppRoutes {
           builder: (_) => ClaimScreen(
             lobbyId: args['lobbyId']?.toString() ?? 'unknown_room',
             receiptData: args['receiptData'] ?? {},
+            isHost: args['isHost'] ?? true, // 🚀 เพิ่มรับค่า isHost
           ),
         );
         
@@ -91,14 +88,13 @@ class AppRoutes {
             lobbyId: args['lobbyId']?.toString() ?? '',
             receiptData: args['receiptData'] ?? {},
             itemSharers: args['itemSharers'] ?? {},
+            isHost: args['isHost'] ?? true, // 🚀 เพิ่มรับค่า isHost
           ),
         );
         
       default:
         return MaterialPageRoute(
-          builder: (_) => Scaffold(
-            body: Center(child: Text('ไม่มีหน้าจอสำหรับ Route: $routeName')),
-          ),
+          builder: (_) => Scaffold(body: Center(child: Text('ไม่มีหน้าจอสำหรับ Route: $routeName'))),
         );
     }
   }

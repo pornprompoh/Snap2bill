@@ -9,8 +9,9 @@ import '../../widgets/custom_button.dart';
 class LobbyScreen extends StatefulWidget {
   final String? lobbyId; 
   final Map<String, dynamic>? receiptData; 
+  final bool isHost; // 🚀 เพิ่มตัวแปรนี้
 
-  const LobbyScreen({super.key, this.lobbyId, this.receiptData});
+  const LobbyScreen({super.key, this.lobbyId, this.receiptData, this.isHost = true});
 
   @override
   State<LobbyScreen> createState() => _LobbyScreenState();
@@ -30,15 +31,13 @@ class _LobbyScreenState extends State<LobbyScreen> {
   void initState() {
     super.initState();
     
-    _isHost = widget.receiptData != null;
-    // สุ่มเลข 6 หลักถ้ายังไม่มี
+    _isHost = widget.isHost; // 🚀 ใช้ค่าที่ส่งมาตรงๆ
     _roomId = widget.lobbyId ?? (100000 + Random().nextInt(900000)).toString();
 
     _currentUserId = _supabase.auth.currentUser?.id ?? 'guest_${DateTime.now().millisecondsSinceEpoch}';
     final email = _supabase.auth.currentUser?.email;
-    _currentUserName = email != null ? email.split('@')[0] : 'ผู้เข้าร่วม';
+    _currentUserName = email != null ? email.split('@')[0] : 'Guest (${_currentUserId.substring(_currentUserId.length - 4)})';
 
-    // 🚀 สเตป 1: ถ้าเป็น Host ให้สร้างห้องนี้ลงในตาราง lobbies ของ Supabase
     if (_isHost) {
       _createLobbyInDB();
     }
@@ -46,59 +45,34 @@ class _LobbyScreenState extends State<LobbyScreen> {
     _setupRealtimeLobby();
   }
 
-  // 🚀 ฟังก์ชันสร้างห้องในฐานข้อมูล
-// 🚀 ฟังก์ชันสร้างห้องในฐานข้อมูล (ฉบับแสดง Error บนหน้าจอ)
   Future<void> _createLobbyInDB() async {
     try {
-      final existing = await _supabase
-          .from('lobbies')
-          .select('id')
-          .eq('room_code', _roomId)
-          .maybeSingle();
-
+      final existing = await _supabase.from('lobbies').select('id').eq('room_code', _roomId).maybeSingle();
       if (existing == null && mounted) {
-        // 🚀 ดึงยอดรวมมาใส่ด้วย เผื่อฐานข้อมูลบังคับ (Not Null)
         final rawTotalAmount = double.tryParse(widget.receiptData?['total_amount']?.toString() ?? '0') ?? 0.0;
-
         await _supabase.from('lobbies').insert({
           'host_id': _supabase.auth.currentUser?.id,
           'room_code': _roomId,
           'shop_name': widget.receiptData?['shop_name'] ?? 'ไม่ระบุชื่อร้าน',
-          'total_amount': rawTotalAmount, // ส่งยอดเงินเข้าไปด้วย
+          'total_amount': rawTotalAmount,
           'status': 'waiting',
           'receipt_json': widget.receiptData, 
         });
-        debugPrint('✅ สร้างห้องรหัส $_roomId ลงฐานข้อมูลเรียบร้อยแล้ว');
       }
     } catch (e) {
-      debugPrint('❌ ตั้งห้องใน DB ไม่สำเร็จ: $e');
-      // 🚀 เด้งแถบแดงเตือนบนหน้าจอให้เรารู้ทันทีว่าฐานข้อมูลติดอะไร!
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('DB Error (Lobby): $e'), 
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          )
-        );
-      }
+      debugPrint('ตั้งห้องใน DB ไม่สำเร็จ: $e');
     }
   }
 
   void _setupRealtimeLobby() {
-    _lobbyChannel = _supabase.channel(
-      'room_$_roomId',
-      opts: const RealtimeChannelConfig(key: 'presence'), 
-    );
+    _lobbyChannel = _supabase.channel('room_$_roomId', opts: const RealtimeChannelConfig(key: 'presence'));
 
     _lobbyChannel.onPresenceSync((_) {
       final newState = _lobbyChannel.presenceState();
       final List<Map<String, dynamic>> users = [];
-      
       for (final state in newState) {
         for (final presence in state.presences) {
           final payload = presence.payload;
-          
           users.add({
             'user_id': payload['user_id'],
             'user_name': payload['user_name'],
@@ -106,32 +80,22 @@ class _LobbyScreenState extends State<LobbyScreen> {
           });
         }
       }
-      
-      if (mounted) {
-        setState(() => _participants = users);
-      }
+      if (mounted) setState(() => _participants = users);
     });
 
     _lobbyChannel.onBroadcast(event: 'start_claim', callback: (payload) {
       if (!_isHost && mounted) {
-        Navigator.pushReplacementNamed(
-          context, 
-          AppRoutes.claim,
-          arguments: {
-            'lobbyId': _roomId,
-            'receiptData': payload['receiptData'], 
-          }
-        );
+        Navigator.pushReplacementNamed(context, AppRoutes.claim, arguments: {
+          'lobbyId': _roomId,
+          'receiptData': payload['receiptData'], 
+          'isHost': false, // 🚀 ส่งต่อให้ Guest
+        });
       }
     });
 
     _lobbyChannel.subscribe((status, error) async {
       if (status == RealtimeSubscribeStatus.subscribed) {
-        await _lobbyChannel.track({
-          'user_id': _currentUserId,
-          'user_name': _currentUserName,
-          'is_host': _isHost,
-        });
+        await _lobbyChannel.track({'user_id': _currentUserId, 'user_name': _currentUserName, 'is_host': _isHost});
       }
     });
   }
@@ -144,29 +108,13 @@ class _LobbyScreenState extends State<LobbyScreen> {
 
   void _startClaiming() async {
     if (!_isHost) return;
-
-    // 🚀 อัปเดตสถานะห้องว่าเริ่มแย่งเมนูแล้ว (เพื่อไม่ให้คนนอกเข้ามั่ว)
-    try {
-      await _supabase.from('lobbies').update({'status': 'claiming'}).eq('room_code', _roomId);
-    } catch (e) {
-      debugPrint('อัปเดตสถานะห้องไม่สำเร็จ: $e');
-    }
-
-    _lobbyChannel.sendBroadcastMessage(
-      event: 'start_claim',
-      payload: {
-        'receiptData': widget.receiptData,
-      },
-    );
-
-    Navigator.pushReplacementNamed(
-      context, 
-      AppRoutes.claim,
-      arguments: {
-        'lobbyId': _roomId,
-        'receiptData': widget.receiptData,
-      }
-    );
+    _lobbyChannel.sendBroadcastMessage(event: 'start_claim', payload: {'receiptData': widget.receiptData});
+    
+    Navigator.pushReplacementNamed(context, AppRoutes.claim, arguments: {
+      'lobbyId': _roomId,
+      'receiptData': widget.receiptData,
+      'isHost': true, // 🚀 ส่งต่อให้ Host
+    });
   }
 
   @override
@@ -185,11 +133,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
                   children: [
                     const Text('ให้เพื่อนสแกน QR Code นี้', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
-                    QrImageView(
-                      data: 'snap2bill://join/$_roomId', 
-                      version: QrVersions.auto,
-                      size: 200.0,
-                    ),
+                    QrImageView(data: 'snap2bill://join/$_roomId', version: QrVersions.auto, size: 200.0),
                     const SizedBox(height: 16),
                     Text('หรือกรอกรหัสห้อง: $_roomId', style: const TextStyle(fontSize: 18, color: Colors.grey)),
                   ],
@@ -197,7 +141,6 @@ class _LobbyScreenState extends State<LobbyScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -206,7 +149,6 @@ class _LobbyScreenState extends State<LobbyScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            
             Expanded(
               child: ListView.builder(
                 itemCount: _participants.length,
@@ -226,24 +168,17 @@ class _LobbyScreenState extends State<LobbyScreen> {
                         backgroundColor: isUserHost ? Colors.orange : Colors.blue,
                         child: Icon(isUserHost ? Icons.star : Icons.person, color: Colors.white),
                       ),
-                      title: Text(
-                        '${user['user_name']} ${isMe ? "(ฉัน)" : ""}', 
-                        style: const TextStyle(fontWeight: FontWeight.bold)
-                      ),
+                      title: Text('${user['user_name']} ${isMe ? "(ฉัน)" : ""}', style: const TextStyle(fontWeight: FontWeight.bold)),
                       subtitle: Text(isUserHost ? 'หัวหน้าห้อง' : 'ผู้เข้าร่วม'),
                     ),
                   );
                 },
               ),
             ),
-            
             if (_isHost)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16.0),
-                child: CustomButton(
-                  text: 'เพื่อนครบแล้ว เริ่มแย่งเมนูเลย!',
-                  onPressed: _startClaiming,
-                ),
+                child: CustomButton(text: 'เพื่อนครบแล้ว เริ่มแย่งเมนูเลย!', onPressed: _startClaiming),
               )
             else
               const Padding(

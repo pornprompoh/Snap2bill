@@ -62,6 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
             'lobbyId': roomCode, 
             'shop_name': shopName,
             'receiptData': receiptData, // ส่งข้อมูลบิลไปให้ Guest เลย
+            'isHost': false,
           } 
         );
       } else {

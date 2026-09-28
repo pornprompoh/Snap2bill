@@ -28,11 +28,11 @@ class AppRoutes {
   static Route<dynamic> generateRoute(RouteSettings settings) {
     String routeName = settings.name ?? '/';
     if (routeName.contains('?')) {
-      routeName = routeName.split('?')[0]; 
+      routeName = routeName.split('?')[0];
     }
 
-    switch (routeName) { 
-      case '/': 
+    switch (routeName) {
+      case '/':
       case login:
         return MaterialPageRoute(builder: (_) => const LoginScreen());
       case home:
@@ -43,43 +43,59 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const ProfileScreen());
       case friends:
         return MaterialPageRoute(builder: (_) => const FriendListScreen());
-        
+
       case detail:
         final billData = settings.arguments as Map<String, dynamic>? ?? {};
-        return MaterialPageRoute(builder: (_) => DetailScreen(billData: billData));
-      
+        return MaterialPageRoute(
+          builder: (_) => DetailScreen(billData: billData),
+        );
+
       case loading:
         final argData = settings.arguments;
         final imageFile = argData is Map ? argData['image'] : argData;
-        return MaterialPageRoute(builder: (_) => LoadingScreen(image: imageFile));
-      
+        return MaterialPageRoute(
+          builder: (_) => LoadingScreen(image: imageFile),
+        );
+
       case review:
         final receiptData = settings.arguments as Map<String, dynamic>? ?? {};
-        return MaterialPageRoute(builder: (_) => ReviewScreen(receiptData: receiptData));
-      
+        return MaterialPageRoute(
+          builder: (_) => ReviewScreen(receiptData: receiptData),
+        );
+
       case lobby:
         final args = settings.arguments as Map<String, dynamic>? ?? {};
         String? lobbyId = args['lobbyId']?.toString();
         Map<String, dynamic>? receiptData = args['receiptData'];
-        if (receiptData == null && args.containsKey('items')) receiptData = args;
-        
+        if (receiptData == null && args.containsKey('items')) {
+          receiptData = args;
+        }
+
         // 🚀 เพิ่มรับค่า isHost
-        bool isHost = args['isHost'] ?? true; 
+        bool isHost = args['isHost'] ?? true;
 
         return MaterialPageRoute(
-          builder: (_) => LobbyScreen(lobbyId: lobbyId, receiptData: receiptData, isHost: isHost),
+          builder: (_) => LobbyScreen(
+            lobbyId: lobbyId,
+            receiptData: receiptData,
+            isHost: isHost,
+          ),
         );
-      
+
       case claim:
         final args = settings.arguments as Map<String, dynamic>? ?? {};
         return MaterialPageRoute(
           builder: (_) => ClaimScreen(
             lobbyId: args['lobbyId']?.toString() ?? 'unknown_room',
             receiptData: args['receiptData'] ?? {},
+            roomParticipants: (args['roomParticipants'] as List<dynamic>? ?? [])
+                .whereType<Map>()
+                .map((participant) => Map<String, dynamic>.from(participant))
+                .toList(),
             isHost: args['isHost'] ?? true, // 🚀 เพิ่มรับค่า isHost
           ),
         );
-        
+
       case summary:
         final args = settings.arguments as Map<String, dynamic>? ?? {};
         return MaterialPageRoute(
@@ -90,10 +106,12 @@ class AppRoutes {
             isHost: args['isHost'] ?? true, // 🚀 เพิ่มรับค่า isHost
           ),
         );
-        
+
       default:
         return MaterialPageRoute(
-          builder: (_) => Scaffold(body: Center(child: Text('ไม่มีหน้าจอสำหรับ Route: $routeName'))),
+          builder: (_) => Scaffold(
+            body: Center(child: Text('ไม่มีหน้าจอสำหรับ Route: $routeName')),
+          ),
         );
     }
   }

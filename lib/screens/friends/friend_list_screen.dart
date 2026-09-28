@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../models/user_model.dart';
+import '../../services/supabase_db_service.dart';
+import '../../utils/constants.dart';
+import '../../widgets/custom_button.dart';
 import '../../widgets/friend_item.dart';
 
 class FriendListScreen extends StatefulWidget {
-  // ต้องมีบรรทัดนี้ app_routes.dart ถึงจะหา constructor เจอ
-  const FriendListScreen({super.key}); 
+  const FriendListScreen({super.key});
 
   @override
   State<FriendListScreen> createState() => _FriendListScreenState();
@@ -12,70 +15,134 @@ class FriendListScreen extends StatefulWidget {
 
 class _FriendListScreenState extends State<FriendListScreen> {
   final _supabase = Supabase.instance.client;
+  final _dbService = SupabaseDbService();
+  final Set<String> _selectedIds = {};
+  late final Future<List<UserModel>>? _participantsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    final userId = _supabase.auth.currentUser?.id;
+    _participantsFuture = userId == null
+        ? null
+        : _dbService.getPastParticipants(userId);
+  }
+
+  void _toggleSelection(String userId, bool? selected) {
+    setState(() {
+      if (selected == true) {
+        _selectedIds.add(userId);
+      } else {
+        _selectedIds.remove(userId);
+      }
+    });
+  }
+
+  void _returnSelected(List<UserModel> participants) {
+    final selectedFriends = participants
+        .where((participant) => _selectedIds.contains(participant.id))
+        .toList();
+    Navigator.pop(context, selectedFriends);
+  }
+
+  String _displayName(UserModel user) {
+    final displayName = user.displayName?.trim();
+    if (displayName != null && displayName.isNotEmpty) return displayName;
+    return user.email ?? 'ไม่มีชื่อ';
+  }
 
   @override
   Widget build(BuildContext context) {
-    // ดึง ID ของ User ที่ล็อกอินอยู่
     final userId = _supabase.auth.currentUser?.id;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('รายชื่อเพื่อน')),
+      appBar: AppBar(title: const Text('เลือกเพื่อนเข้าห้อง')),
       body: userId == null
           ? const Center(child: Text('กรุณาล็อกอิน'))
-          : StreamBuilder<List<Map<String, dynamic>>>(
-              // 🚀 เชื่อมตาราง friends ของจริง
-              stream: _supabase
-                  .from('friends')
-                  .stream(primaryKey: ['id'])
-                  .eq('owner_id', userId), // กรองเอาเฉพาะเพื่อนของคนที่ล็อกอิน
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+          : Column(
+              children: [
+                Expanded(
+                  child: FutureBuilder<List<UserModel>>(
+                    future: _participantsFuture,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (snapshot.hasError) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(
+                              AppConstants.paddingL,
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text('โหลดรายชื่อเพื่อนไม่สำเร็จ'),
+                                const SizedBox(height: AppConstants.paddingS),
+                                TextButton(
+                                  onPressed: () => setState(() {
+                                    _participantsFuture = _dbService
+                                        .getPastParticipants(userId);
+                                  }),
+                                  child: const Text('ลองอีกครั้ง'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
 
-                final friends = snapshot.data ?? [];
+                      final participants = snapshot.data ?? [];
+                      if (participants.isEmpty) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(AppConstants.paddingL),
+                            child: Text(
+                              'ยังไม่มีเพื่อนจากบิลก่อนหน้า\nที่สามารถเพิ่มเข้าห้องได้',
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        );
+                      }
 
-                // กรณีไม่มีเพื่อนใน Database เลย
-                if (friends.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.group_off, size: 80, color: Colors.grey.shade300),
-                        const SizedBox(height: 16),
-                        Text(
-                          'ยังไม่มีเพื่อนในระบบ\nกดปุ่มด้านล่างเพื่อเพิ่มเพื่อน',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+                      return ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppConstants.paddingS,
+                          AppConstants.paddingS,
+                          AppConstants.paddingS,
+                          AppConstants.paddingM,
                         ),
-                      ],
-                    ),
-                  );
-                }
-
-                // กรณีมีเพื่อน ให้แสดงผลด้วย FriendItem
-                return ListView.builder(
-                  padding: const EdgeInsets.all(16.0),
-                  itemCount: friends.length,
-                  itemBuilder: (context, index) {
-                    final friend = friends[index];
-                    return FriendItem(
-                      // ดึงชื่อเพื่อนจากคอลัมน์ในฐานข้อมูล (แก้ชื่อฟิลด์ให้ตรงกับตารางคุณ)
-                      name: friend['friend_name'] ?? 'ไม่มีชื่อ', 
-                    );
-                  },
-                );
-              },
+                        itemCount: participants.length,
+                        itemBuilder: (context, index) {
+                          final participant = participants[index];
+                          return FriendItem(
+                            name: _displayName(participant),
+                            subtitleText: participant.email,
+                            isSelected: _selectedIds.contains(participant.id),
+                            onSelectionChanged: (selected) =>
+                                _toggleSelection(participant.id, selected),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+                SafeArea(
+                  top: false,
+                  minimum: const EdgeInsets.all(AppConstants.paddingM),
+                  child: CustomButton(
+                    text: 'ดึงเพื่อนเข้าห้อง (${_selectedIds.length})',
+                    onPressed:
+                        _selectedIds.isEmpty || _participantsFuture == null
+                        ? null
+                        : () async {
+                            final participants = await _participantsFuture;
+                            if (mounted) _returnSelected(participants);
+                          },
+                  ),
+                ),
+              ],
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('ระบบสแกน QR เพิ่มเพื่อน (กำลังพัฒนา)')),
-          );
-        },
-        icon: const Icon(Icons.person_add),
-        label: const Text('เพิ่มเพื่อน'),
-      ),
     );
   }
 }

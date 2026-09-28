@@ -43,6 +43,7 @@ dependencies:
   google_generative_ai: ^0.4.7
   intl: ^0.20.3
   qr_flutter: ^4.1.0
+  app_links: 7.2.1
 
 dev_dependencies:
   flutter_test:

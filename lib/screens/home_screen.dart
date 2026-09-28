@@ -13,45 +13,78 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _supabase = Supabase.instance.client;
   
-  late final Future<List<Map<String, dynamic>>> _billsFuture;
+  late Future<List<Map<String, dynamic>>> _billsFuture;
   bool _isCheckingRoom = false; 
 
   @override
   void initState() {
     super.initState();
-    final currentUserId = _supabase.auth.currentUser?.id ?? '';
-    
-    _billsFuture = _supabase
-        .from('bills')
-        .select()
-        .eq('owner_id', currentUserId)
-        .order('created_at', ascending: false);
+    _billsFuture = _fetchMyBills();
   }
 
-  // 🚀 สเตป 2: ฟังก์ชันเช็กรหัสห้องจากตาราง lobbies โดยตรง ไม่ง้อการแอบส่องแล้ว
+  // 🚀 ดึงข้อมูลทั้งบิลที่ตัวเองเป็นเจ้าของ และบิลที่ไปร่วมหาร
+  Future<List<Map<String, dynamic>>> _fetchMyBills() async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) return [];
+
+    try {
+      // 1. ดึงบิลที่ฉันเป็นเจ้าของ (Host)
+      final ownedBills = await _supabase
+          .from('bills')
+          .select()
+          .eq('owner_id', userId);
+
+      // 2. ดึงบิลที่ฉันเป็นผู้ร่วมหาร (Guest) ผ่านตาราง bill_participants
+      final participated = await _supabase
+          .from('bill_participants')
+          .select('bills(*)') // ดึงข้อมูลบิลที่เชื่อมอยู่มาด้วย
+          .eq('profile_id', userId);
+
+      // ใช้ Map เพื่อรวมบิลและป้องกันการแสดงบิลซ้ำ (กรณีเป็นทั้ง Host และควบตำแหน่งคนหารด้วย)
+      final Map<String, Map<String, dynamic>> uniqueBills = {};
+      
+      for (var b in ownedBills) {
+        uniqueBills[b['id'].toString()] = b;
+      }
+      
+      for (var p in participated) {
+        if (p['bills'] != null) {
+          final b = p['bills'] as Map<String, dynamic>;
+          uniqueBills[b['id'].toString()] = b;
+        }
+      }
+
+      final result = uniqueBills.values.toList();
+      
+      // เรียงลำดับจากวันที่ใหม่สุดไปเก่าสุด
+      result.sort((a, b) {
+        final dateA = DateTime.tryParse(a['created_at'].toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final dateB = DateTime.tryParse(b['created_at'].toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return dateB.compareTo(dateA);
+      });
+
+      return result;
+    } catch (e) {
+      debugPrint('Error fetching bills: $e');
+      return [];
+    }
+  }
+
   Future<void> _joinRoom(String roomCode) async {
     if (roomCode.length != 6) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('กรุณากรอกรหัสห้องให้ครบ 6 หลัก')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('กรุณากรอกรหัสห้องให้ครบ 6 หลัก')));
       return;
     }
 
     setState(() => _isCheckingRoom = true);
 
     try {
-      // ค้นหาห้องจากคอลัมน์ room_code ที่เราเพิ่งสร้าง
-      final response = await _supabase
-          .from('lobbies')
-          .select()
-          .eq('room_code', roomCode)
-          .maybeSingle();
+      final response = await _supabase.from('lobbies').select().eq('room_code', roomCode).maybeSingle();
 
       if (!mounted) return;
 
       if (response != null) {
-        // ถ้ารหัสถูกต้อง พบห้องในระบบ ให้ดึงข้อมูลบิล (receipt_json) ส่งไปให้ Guest ด้วย
         final shopName = response['shop_name'] ?? 'ไม่ระบุชื่อร้าน';
         final receiptData = response['receipt_json'] as Map<String, dynamic>?;
         
@@ -61,28 +94,18 @@ class _HomeScreenState extends State<HomeScreen> {
           arguments: {
             'lobbyId': roomCode, 
             'shop_name': shopName,
-            'receiptData': receiptData, // ส่งข้อมูลบิลไปให้ Guest เลย
-            'isHost': false,
+            'receiptData': receiptData, 
+            'isHost': false, 
           } 
         );
       } else {
-        // ถ้าไม่พบรหัสห้อง ให้แจ้งเตือนทันที
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('รหัสไม่ถูกต้อง หรือไม่มีห้องนี้อยู่จริง'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('รหัสไม่ถูกต้อง หรือไม่มีห้องนี้อยู่จริง'), backgroundColor: Colors.red));
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('เกิดข้อผิดพลาดในการตรวจสอบห้อง: $e')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาดในการตรวจสอบห้อง: $e')));
     } finally {
-      if (mounted) {
-        setState(() => _isCheckingRoom = false);
-      }
+      if (mounted) setState(() => _isCheckingRoom = false);
     }
   }
 
@@ -96,16 +119,10 @@ class _HomeScreenState extends State<HomeScreen> {
           controller: codeController,
           keyboardType: TextInputType.number,
           maxLength: 6,
-          decoration: const InputDecoration(
-            hintText: 'กรอกรหัส 6 หลัก',
-            filled: true,
-          ),
+          decoration: const InputDecoration(hintText: 'กรอกรหัส 6 หลัก', filled: true),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext), 
-            child: const Text('ยกเลิก')
-          ),
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('ยกเลิก')),
           ElevatedButton(
             onPressed: _isCheckingRoom 
                 ? null 
@@ -122,6 +139,13 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // 🚀 ฟังก์ชันรีเฟรชหน้าจอเมื่อดึงหน้าจอลง
+  Future<void> _refreshBills() async {
+    setState(() {
+      _billsFuture = _fetchMyBills();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -135,120 +159,120 @@ class _HomeScreenState extends State<HomeScreen> {
           )
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            InkWell(
-              onTap: () => _showJoinRoomDialog(context),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.3)),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
+      body: RefreshIndicator(
+        onRefresh: _refreshBills,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              InkWell(
+                onTap: () => _showJoinRoomDialog(context),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                        child: Icon(Icons.login, color: Theme.of(context).colorScheme.primary),
                       ),
-                      child: Icon(Icons.login, color: Theme.of(context).colorScheme.primary),
-                    ),
-                    const SizedBox(width: 16),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('มีเพื่อนสร้างห้องไว้แล้ว?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                          Text('กรอกรหัส 6 หลักเพื่อเข้าร่วม', style: TextStyle(color: Colors.grey)),
-                        ],
+                      const SizedBox(width: 16),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('มีเพื่อนสร้างห้องไว้แล้ว?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            Text('กรอกรหัส 6 หลักเพื่อเข้าร่วม', style: TextStyle(color: Colors.grey)),
+                          ],
+                        ),
                       ),
-                    ),
-                    const Icon(Icons.chevron_right, color: Colors.grey),
-                  ],
+                      const Icon(Icons.chevron_right, color: Colors.grey),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-            
-            const Text('ประวัติการหารบิล', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            
-            Expanded(
-              child: FutureBuilder<List<Map<String, dynamic>>>(
-                future: _billsFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  
-                  if (snapshot.hasError) {
-                    return Center(child: Text('เกิดข้อผิดพลาด: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
-                  }
-                  
-                  final bills = snapshot.data ?? [];
-                  
-                  if (bills.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.receipt_long, size: 64, color: Colors.grey.shade300),
-                          const SizedBox(height: 16),
-                          Text('ยังไม่มีประวัติบิล', style: TextStyle(color: Colors.grey.shade600)),
-                        ],
-                      ),
-                    );
-                  }
-
-                  return ListView.builder(
-                    itemCount: bills.length,
-                    itemBuilder: (context, index) {
-                      final bill = bills[index];
-                      final shopName = bill['shop_name'] ?? 'ไม่ระบุชื่อร้าน';
-                      final totalAmount = double.tryParse(bill['sub_total']?.toString() ?? '0') ?? 0.0;
-                      final date = bill['created_at']?.toString().split('T')[0] ?? '';
-
-                      return Card(
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          side: BorderSide(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          leading: CircleAvatar(
-                            backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                            child: const Icon(Icons.receipt),
-                          ),
-                          title: Text(shopName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text(date),
-                          trailing: Text(
-                            AppFormatters.formatCurrency(totalAmount),
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.green),
-                          ),
-                          onTap: () {
-                            Navigator.pushNamed(
-                              context, 
-                              AppRoutes.detail,
-                              arguments: bill,
-                            );
-                          },
+              const SizedBox(height: 24),
+              
+              const Text('ประวัติการหารบิล', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              
+              Expanded(
+                child: FutureBuilder<List<Map<String, dynamic>>>(
+                  future: _billsFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    
+                    if (snapshot.hasError) {
+                      return Center(child: Text('เกิดข้อผิดพลาด: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
+                    }
+                    
+                    final bills = snapshot.data ?? [];
+                    
+                    if (bills.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.receipt_long, size: 64, color: Colors.grey.shade300),
+                            const SizedBox(height: 16),
+                            Text('ยังไม่มีประวัติบิล', style: TextStyle(color: Colors.grey.shade600)),
+                          ],
                         ),
                       );
-                    },
-                  );
-                },
+                    }
+
+                    return ListView.builder(
+                      itemCount: bills.length,
+                      itemBuilder: (context, index) {
+                        final bill = bills[index];
+                        final shopName = bill['shop_name'] ?? 'ไม่ระบุชื่อร้าน';
+                        final totalAmount = double.tryParse(bill['sub_total']?.toString() ?? '0') ?? 0.0;
+                        final date = bill['created_at']?.toString().split('T')[0] ?? '';
+
+                        return Card(
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            side: BorderSide(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          margin: const EdgeInsets.only(bottom: 12),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            leading: CircleAvatar(
+                              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                              child: const Icon(Icons.receipt),
+                            ),
+                            title: Text(shopName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                            subtitle: Text(date),
+                            trailing: Text(
+                              AppFormatters.formatCurrency(totalAmount),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.green),
+                            ),
+                            onTap: () {
+                              Navigator.pushNamed(
+                                context, 
+                                AppRoutes.detail,
+                                arguments: bill,
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

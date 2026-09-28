@@ -5,9 +5,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseAuthService {
   final SupabaseClient _supabase = Supabase.instance.client;
-  
+
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
-  
+
   bool _isInitialized = false;
 
   Future<void> _ensureInitialized() async {
@@ -26,15 +26,15 @@ class SupabaseAuthService {
       if (kIsWeb) {
         await _supabase.auth.signInWithOAuth(
           OAuthProvider.google,
-          redirectTo: 'http://localhost:3000', 
+          redirectTo: Uri.base.origin,
         );
-        return null; 
+        return null;
       }
 
       await _ensureInitialized();
 
       // ไม่ต้องเช็ก null แล้ว เพราะถ้าไม่ได้ user มันจะกระโดดไปเข้า catch (e) ด้านล่างแทน
-      final googleUser = await _googleSignIn.authenticate(); 
+      final googleUser = await _googleSignIn.authenticate();
 
       final googleAuth = googleUser.authentication;
       final idToken = googleAuth.idToken;

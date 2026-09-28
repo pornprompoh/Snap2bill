@@ -19,18 +19,73 @@ class ClaimScreen extends StatefulWidget {
 }
 
 class _ClaimScreenState extends State<ClaimScreen> {
-  // เก็บว่า รายการที่ (index) -> ใครกดไปบ้าง (userId) -> จำนวนกี่ชิ้น (qty)
+  // เก็บจำนวนที่กด: รายการที่ (index) -> ไอดีคนกด -> จำนวน (qty)
   final Map<int, Map<String, int>> _claimedItems = {};
+  
+  // เก็บชื่อเพื่อน: ไอดีคนกด -> ชื่อ (เอาไว้โชว์บนป้ายแทนคำว่า "เพื่อน")
+  final Map<String, String> _userNames = {};
   
   final _supabase = Supabase.instance.client;
   late String _currentUserId;
   late String _currentUserName;
+  late RealtimeChannel _claimChannel; // 🚀 เพิ่มตัวแปรช่องสัญญาณ
 
   @override
   void initState() {
     super.initState();
-    _currentUserId = _supabase.auth.currentUser?.id ?? 'host_id';
-    _currentUserName = 'ฉัน (Host)';
+    _currentUserId = _supabase.auth.currentUser?.id ?? 'guest_${DateTime.now().millisecondsSinceEpoch}';
+    
+    // ดึงอีเมลมาใช้เป็นชื่อชั่วคราว ถ้าไม่มีให้เป็น Guest
+    final email = _supabase.auth.currentUser?.email;
+    _currentUserName = email != null ? email.split('@')[0] : 'ผู้เข้าร่วม';
+    
+    _userNames[_currentUserId] = _currentUserName;
+    
+    _setupRealtime();
+  }
+
+  // 🚀 ฟังก์ชันตั้งค่าดักฟังการแย่งเมนู
+  void _setupRealtime() {
+    _claimChannel = _supabase.channel('room_${widget.lobbyId}');
+    
+    // ดักฟัง Event ชื่อ 'update_claim' ที่เพื่อนส่งมา
+    _claimChannel.onBroadcast(event: 'update_claim', callback: (payload) {
+      final index = payload['item_index'] as int;
+      final userId = payload['user_id'] as String;
+      final userName = payload['user_name'] as String;
+      final qty = payload['qty'] as int;
+
+      setState(() {
+        _userNames[userId] = userName; // จำชื่อเพื่อนไว้
+        
+        final itemClaims = _claimedItems[index] ?? {};
+        if (qty > 0) {
+          itemClaims[userId] = qty;
+        } else {
+          itemClaims.remove(userId);
+        }
+        _claimedItems[index] = itemClaims;
+      });
+    }).subscribe();
+  }
+
+  @override
+  void dispose() {
+    _supabase.removeChannel(_claimChannel); // ปิดช่องสัญญาณเมื่อออกจากหน้า
+    super.dispose();
+  }
+
+  // 🚀 ฟังก์ชันส่งสัญญาณบอกทุกคนในห้องว่าเรากดอัปเดตเมนู
+  void _broadcastUpdate(int index, int qty) {
+    _claimChannel.sendBroadcastMessage(
+      event: 'update_claim',
+      payload: {
+        'item_index': index,
+        'user_id': _currentUserId,
+        'user_name': _currentUserName,
+        'qty': qty,
+      },
+    );
   }
 
   void _increment(int index, int maxQty) {
@@ -42,8 +97,11 @@ class _ClaimScreenState extends State<ClaimScreen> {
 
     if (totalClaimed < maxQty) {
       setState(() {
-        itemClaims[_currentUserId] = (itemClaims[_currentUserId] ?? 0) + 1;
+        final newQty = (itemClaims[_currentUserId] ?? 0) + 1;
+        itemClaims[_currentUserId] = newQty;
         _claimedItems[index] = itemClaims;
+        
+        _broadcastUpdate(index, newQty); // 🚀 ส่งคลื่นกระจายเสียง
       });
     }
   }
@@ -54,11 +112,15 @@ class _ClaimScreenState extends State<ClaimScreen> {
 
     if (myClaimedQty > 0) {
       setState(() {
-        itemClaims[_currentUserId] = myClaimedQty - 1;
-        if (itemClaims[_currentUserId] == 0) {
+        final newQty = myClaimedQty - 1;
+        if (newQty == 0) {
           itemClaims.remove(_currentUserId);
+        } else {
+          itemClaims[_currentUserId] = newQty;
         }
         _claimedItems[index] = itemClaims;
+        
+        _broadcastUpdate(index, newQty); // 🚀 ส่งคลื่นกระจายเสียง
       });
     }
   }
@@ -72,7 +134,7 @@ class _ClaimScreenState extends State<ClaimScreen> {
         for (int i = 0; i < qty; i++) {
           sharersList.add({
             'user_id': userId,
-            'user_name': userId == _currentUserId ? _currentUserName : 'เพื่อน',
+            'user_name': _userNames[userId] ?? 'เพื่อน',
           });
         }
       });
@@ -103,7 +165,7 @@ class _ClaimScreenState extends State<ClaimScreen> {
             padding: const EdgeInsets.all(16),
             width: double.infinity,
             color: Theme.of(context).colorScheme.primaryContainer,
-            child: Text('ร้าน: $shopName', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            child: Text('รหัสห้อง: ${widget.lobbyId} | ร้าน: $shopName', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ),
           Expanded(
             child: ListView.builder(
@@ -150,7 +212,6 @@ class _ClaimScreenState extends State<ClaimScreen> {
                                 style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
                               ),
                               
-                              // 🚀 ส่วนที่เพิ่มเข้ามา: แสดงป้ายชื่อคนกด
                               if (itemClaims.isNotEmpty) ...[
                                 const SizedBox(height: 8),
                                 Wrap(
@@ -159,19 +220,22 @@ class _ClaimScreenState extends State<ClaimScreen> {
                                   children: itemClaims.entries.map((entry) {
                                     final userId = entry.key;
                                     final qty = entry.value;
-                                    // ถ้าเป็นไอดีเราให้แสดงชื่อเรา ถ้าไอดีคนอื่นให้แสดงชื่อเพื่อน
-                                    final name = userId == _currentUserId ? _currentUserName : 'เพื่อน';
+                                    final name = _userNames[userId] ?? 'เพื่อน';
                                     
                                     return Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: Colors.blue.shade50,
+                                        color: userId == _currentUserId ? Colors.blue.shade50 : Colors.orange.shade50,
                                         borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(color: Colors.blue.shade200),
+                                        border: Border.all(color: userId == _currentUserId ? Colors.blue.shade200 : Colors.orange.shade200),
                                       ),
                                       child: Text(
                                         '$name: $qty', 
-                                        style: TextStyle(fontSize: 12, color: Colors.blue.shade700, fontWeight: FontWeight.bold)
+                                        style: TextStyle(
+                                          fontSize: 12, 
+                                          color: userId == _currentUserId ? Colors.blue.shade700 : Colors.orange.shade700, 
+                                          fontWeight: FontWeight.bold
+                                        )
                                       ),
                                     );
                                   }).toList(),

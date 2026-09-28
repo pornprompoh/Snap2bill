@@ -13,15 +13,14 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _supabase = Supabase.instance.client;
   
-  // 🚀 1. เปลี่ยนจาก Stream เป็น Future
   late final Future<List<Map<String, dynamic>>> _billsFuture;
+  bool _isCheckingRoom = false;
 
   @override
   void initState() {
     super.initState();
     final currentUserId = _supabase.auth.currentUser?.id ?? '';
     
-    // 🚀 2. ใช้ .select() ดึงข้อมูลครั้งเดียวจบ (ไม่ต้องง้อ Realtime บนฐานข้อมูล)
     _billsFuture = _supabase
         .from('bills')
         .select()
@@ -29,17 +28,50 @@ class _HomeScreenState extends State<HomeScreen> {
         .order('created_at', ascending: false);
   }
 
-  void _joinRoom(BuildContext context, String roomCode) {
-    if (roomCode.length == 6) {
-      Navigator.pushNamed(
-        context, 
-        AppRoutes.lobby,
-        arguments: {'lobbyId': roomCode, 'shop_name': 'กำลังโหลดข้อมูล...'} 
-      );
-    } else {
+  // 🚀 ถอด BuildContext ออก เพื่อให้ฟังก์ชันนี้ใช้ context หลักของ State ได้อย่างปลอดภัย
+  Future<void> _joinRoom(String roomCode) async {
+    if (roomCode.length != 6) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('กรุณากรอกรหัสห้องให้ครบ 6 หลัก'))
+        const SnackBar(content: Text('กรุณากรอกรหัสห้องให้ครบ 6 หลัก')),
       );
+      return;
+    }
+
+    setState(() => _isCheckingRoom = true);
+
+    try {
+      final response = await _supabase
+          .from('lobbies')
+          .select()
+          .eq('host_id', roomCode) 
+          .maybeSingle();
+
+      if (!mounted) return; // เช็กความปลอดภัยของ context หลักก่อนใช้งาน
+
+      if (response != null) {
+        Navigator.pushNamed(
+          context, 
+          AppRoutes.lobby,
+          arguments: {'lobbyId': roomCode, 'shop_name': 'กำลังโหลดข้อมูล...'} 
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('รหัสไม่ถูกต้อง หรือไม่มีห้องนี้อยู่จริง'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('เกิดข้อผิดพลาดในการตรวจสอบห้อง: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isCheckingRoom = false);
+      }
     }
   }
 
@@ -47,7 +79,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final codeController = TextEditingController();
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      // 🚀 เปลี่ยนชื่อเป็น dialogContext เพื่อป้องกันการเรียกใช้งานสลับกับ context หลัก
+      builder: (dialogContext) => AlertDialog(
         title: const Text('เข้าร่วมห้องหารบิล'),
         content: TextField(
           controller: codeController,
@@ -59,13 +92,20 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('ยกเลิก')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext), 
+            child: const Text('ยกเลิก')
+          ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _joinRoom(context, codeController.text);
-            },
-            child: const Text('เข้าร่วม'),
+            onPressed: _isCheckingRoom 
+                ? null 
+                : () {
+                    Navigator.pop(dialogContext); // ปิด Dialog ด้วย dialogContext
+                    _joinRoom(codeController.text); // ค้นหาห้องโดยไม่ส่ง context ที่ถูกทำลายแล้วเข้าไป
+                  },
+            child: _isCheckingRoom 
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) 
+                : const Text('เข้าร่วม'),
           ),
         ],
       ),
@@ -131,7 +171,6 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 16),
             
             Expanded(
-              // 🚀 3. เปลี่ยนมาใช้ FutureBuilder แทน
               child: FutureBuilder<List<Map<String, dynamic>>>(
                 future: _billsFuture,
                 builder: (context, snapshot) {

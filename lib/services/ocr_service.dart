@@ -13,7 +13,7 @@ class OcrService {
       }
 
       final model = GenerativeModel(
-        model: 'gemini-3.8-flash',
+        model: 'gemini-3.7-flash',
         apiKey: apiKey,
       );
 

@@ -1,7 +1,5 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 
-// นำเข้าหน้าจอทั้งหมด
 import '../screens/auth/login_screen.dart';
 import '../screens/scan_screen.dart';
 import '../screens/loading_screen.dart';
@@ -13,8 +11,8 @@ import '../screens/profile/profile_screen.dart';
 import '../screens/friends/friend_list_screen.dart';
 import '../screens/detail_screen.dart';
 import '../screens/main_screen.dart';
+
 class AppRoutes {
-  // ประกาศชื่อ Route ต่างๆ
   static const String login = '/login';
   static const String home = '/home';
   static const String scan = '/scan';
@@ -27,10 +25,14 @@ class AppRoutes {
   static const String friends = '/friends';
   static const String detail = '/detail';
 
-  // ฟังก์ชันจัดการการเปลี่ยนหน้า
   static Route<dynamic> generateRoute(RouteSettings settings) {
-    switch (settings.name) {
-      case '/': // หน้าแรกสุดของแอป
+    String routeName = settings.name ?? '/';
+    if (routeName.contains('?')) {
+      routeName = routeName.split('?')[0]; 
+    }
+
+    switch (routeName) { 
+      case '/': 
       case login:
         return MaterialPageRoute(builder: (_) => const LoginScreen());
       case home:
@@ -42,44 +44,60 @@ class AppRoutes {
       case friends:
         return MaterialPageRoute(builder: (_) => const FriendListScreen());
         
-      // ส่วนที่มีการส่งข้อมูลพ่วงไปด้วย (Arguments)
       case detail:
         final billData = settings.arguments as Map<String, dynamic>? ?? {};
         return MaterialPageRoute(builder: (_) => DetailScreen(billData: billData));
+      
       case loading:
-        final image = settings.arguments as File;
-        return MaterialPageRoute(builder: (_) => LoadingScreen(image: image));
+        final argData = settings.arguments;
+        final imageFile = argData is Map ? argData['image'] : argData;
+        return MaterialPageRoute(builder: (_) => LoadingScreen(image: imageFile));
+      
       case review:
-        final receiptData = settings.arguments as Map<String, dynamic>;
+        final receiptData = settings.arguments as Map<String, dynamic>? ?? {};
         return MaterialPageRoute(builder: (_) => ReviewScreen(receiptData: receiptData));
+      
       case lobby:
-        final receiptData = settings.arguments as Map<String, dynamic>;
-        return MaterialPageRoute(builder: (_) => LobbyScreen(receiptData: receiptData));
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        
+        // 🚀 ระบบคัดแยก: ถ้ามี lobbyId เป็น Guest, ถ้ามีข้อมูลบิลเป็น Host
+        String? lobbyId = args['lobbyId']?.toString();
+        Map<String, dynamic>? receiptData = args['receiptData'];
+        
+        if (receiptData == null && args.containsKey('items')) {
+          receiptData = args;
+        }
+
+        return MaterialPageRoute(
+          builder: (_) => LobbyScreen(
+            lobbyId: lobbyId, 
+            receiptData: receiptData, 
+          ),
+        );
+      
       case claim:
-        // 🚀 ป้องกันค่า null โดยการบังคับแปลงเป็น Map ถ้ายิงมาผิดให้เป็น Map ว่าง
         final args = settings.arguments as Map<String, dynamic>? ?? {};
         return MaterialPageRoute(
           builder: (_) => ClaimScreen(
-            lobbyId: args['lobbyId'] ?? 'unknown_room',
+            lobbyId: args['lobbyId']?.toString() ?? 'unknown_room',
             receiptData: args['receiptData'] ?? {},
           ),
         );
+        
       case summary:
-        final args = settings.arguments as Map<String, dynamic>;
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
         return MaterialPageRoute(
           builder: (_) => SummaryScreen(
-            lobbyId: args['lobbyId'],
-            receiptData: args['receiptData'],
-            itemSharers: args['itemSharers'],
+            lobbyId: args['lobbyId']?.toString() ?? '',
+            receiptData: args['receiptData'] ?? {},
+            itemSharers: args['itemSharers'] ?? {},
           ),
         );
+        
       default:
-        // กรณีเรียก Route ผิด
         return MaterialPageRoute(
           builder: (_) => Scaffold(
-            body: Center(
-              child: Text('ไม่มีหน้าจอสำหรับ Route: ${settings.name}'),
-            ),
+            body: Center(child: Text('ไม่มีหน้าจอสำหรับ Route: $routeName')),
           ),
         );
     }

@@ -60,7 +60,7 @@ class AppRoutes {
       case lobby:
         final args = settings.arguments as Map<String, dynamic>? ?? {};
         
-        // 🚀 ระบบคัดแยก: ถ้ามี lobbyId เป็น Guest, ถ้ามีข้อมูลบิลเป็น Host
+        // 🚀 ดักจับข้อมูล: ถ้าหา 'receiptData' ไม่เจอ ให้ดึงข้อมูลทั้งหมดมาใช้แทน
         String? lobbyId = args['lobbyId']?.toString();
         Map<String, dynamic>? receiptData = args['receiptData'];
         

@@ -168,9 +168,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
       }
 
       // 4. (ถ้ามี) อัปเดตสถานะห้อง lobby เป็น completed (เหมือนโค้ดเดิมของคุณ)
-      if (widget.lobbyId.isNotEmpty && widget.lobbyId != 'unknown_room') {
-         await _supabase.from('lobbies').update({'status': 'completed'}).eq('lobby_code', widget.lobbyId);
-      }
+      // if (widget.lobbyId.isNotEmpty && widget.lobbyId != 'unknown_room') {
+      //   await _supabase.from('lobbies').update({'status': 'completed'}).eq('lobby_code', widget.lobbyId);
+      // }
 
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(context, AppRoutes.home, (route) => false);

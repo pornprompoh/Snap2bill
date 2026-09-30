@@ -63,6 +63,33 @@ class _ReviewScreenState extends State<ReviewScreen> {
     return subTotal;
   }
 
+  Widget _summaryLine(String label, double amount, {bool isDiscount = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: AppTextStyles.body.copyWith(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          Text(
+            '${isDiscount ? '-' : ''}${AppFormatters.formatCurrency(amount)}',
+            style: AppTextStyles.body.copyWith(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: isDiscount ? AppColors.error : AppColors.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // 🚀 โชว์ Pop-up สำหรับแก้ข้อมูลส่วนหัว (ร้าน, VAT, SC)
   Future<void> _showEditHeaderDialog() async {
     final shopCtrl = TextEditingController(text: _shopName);
@@ -220,7 +247,14 @@ class _ReviewScreenState extends State<ReviewScreen> {
     updatedReceiptData['total_amount'] = _calculateTotal();
     updatedReceiptData['items'] = _items;
 
-    Navigator.pushNamed(context, AppRoutes.lobby, arguments: updatedReceiptData);
+    Navigator.pushNamed(
+      context,
+      AppRoutes.lobby,
+      arguments: {
+        'receiptData': updatedReceiptData,
+        'receiptImageBytes': widget.receiptImageBytes,
+      },
+    );
   }
 
   @override
@@ -341,7 +375,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 Row(
                   children: [
                     TextButton.icon(onPressed: () => _showEditItemDialog(-1), icon: const Icon(Icons.add), label: const Text('เพิ่มรายการ')),
-                    Text('ยอดสุทธิ: ${AppFormatters.formatCurrency(_calculateTotal())}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green)),
+                    const Spacer(),
                   ],
                 ),
                 const SizedBox(height: 12),

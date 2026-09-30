@@ -10,6 +10,7 @@ class BillProvider with ChangeNotifier {
   String? _activeRoomCode;
   final List<UserModel> _roomParticipants = [];
   bool _isLoading = false;
+  bool _isCreatingBill = false;
 
   List<BillModel> get bills => _bills;
   List<UserModel> get roomParticipants => List.unmodifiable(_roomParticipants);
@@ -53,9 +54,18 @@ class BillProvider with ChangeNotifier {
 
   // สร้างบิลใหม่ แล้วยัดใส่บนสุดของลิสต์ให้ผู้ใช้เห็นทันที
   Future<BillModel> createBill(String shopName, double totalAmount) async {
-    final newBill = await _dbService.createBill(shopName, totalAmount);
-    _bills.insert(0, newBill);
-    notifyListeners();
-    return newBill;
+    if (_isCreatingBill) {
+      throw StateError('Bill creation is already in progress.');
+    }
+
+    _isCreatingBill = true;
+    try {
+      final newBill = await _dbService.createBill(shopName, totalAmount);
+      _bills.insert(0, newBill);
+      notifyListeners();
+      return newBill;
+    } finally {
+      _isCreatingBill = false;
+    }
   }
 }

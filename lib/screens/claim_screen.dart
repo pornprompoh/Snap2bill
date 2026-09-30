@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../routes/app_routes.dart';
@@ -9,6 +10,7 @@ import '../../widgets/custom_button.dart';
 class ClaimScreen extends StatefulWidget {
   final String lobbyId;
   final Map<String, dynamic> receiptData;
+  final Uint8List? receiptImageBytes;
   final bool isHost; // 🚀 เพิ่มตัวแปรนี้
   final List<Map<String, dynamic>> roomParticipants;
 
@@ -16,6 +18,7 @@ class ClaimScreen extends StatefulWidget {
     super.key,
     required this.lobbyId,
     required this.receiptData,
+    this.receiptImageBytes,
     this.isHost = true,
     this.roomParticipants = const [],
   });
@@ -212,6 +215,7 @@ class _ClaimScreenState extends State<ClaimScreen> {
       arguments: {
         'lobbyId': widget.lobbyId,
         'receiptData': widget.receiptData,
+        'receiptImageBytes': widget.receiptImageBytes,
         'itemSharers': itemSharers,
         'isHost': widget.isHost, // ส่งสถานะต่อ
       },

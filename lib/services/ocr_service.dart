@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
@@ -8,15 +7,13 @@ class OcrService {
   static const String _primaryModelName = 'gemini-3.5-flash-lite';
   static const String _fallbackModelName = 'gemini-3.1-flash-lite';
 
-  Future<Map<String, dynamic>?> processReceipt(File imageFile) async {
+  Future<Map<String, dynamic>?> processReceipt(Uint8List imageBytes) async {
     try {
       // ดึง API Key จากไฟล์ .env
       final apiKey = dotenv.env['GEMINI_API_KEY'];
       if (apiKey == null || apiKey.isEmpty) {
         throw Exception('ไม่พบ GEMINI_API_KEY ในไฟล์ .env');
       }
-
-      final imageBytes = await imageFile.readAsBytes();
 
       // 🚀 ปรับ Prompt ใหม่ให้ AI คาย Qty และแยก VAT ออกจาก items
       final prompt = TextPart('''

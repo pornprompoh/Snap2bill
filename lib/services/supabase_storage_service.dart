@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -58,10 +57,6 @@ Uint8List _compressImage(Uint8List sourceBytes) {
 
 class SupabaseStorageService {
   final _supabase = Supabase.instance.client;
-
-  Future<String?> uploadReceiptImage(File imageFile, String lobbyId) async {
-    return uploadReceiptBytes(await imageFile.readAsBytes(), lobbyId);
-  }
 
   Future<String?> uploadReceiptXFile(XFile imageFile, String lobbyId) async {
     return uploadReceiptBytes(await imageFile.readAsBytes(), lobbyId);

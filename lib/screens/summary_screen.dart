@@ -1,6 +1,5 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb; // 🚀 แก้อาการเว็บพัง
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -16,6 +15,7 @@ class SummaryScreen extends StatefulWidget {
   final String lobbyId;
   final Map<String, dynamic> receiptData;
   final Map<int, List<Map<String, dynamic>>> itemSharers;
+  final Uint8List? receiptImageBytes;
   final bool isHost; // 🚀 รับสถานะ Host
 
   const SummaryScreen({
@@ -23,6 +23,7 @@ class SummaryScreen extends StatefulWidget {
     required this.lobbyId,
     required this.receiptData,
     required this.itemSharers,
+    this.receiptImageBytes,
     this.isHost = true,
   });
 
@@ -198,17 +199,11 @@ class _SummaryScreenState extends State<SummaryScreen> {
       );
 
       String? imageUrl;
-      final localImagePath = widget.receiptData['local_image_path'];
-
-      // 🚀 เช็ก kIsWeb ก่อนใช้ File() เพื่อป้องกันเว็บแครช
-      if (!kIsWeb && localImagePath != null && localImagePath.isNotEmpty) {
-        final file = File(localImagePath);
-        if (file.existsSync()) {
-          imageUrl = await SupabaseStorageService().uploadReceiptImage(
-            file,
-            widget.lobbyId,
-          );
-        }
+      if (widget.receiptImageBytes != null) {
+        imageUrl = await SupabaseStorageService().uploadReceiptBytes(
+          widget.receiptImageBytes!,
+          widget.lobbyId,
+        );
       }
 
       final sharersJson = widget.itemSharers.map(

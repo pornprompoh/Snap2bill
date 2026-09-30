@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../routes/app_routes.dart'; // นำเข้าระบบนำทาง
@@ -48,7 +49,9 @@ class _ScanScreenState extends State<ScanScreen> {
               if (_image != null)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.file(_image!, height: 350, fit: BoxFit.cover),
+                  child: kIsWeb
+                      ? Image.network(_image!.path, height: 350, fit: BoxFit.cover)
+                      : Image.file(_image!, height: 350, fit: BoxFit.cover),
                 )
               else
                 Container(

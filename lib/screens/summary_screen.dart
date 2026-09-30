@@ -51,7 +51,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchHostPromptPayInfo();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _fetchHostPromptPayInfo();
+    });
   }
 
   Future<void> _fetchHostPromptPayInfo() async {
@@ -661,7 +663,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           ? AppColors.success
                           : Theme.of(context).colorScheme.primary,
                       isLoading: _isSaving,
-                      onPressed: _isSaving ? null : _saveAndFinish,
+                      onPressed: _saveAndFinish,
                     ),
                   ),
                 ],

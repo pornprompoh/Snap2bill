@@ -82,7 +82,10 @@ class SupabaseStorageService {
           .uploadBinary(
             filePath,
             compressedBytes,
-            fileOptions: const FileOptions(contentType: 'image/jpeg'),
+            fileOptions: const FileOptions(
+              contentType: 'image/jpeg',
+              upsert: true,
+            ),
           );
 
       return _supabase.storage.from('receipts').getPublicUrl(filePath);

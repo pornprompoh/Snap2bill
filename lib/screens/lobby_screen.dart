@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:math';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -49,7 +48,10 @@ class _LobbyScreenState extends State<LobbyScreen> {
 
     _isHost = widget.isHost; // 🚀 ใช้ค่าที่ส่งมาตรงๆ
     _roomId = widget.lobbyId ?? (100000 + Random().nextInt(900000)).toString();
-    context.read<BillProvider>().setActiveRoom(_roomId);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<BillProvider>().setActiveRoom(_roomId);
+    });
 
     _currentUserId =
         _supabase.auth.currentUser?.id ??

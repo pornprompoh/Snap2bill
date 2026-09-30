@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:typed_data';
 
 import '../screens/auth/login_screen.dart';
 import '../screens/scan_screen.dart';
@@ -51,16 +52,24 @@ class AppRoutes {
         );
 
       case loading:
-        final argData = settings.arguments;
-        final imageFile = argData is Map ? argData['image'] : argData;
+        final imageBytes = settings.arguments as Uint8List;
         return MaterialPageRoute(
-          builder: (_) => LoadingScreen(image: imageFile),
+          builder: (_) => LoadingScreen(imageBytes: imageBytes),
         );
 
       case review:
-        final receiptData = settings.arguments as Map<String, dynamic>? ?? {};
+        final args = settings.arguments;
+        final receiptData = args is Map && args['receiptData'] is Map
+            ? Map<String, dynamic>.from(args['receiptData'] as Map)
+            : Map<String, dynamic>.from(args as Map? ?? {});
+        final receiptImageBytes = args is Map
+            ? args['receiptImageBytes'] as Uint8List?
+            : null;
         return MaterialPageRoute(
-          builder: (_) => ReviewScreen(receiptData: receiptData),
+          builder: (_) => ReviewScreen(
+            receiptData: receiptData,
+            receiptImageBytes: receiptImageBytes,
+          ),
         );
 
       case lobby:
@@ -78,6 +87,7 @@ class AppRoutes {
           builder: (_) => LobbyScreen(
             lobbyId: lobbyId,
             receiptData: receiptData,
+            receiptImageBytes: args['receiptImageBytes'] as Uint8List?,
             isHost: isHost,
           ),
         );
@@ -92,6 +102,7 @@ class AppRoutes {
                 .whereType<Map>()
                 .map((participant) => Map<String, dynamic>.from(participant))
                 .toList(),
+            receiptImageBytes: args['receiptImageBytes'] as Uint8List?,
             isHost: args['isHost'] ?? true, // 🚀 เพิ่มรับค่า isHost
           ),
         );
@@ -103,6 +114,7 @@ class AppRoutes {
             lobbyId: args['lobbyId']?.toString() ?? '',
             receiptData: args['receiptData'] ?? {},
             itemSharers: args['itemSharers'] ?? {},
+            receiptImageBytes: args['receiptImageBytes'] as Uint8List?,
             isHost: args['isHost'] ?? true, // 🚀 เพิ่มรับค่า isHost
           ),
         );

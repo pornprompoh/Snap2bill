@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -12,12 +13,14 @@ import '../../widgets/custom_button.dart';
 class LobbyScreen extends StatefulWidget {
   final String? lobbyId;
   final Map<String, dynamic>? receiptData;
+  final Uint8List? receiptImageBytes;
   final bool isHost; // 🚀 เพิ่มตัวแปรนี้
 
   const LobbyScreen({
     super.key,
     this.lobbyId,
     this.receiptData,
+    this.receiptImageBytes,
     this.isHost = true,
   });
 
@@ -212,6 +215,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
       arguments: {
         'lobbyId': _roomId,
         'receiptData': widget.receiptData,
+        'receiptImageBytes': widget.receiptImageBytes,
         'roomParticipants': roomParticipants,
         'isHost': true, // 🚀 ส่งต่อให้ Host
       },

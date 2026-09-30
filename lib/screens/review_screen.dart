@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../routes/app_routes.dart';
 import '../utils/formatters.dart';
@@ -5,8 +6,13 @@ import '../widgets/custom_button.dart';
 
 class ReviewScreen extends StatefulWidget {
   final Map<String, dynamic> receiptData;
+  final Uint8List? receiptImageBytes;
 
-  const ReviewScreen({super.key, required this.receiptData});
+  const ReviewScreen({
+    super.key,
+    required this.receiptData,
+    this.receiptImageBytes,
+  });
 
   @override
   State<ReviewScreen> createState() => _ReviewScreenState();
@@ -17,17 +23,26 @@ class _ReviewScreenState extends State<ReviewScreen> {
   late double _vat;
   late double _sc;
   late double _discount;
-  
+
   List<Map<String, dynamic>> _items = [];
 
   @override
   void initState() {
     super.initState();
-    _shopName = widget.receiptData['shop_name']?.toString() ?? 'ไม่ระบุชื่อร้าน';
-    _vat = double.tryParse(widget.receiptData['vat_amount']?.toString() ?? '0') ?? 0.0;
-    _sc = double.tryParse(widget.receiptData['service_charge']?.toString() ?? '0') ?? 0.0;
-    _discount = double.tryParse(widget.receiptData['discount']?.toString() ?? '0') ?? 0.0;
-    
+    _shopName =
+        widget.receiptData['shop_name']?.toString() ?? 'ไม่ระบุชื่อร้าน';
+    _vat =
+        double.tryParse(widget.receiptData['vat_amount']?.toString() ?? '0') ??
+        0.0;
+    _sc =
+        double.tryParse(
+          widget.receiptData['service_charge']?.toString() ?? '0',
+        ) ??
+        0.0;
+    _discount =
+        double.tryParse(widget.receiptData['discount']?.toString() ?? '0') ??
+        0.0;
+
     final aiItems = widget.receiptData['items'] as List<dynamic>? ?? [];
     _items = aiItems.map((e) => Map<String, dynamic>.from(e)).toList();
   }
@@ -57,18 +72,36 @@ class _ReviewScreenState extends State<ReviewScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: shopCtrl, decoration: const InputDecoration(labelText: 'ชื่อร้านค้า')),
+              TextField(
+                controller: shopCtrl,
+                decoration: const InputDecoration(labelText: 'ชื่อร้านค้า'),
+              ),
               const SizedBox(height: 8),
-              TextField(controller: scCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Service Charge')),
+              TextField(
+                controller: scCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Service Charge'),
+              ),
               const SizedBox(height: 8),
-              TextField(controller: vatCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'VAT')),
+              TextField(
+                controller: vatCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'VAT'),
+              ),
               const SizedBox(height: 8),
-              TextField(controller: discCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'ส่วนลด')),
+              TextField(
+                controller: discCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'ส่วนลด'),
+              ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('ยกเลิก')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('ยกเลิก'),
+          ),
           ElevatedButton(
             onPressed: () {
               setState(() {
@@ -89,11 +122,15 @@ class _ReviewScreenState extends State<ReviewScreen> {
   // 🚀 โชว์ Pop-up สำหรับแก้รายการอาหารแต่ละชิ้น
   Future<void> _showEditItemDialog(int index) async {
     final isNew = index == -1;
-    final item = isNew ? {'item_name': '', 'qty': 1, 'unit_price': 0.0} : _items[index];
+    final item = isNew
+        ? {'item_name': '', 'qty': 1, 'unit_price': 0.0}
+        : _items[index];
 
     final nameCtrl = TextEditingController(text: item['item_name'].toString());
     final qtyCtrl = TextEditingController(text: item['qty'].toString());
-    final priceCtrl = TextEditingController(text: item['unit_price'].toString());
+    final priceCtrl = TextEditingController(
+      text: item['unit_price'].toString(),
+    );
 
     await showDialog(
       context: context,
@@ -103,20 +140,38 @@ class _ReviewScreenState extends State<ReviewScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'ชื่อรายการ')),
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: 'ชื่อรายการ'),
+              ),
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Expanded(child: TextField(controller: qtyCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'จำนวน'))),
+                  Expanded(
+                    child: TextField(
+                      controller: qtyCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'จำนวน'),
+                    ),
+                  ),
                   const SizedBox(width: 16),
-                  Expanded(child: TextField(controller: priceCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'ราคา/ชิ้น'))),
+                  Expanded(
+                    child: TextField(
+                      controller: priceCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'ราคา/ชิ้น'),
+                    ),
+                  ),
                 ],
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('ยกเลิก')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('ยกเลิก'),
+          ),
           ElevatedButton(
             onPressed: () {
               final updatedItem = {
@@ -146,7 +201,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
     updatedReceiptData['vat_amount'] = _vat;
     updatedReceiptData['service_charge'] = _sc;
     updatedReceiptData['discount'] = _discount;
-    
+
     double subTotal = 0;
     for (var item in _items) {
       final qty = int.tryParse(item['qty'].toString()) ?? 1;
@@ -154,12 +209,19 @@ class _ReviewScreenState extends State<ReviewScreen> {
       item['total_price'] = qty * price;
       subTotal += item['total_price'];
     }
-    
+
     updatedReceiptData['sub_total'] = subTotal;
     updatedReceiptData['total_amount'] = _calculateTotal();
     updatedReceiptData['items'] = _items;
 
-    Navigator.pushNamed(context, AppRoutes.lobby, arguments: updatedReceiptData);
+    Navigator.pushNamed(
+      context,
+      AppRoutes.lobby,
+      arguments: {
+        'receiptData': updatedReceiptData,
+        'receiptImageBytes': widget.receiptImageBytes,
+      },
+    );
   }
 
   @override
@@ -172,7 +234,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
           GestureDetector(
             onTap: _showEditHeaderDialog,
             child: Container(
-              color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.4),
+              color: Theme.of(
+                context,
+              ).colorScheme.primaryContainer.withOpacity(0.4),
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
@@ -180,10 +244,21 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('ร้าน: $_shopName', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        Text(
+                          'ร้าน: $_shopName',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         const SizedBox(height: 4),
-                        Text('SC: ${AppFormatters.formatCurrency(_sc)} | VAT: ${AppFormatters.formatCurrency(_vat)} | ลด: ${AppFormatters.formatCurrency(_discount)}', 
-                          style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
+                        Text(
+                          'SC: ${AppFormatters.formatCurrency(_sc)} | VAT: ${AppFormatters.formatCurrency(_vat)} | ลด: ${AppFormatters.formatCurrency(_discount)}',
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontSize: 13,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -192,7 +267,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
               ),
             ),
           ),
-          
+
           // 2. รายการอาหาร (กดแก้ไข/ลบได้)
           Expanded(
             child: ListView.builder(
@@ -201,23 +276,56 @@ class _ReviewScreenState extends State<ReviewScreen> {
               itemBuilder: (context, index) {
                 final item = _items[index];
                 final qty = int.tryParse(item['qty'].toString()) ?? 1;
-                final price = double.tryParse(item['unit_price'].toString()) ?? 0.0;
-                
+                final price =
+                    double.tryParse(item['unit_price'].toString()) ?? 0.0;
+
                 return Card(
                   elevation: 0,
-                  shape: RoundedRectangleBorder(side: BorderSide(color: Colors.grey.shade200), borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                    side: BorderSide(color: Colors.grey.shade200),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   margin: const EdgeInsets.only(bottom: 8),
                   child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    title: Text(item['item_name'].toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('$qty x ${AppFormatters.formatCurrency(price)}'),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 4,
+                    ),
+                    title: Text(
+                      item['item_name'].toString(),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(
+                      '$qty x ${AppFormatters.formatCurrency(price)}',
+                    ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(AppFormatters.formatCurrency(qty * price), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        Text(
+                          AppFormatters.formatCurrency(qty * price),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
                         const SizedBox(width: 8),
-                        IconButton(icon: const Icon(Icons.edit, color: Colors.blue, size: 20), onPressed: () => _showEditItemDialog(index)),
-                        IconButton(icon: const Icon(Icons.delete, color: Colors.red, size: 20), onPressed: () => setState(() => _items.removeAt(index))),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.edit,
+                            color: Colors.blue,
+                            size: 20,
+                          ),
+                          onPressed: () => _showEditItemDialog(index),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.delete,
+                            color: Colors.red,
+                            size: 20,
+                          ),
+                          onPressed: () =>
+                              setState(() => _items.removeAt(index)),
+                        ),
                       ],
                     ),
                   ),
@@ -225,25 +333,48 @@ class _ReviewScreenState extends State<ReviewScreen> {
               },
             ),
           ),
-          
+
           // 3. ปุ่มเพิ่มรายการ และยืนยัน
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))]),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -5),
+                ),
+              ],
+            ),
             child: Column(
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    TextButton.icon(onPressed: () => _showEditItemDialog(-1), icon: const Icon(Icons.add), label: const Text('เพิ่มรายการ')),
-                    Text('ยอดสุทธิ: ${AppFormatters.formatCurrency(_calculateTotal())}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green)),
+                    TextButton.icon(
+                      onPressed: () => _showEditItemDialog(-1),
+                      icon: const Icon(Icons.add),
+                      label: const Text('เพิ่มรายการ'),
+                    ),
+                    Text(
+                      'ยอดสุทธิ: ${AppFormatters.formatCurrency(_calculateTotal())}',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 12),
-                CustomButton(text: 'ข้อมูลถูกต้อง ไปตั้งห้องหารบิล', onPressed: _confirmAndGoNext),
+                CustomButton(
+                  text: 'ข้อมูลถูกต้อง ไปตั้งห้องหารบิล',
+                  onPressed: _confirmAndGoNext,
+                ),
               ],
             ),
-          )
+          ),
         ],
       ),
     );

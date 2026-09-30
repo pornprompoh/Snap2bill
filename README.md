@@ -122,6 +122,7 @@ snap2bill/
    flutter test
    ```
 
+
 ## Deep Links
 
 แอปรองรับ custom link รูปแบบ `snap2bill://join/{roomCode}` ตัวอย่างเช่น `snap2bill://join/123456` โดย root handler จะตรวจสถานะล็อกอินและเปิด Lobby เมื่อพบห้องใน Supabase ตาราง `lobbies` ส่วน Android intent filters และ iOS URL scheme ตั้งค่าไว้ใน native project folders ด้านบน

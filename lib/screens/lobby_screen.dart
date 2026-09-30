@@ -17,12 +17,14 @@ import '../../widgets/friend_item.dart';
 class LobbyScreen extends StatefulWidget {
   final String? lobbyId;
   final Map<String, dynamic>? receiptData;
+  final Uint8List? receiptImageBytes;
   final bool isHost; // 🚀 เพิ่มตัวแปรนี้
 
   const LobbyScreen({
     super.key,
     this.lobbyId,
     this.receiptData,
+    this.receiptImageBytes,
     this.isHost = true,
   });
 
@@ -46,7 +48,10 @@ class _LobbyScreenState extends State<LobbyScreen> {
 
     _isHost = widget.isHost; // 🚀 ใช้ค่าที่ส่งมาตรงๆ
     _roomId = widget.lobbyId ?? (100000 + Random().nextInt(900000)).toString();
-    context.read<BillProvider>().setActiveRoom(_roomId);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<BillProvider>().setActiveRoom(_roomId);
+    });
 
     _currentUserId =
         _supabase.auth.currentUser?.id ??
@@ -217,6 +222,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
       arguments: {
         'lobbyId': _roomId,
         'receiptData': widget.receiptData,
+        'receiptImageBytes': widget.receiptImageBytes,
         'roomParticipants': roomParticipants,
         'isHost': true, // 🚀 ส่งต่อให้ Host
       },

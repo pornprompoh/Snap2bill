@@ -1,6 +1,5 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb; // 🚀 แก้อาการเว็บพัง
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -16,6 +15,7 @@ class SummaryScreen extends StatefulWidget {
   final String lobbyId;
   final Map<String, dynamic> receiptData;
   final Map<int, List<Map<String, dynamic>>> itemSharers;
+  final Uint8List? receiptImageBytes;
   final bool isHost; // 🚀 รับสถานะ Host
 
   const SummaryScreen({
@@ -23,6 +23,7 @@ class SummaryScreen extends StatefulWidget {
     required this.lobbyId,
     required this.receiptData,
     required this.itemSharers,
+    this.receiptImageBytes,
     this.isHost = true,
   });
 
@@ -31,7 +32,7 @@ class SummaryScreen extends StatefulWidget {
 }
 
 class _SummaryScreenState extends State<SummaryScreen> {
-  bool _isSaving = false;
+  bool _isFinishing = false;
   String _hostPromptPay = '';
   String? _hostPromptPayType;
   String _hostName = 'เจ้าของบิล';
@@ -50,7 +51,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchHostPromptPayInfo();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _fetchHostPromptPayInfo();
+    });
   }
 
   Future<void> _fetchHostPromptPayInfo() async {
@@ -175,17 +178,16 @@ class _SummaryScreenState extends State<SummaryScreen> {
   }
 
   Future<void> _saveAndFinish() async {
+    if (_isFinishing) return;
+    setState(() => _isFinishing = true);
+
     // 🚀 ถ้าเป็น Guest (หรือรันบน Web) แค่เตะกลับหน้า Home เลย ไม่ต้องเซฟลงฐานข้อมูลซ้ำซ้อน
     if (!_isCurrentUserHost) {
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        AppRoutes.home,
-        (route) => false,
-      );
+      await _navigateHomeAfterFrame();
       return;
     }
 
-    setState(() => _isSaving = true);
+    var savedSuccessfully = false;
 
     try {
       final supabase = Supabase.instance.client;
@@ -198,17 +200,11 @@ class _SummaryScreenState extends State<SummaryScreen> {
       );
 
       String? imageUrl;
-      final localImagePath = widget.receiptData['local_image_path'];
-
-      // 🚀 เช็ก kIsWeb ก่อนใช้ File() เพื่อป้องกันเว็บแครช
-      if (!kIsWeb && localImagePath != null && localImagePath.isNotEmpty) {
-        final file = File(localImagePath);
-        if (file.existsSync()) {
-          imageUrl = await SupabaseStorageService().uploadReceiptImage(
-            file,
-            widget.lobbyId,
-          );
-        }
+      if (widget.receiptImageBytes != null) {
+        imageUrl = await SupabaseStorageService().uploadReceiptBytes(
+          widget.receiptImageBytes!,
+          widget.lobbyId,
+        );
       }
 
       final sharersJson = widget.itemSharers.map(
@@ -250,14 +246,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
       if (participantsData.isNotEmpty) {
         await supabase.from('bill_participants').insert(participantsData);
       }
-
-      if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          AppRoutes.home,
-          (route) => false,
-        );
-      }
+      savedSuccessfully = true;
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -268,8 +257,23 @@ class _SummaryScreenState extends State<SummaryScreen> {
         );
       }
     } finally {
-      if (mounted) setState(() => _isSaving = false);
+      if (mounted && !savedSuccessfully) {
+        setState(() => _isFinishing = false);
+      }
     }
+
+    if (savedSuccessfully && mounted) await _navigateHomeAfterFrame();
+  }
+
+  Future<void> _navigateHomeAfterFrame() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      AppRoutes.home,
+      (route) => false,
+    );
   }
 
   String _tlv(String tag, String value) {
@@ -660,13 +664,13 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     // 🚀 ถ้าเป็น Host ถึงจะขึ้นปุ่มเซฟบิลสีเขียว ถ้าเป็น Guest จะเป็นปุ่ม "กลับหน้าแรก" เฉยๆ ไม่แตะฐานข้อมูล
                     child: CustomButton(
                       text: _isCurrentUserHost
-                          ? 'เสร็จสิ้นการหารบิล'
-                          : 'กลับหน้าแรก',
+                        ? 'เสร็จสิ้นการหารบิล'
+                        : 'กลับหน้าแรก',
                       backgroundColor: _isCurrentUserHost
                           ? AppColors.success
                           : Theme.of(context).colorScheme.primary,
-                      isLoading: _isSaving,
-                      onPressed: _isSaving ? null : _saveAndFinish,
+                      isLoading: _isFinishing,
+                      onPressed: _isFinishing ? null : _saveAndFinish,
                     ),
                   ),
                 ],

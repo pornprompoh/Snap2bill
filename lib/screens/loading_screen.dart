@@ -1,11 +1,11 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../../services/ocr_service.dart';
 import '../../routes/app_routes.dart';
 
 class LoadingScreen extends StatefulWidget {
-  final File image;
-  const LoadingScreen({super.key, required this.image});
+  final Uint8List imageBytes;
+  const LoadingScreen({super.key, required this.imageBytes});
 
   @override
   State<LoadingScreen> createState() => _LoadingScreenState();
@@ -22,17 +22,17 @@ class _LoadingScreenState extends State<LoadingScreen> {
 
   Future<void> _processReceipt() async {
     try {
-      final result = await _ocrService.processReceipt(widget.image);
+      final result = await _ocrService.processReceipt(widget.imageBytes);
       if (!mounted) return;
 
       if (result != null) {
-        // 🚀 ทริค: แอบฝากที่อยู่ไฟล์รูปภาพ (Path) ไปกับชุดข้อมูล JSON เลย
-        result['local_image_path'] = widget.image.path; 
-
         Navigator.pushReplacementNamed(
           context,
           AppRoutes.review,
-          arguments: result,
+          arguments: {
+            'receiptData': result,
+            'receiptImageBytes': widget.imageBytes,
+          },
         );
       } else {
         _showError('ไม่สามารถอ่านข้อมูลใบเสร็จได้');
@@ -44,7 +44,9 @@ class _LoadingScreenState extends State<LoadingScreen> {
 
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
     Navigator.pop(context);
   }
 

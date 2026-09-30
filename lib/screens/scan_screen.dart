@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../routes/app_routes.dart'; // นำเข้าระบบนำทาง
@@ -12,27 +12,23 @@ class ScanScreen extends StatefulWidget {
 }
 
 class _ScanScreenState extends State<ScanScreen> {
-  File? _image;
+  Uint8List? _imageBytes;
   final ImagePicker _picker = ImagePicker();
 
   Future<void> _pickImage(ImageSource source) async {
     final pickedFile = await _picker.pickImage(source: source);
     if (pickedFile != null) {
+      final imageBytes = await pickedFile.readAsBytes();
       setState(() {
-        _image = File(pickedFile.path);
+        _imageBytes = imageBytes;
       });
     }
   }
 
   void _goToLoadingScreen() {
-    if (_image == null) return;
-    
-    // 🚀 ใช้ระบบ Route ใหม่ ส่งไฟล์ภาพไปเป็น Arguments แบบคลีนๆ
-    Navigator.pushNamed(
-      context,
-      AppRoutes.loading,
-      arguments: _image!,
-    );
+    if (_imageBytes == null) return;
+
+    Navigator.pushNamed(context, AppRoutes.loading, arguments: _imageBytes!);
   }
 
   @override
@@ -45,10 +41,14 @@ class _ScanScreenState extends State<ScanScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (_image != null)
+              if (_imageBytes != null)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.file(_image!, height: 350, fit: BoxFit.cover),
+                  child: Image.memory(
+                    _imageBytes!,
+                    height: 350,
+                    fit: BoxFit.cover,
+                  ),
                 )
               else
                 Container(
@@ -78,7 +78,7 @@ class _ScanScreenState extends State<ScanScreen> {
                 ],
               ),
               const SizedBox(height: 30),
-              if (_image != null)
+              if (_imageBytes != null)
                 // 🚀 เรียกใช้ชิ้นส่วน CustomButton ที่เราสร้างไว้
                 CustomButton(
                   text: 'ให้ AI ช่วยอ่านบิล',

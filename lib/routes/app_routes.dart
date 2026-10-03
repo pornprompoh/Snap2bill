@@ -114,6 +114,10 @@ class AppRoutes {
             lobbyId: args['lobbyId']?.toString() ?? '',
             receiptData: args['receiptData'] ?? {},
             itemSharers: args['itemSharers'] ?? {},
+            roomParticipants: (args['roomParticipants'] as List<dynamic>? ?? [])
+                .whereType<Map>()
+                .map((participant) => Map<String, dynamic>.from(participant))
+                .toList(),
             receiptImageBytes: args['receiptImageBytes'] as Uint8List?,
             isHost: args['isHost'] ?? true, // 🚀 เพิ่มรับค่า isHost
           ),

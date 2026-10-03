@@ -25,6 +25,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
   late double _vat;
   late double _sc;
   late double _discount;
+  late double _finalTotal;
+  late bool _isVatIncluded;
+  bool _hasEditedReceipt = false;
 
   List<Map<String, dynamic>> _items = [];
 
@@ -33,9 +36,13 @@ class _ReviewScreenState extends State<ReviewScreen> {
     super.initState();
     _shopName =
         widget.receiptData['shop_name']?.toString() ?? 'ไม่ระบุชื่อร้าน';
-    _vat =
-        double.tryParse(widget.receiptData['vat_amount']?.toString() ?? '0') ??
-        0.0;
+    _isVatIncluded = widget.receiptData['is_vat_included'] == true;
+    _vat = _isVatIncluded
+        ? 0
+        : double.tryParse(
+              widget.receiptData['vat_amount']?.toString() ?? '0',
+            ) ??
+            0.0;
     _sc =
         double.tryParse(
           widget.receiptData['service_charge']?.toString() ?? '0',
@@ -44,12 +51,21 @@ class _ReviewScreenState extends State<ReviewScreen> {
     _discount =
         double.tryParse(widget.receiptData['discount']?.toString() ?? '0') ??
         0.0;
+    _finalTotal =
+        double.tryParse(
+          (widget.receiptData['final_total'] ??
+                  widget.receiptData['total_amount'])
+              ?.toString() ??
+              '',
+        ) ??
+        0.0;
 
     final aiItems = widget.receiptData['items'] as List<dynamic>? ?? [];
     _items = aiItems.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
   double _calculateTotal() {
+    if (!_hasEditedReceipt && _finalTotal > 0) return _finalTotal;
     return _calculateSubtotal() + _vat + _sc - _discount;
   }
 
@@ -96,38 +112,56 @@ class _ReviewScreenState extends State<ReviewScreen> {
     final scCtrl = TextEditingController(text: _sc.toString());
     final vatCtrl = TextEditingController(text: _vat.toString());
     final discCtrl = TextEditingController(text: _discount.toString());
+    var isVatIncluded = _isVatIncluded;
 
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('แก้ไขข้อมูลร้านค้า'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: shopCtrl,
-                decoration: const InputDecoration(labelText: 'ชื่อร้านค้า'),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: scCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Service Charge'),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: vatCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'VAT'),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: discCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'ส่วนลด'),
-              ),
-            ],
+        content: StatefulBuilder(
+          builder: (context, setDialogState) => SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: shopCtrl,
+                  decoration: const InputDecoration(labelText: 'ชื่อร้านค้า'),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: scCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Service Charge',
+                  ),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('VAT รวมอยู่ในราคาแล้ว'),
+                  value: isVatIncluded,
+                  onChanged: (value) {
+                    setDialogState(() {
+                      isVatIncluded = value;
+                      if (value) vatCtrl.text = '0';
+                    });
+                  },
+                ),
+                TextField(
+                  controller: vatCtrl,
+                  enabled: !isVatIncluded,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'VAT (คิดแยกเพิ่ม)',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: discCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'ส่วนลด'),
+                ),
+              ],
+            ),
           ),
         ),
         actions: [
@@ -140,8 +174,12 @@ class _ReviewScreenState extends State<ReviewScreen> {
               setState(() {
                 _shopName = shopCtrl.text;
                 _sc = double.tryParse(scCtrl.text) ?? 0.0;
-                _vat = double.tryParse(vatCtrl.text) ?? 0.0;
+                _isVatIncluded = isVatIncluded;
+                _vat = isVatIncluded
+                    ? 0
+                    : double.tryParse(vatCtrl.text) ?? 0.0;
                 _discount = double.tryParse(discCtrl.text) ?? 0.0;
+                _hasEditedReceipt = true;
               });
               Navigator.pop(context);
             },
@@ -218,6 +256,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 } else {
                   _items[index] = updatedItem;
                 }
+                _hasEditedReceipt = true;
               });
               Navigator.pop(context);
             },
@@ -232,6 +271,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
     final updatedReceiptData = Map<String, dynamic>.from(widget.receiptData);
     updatedReceiptData['shop_name'] = _shopName;
     updatedReceiptData['vat_amount'] = _vat;
+    updatedReceiptData['is_vat_included'] = _isVatIncluded;
     updatedReceiptData['service_charge'] = _sc;
     updatedReceiptData['discount'] = _discount;
 
@@ -244,6 +284,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
     }
 
     updatedReceiptData['sub_total'] = subTotal;
+    updatedReceiptData['final_total'] = _calculateTotal();
     updatedReceiptData['total_amount'] = _calculateTotal();
     updatedReceiptData['items'] = _items;
 
@@ -279,8 +320,16 @@ class _ReviewScreenState extends State<ReviewScreen> {
                       children: [
                         Text('ร้าน: $_shopName', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 4),
-                        Text('SC: ${AppFormatters.formatCurrency(_sc)} | VAT: ${AppFormatters.formatCurrency(_vat)} | ลด: ${AppFormatters.formatCurrency(_discount)}', 
-                          style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
+                        Text(
+                          'SC: ${AppFormatters.formatCurrency(_sc)} | '
+                          'VAT${_isVatIncluded ? ' (รวมแล้ว)' : ''}: '
+                          '${AppFormatters.formatCurrency(_vat)} | '
+                          'ลด: ${AppFormatters.formatCurrency(_discount)}',
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontSize: 13,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -314,7 +363,17 @@ class _ReviewScreenState extends State<ReviewScreen> {
                         Text(AppFormatters.formatCurrency(qty * price), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                         const SizedBox(width: 8),
                         IconButton(icon: const Icon(Icons.edit, color: Colors.blue, size: 20), onPressed: () => _showEditItemDialog(index)),
-                        IconButton(icon: const Icon(Icons.delete, color: Colors.red, size: 20), onPressed: () => setState(() => _items.removeAt(index))),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.delete,
+                            color: Colors.red,
+                            size: 20,
+                          ),
+                          onPressed: () => setState(() {
+                            _items.removeAt(index);
+                            _hasEditedReceipt = true;
+                          }),
+                        ),
                       ],
                     ),
                   ),

@@ -11,15 +11,87 @@ class BillProvider with ChangeNotifier {
   final List<UserModel> _roomParticipants = [];
   bool _isLoading = false;
   bool _isCreatingBill = false;
+  String _splitType = 'proportional';
 
   List<BillModel> get bills => _bills;
   List<UserModel> get roomParticipants => List.unmodifiable(_roomParticipants);
   bool get isLoading => _isLoading;
+  String get splitType => _splitType;
+
+  void setSplitType(String type) {
+    if (type != 'equal' && type != 'proportional') {
+      throw ArgumentError.value(type, 'type', 'Unsupported split type.');
+    }
+    if (_splitType == type) return;
+    _splitType = type;
+    notifyListeners();
+  }
+
+  static Map<String, double> calculateUserShares({
+    required Iterable<BillItemModel> items,
+    required double finalTotal,
+    required String splitType,
+    Iterable<String> participantIds = const [],
+  }) {
+    if (splitType != 'equal' && splitType != 'proportional') {
+      throw ArgumentError.value(splitType, 'splitType', 'Unsupported split type.');
+    }
+
+    final itemTotalsByUser = <String, double>{
+      for (final id in participantIds)
+        if (id.isNotEmpty) id: 0,
+    };
+    var totalMenuValue = 0.0;
+
+    for (final item in items) {
+      totalMenuValue += item.price * item.quantity;
+      final personalClaims = item.userQuantities.isNotEmpty
+          ? item.userQuantities
+          : {
+              for (final userId in item.claimedBy.toSet())
+                if (userId.isNotEmpty) userId: 1,
+            };
+      var unallocatedQuantity = item.quantity;
+
+      for (final claim in personalClaims.entries) {
+        if (claim.key.isEmpty || unallocatedQuantity <= 0) continue;
+        final claimedQuantity = claim.value.clamp(0, unallocatedQuantity);
+        if (claimedQuantity == 0) continue;
+        itemTotalsByUser[claim.key] =
+            (itemTotalsByUser[claim.key] ?? 0) + item.price * claimedQuantity;
+        unallocatedQuantity -= claimedQuantity;
+      }
+
+      final sharedUsers = item.sharedUsers.where((id) => id.isNotEmpty).toSet();
+      if (unallocatedQuantity > 0 && sharedUsers.isNotEmpty) {
+        final sharedAmount =
+            item.price * unallocatedQuantity / sharedUsers.length;
+        for (final userId in sharedUsers) {
+          itemTotalsByUser[userId] =
+              (itemTotalsByUser[userId] ?? 0) + sharedAmount;
+        }
+      }
+    }
+
+    final extraAmount = finalTotal - totalMenuValue;
+    final equalShareCount = itemTotalsByUser.length;
+    return {
+      for (final entry in itemTotalsByUser.entries)
+        entry.key:
+            entry.value +
+            (splitType == 'equal'
+                ? (equalShareCount > 0 ? extraAmount / equalShareCount : 0)
+                : (totalMenuValue > 0
+                      ? extraAmount * entry.value / totalMenuValue
+                      : 0)),
+    };
+  }
 
   void setActiveRoom(String roomCode) {
     if (_activeRoomCode == roomCode) return;
     _activeRoomCode = roomCode;
     _roomParticipants.clear();
+    _splitType = 'proportional';
     notifyListeners();
   }
 

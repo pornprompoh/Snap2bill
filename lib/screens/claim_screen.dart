@@ -29,6 +29,7 @@ class ClaimScreen extends StatefulWidget {
 
 class _ClaimScreenState extends State<ClaimScreen> {
   final Map<int, Map<String, int>> _claimedItems = {};
+  final Map<int, Set<String>> _sharedItems = {};
   final Map<String, String> _userNames = {};
 
   final _supabase = Supabase.instance.client;
@@ -75,22 +76,33 @@ class _ClaimScreenState extends State<ClaimScreen> {
     _claimChannel.onBroadcast(
       event: 'update_claim',
       callback: (payload) {
-        final index = payload['item_index'] as int;
-        final userId = payload['user_id'] as String;
-        final userName = payload['user_name'] as String;
-        final qty = payload['qty'] as int;
+        final index = int.tryParse(payload['item_index']?.toString() ?? '');
+        final userId = payload['user_id']?.toString();
+        final userName = payload['user_name']?.toString() ?? 'เพื่อน';
+        if (index == null || userId == null || userId.isEmpty) return;
 
         if (userId == _currentUserId) return;
 
         setState(() {
           _userNames[userId] = userName;
-          final itemClaims = _claimedItems[index] ?? {};
-          if (qty > 0) {
-            itemClaims[userId] = qty;
+          if (payload['claim_type'] == 'shared') {
+            final sharedUsers = _sharedItems[index] ?? <String>{};
+            if (payload['is_shared'] == true) {
+              sharedUsers.add(userId);
+            } else {
+              sharedUsers.remove(userId);
+            }
+            _sharedItems[index] = sharedUsers;
           } else {
-            itemClaims.remove(userId);
+            final qty = int.tryParse(payload['qty']?.toString() ?? '0') ?? 0;
+            final itemClaims = _claimedItems[index] ?? {};
+            if (qty > 0) {
+              itemClaims[userId] = qty;
+            } else {
+              itemClaims.remove(userId);
+            }
+            _claimedItems[index] = itemClaims;
           }
-          _claimedItems[index] = itemClaims;
         });
       },
     );
@@ -102,6 +114,9 @@ class _ClaimScreenState extends State<ClaimScreen> {
           event: 'full_sync',
           payload: {
             'claims': _claimedItems.map((k, v) => MapEntry(k.toString(), v)),
+            'shared_users': _sharedItems.map(
+              (k, v) => MapEntry(k.toString(), v.toList()),
+            ),
             'names': _userNames,
           },
         );
@@ -113,12 +128,28 @@ class _ClaimScreenState extends State<ClaimScreen> {
       callback: (payload) {
         setState(() {
           final claimsData = payload['claims'] as Map<String, dynamic>? ?? {};
-          claimsData.forEach(
-            (k, v) =>
-                _claimedItems[int.parse(k)] = Map<String, int>.from(v as Map),
-          );
-          final namesData = payload['names'] as Map<String, dynamic>? ?? {};
-          namesData.forEach((k, v) => _userNames[k] = v.toString());
+            _claimedItems.clear();
+            claimsData.forEach((key, value) {
+              if (value is! Map) return;
+              final claims = <String, int>{};
+              value.forEach((userId, qty) {
+                final parsedQty = int.tryParse(qty.toString()) ?? 0;
+                if (parsedQty > 0) claims[userId.toString()] = parsedQty;
+              });
+              final index = int.tryParse(key);
+              if (index != null) _claimedItems[index] = claims;
+            });
+            _sharedItems.clear();
+            final sharedData =
+                payload['shared_users'] as Map<String, dynamic>? ?? {};
+            sharedData.forEach((key, value) {
+              final index = int.tryParse(key);
+              if (index != null && value is List) {
+                _sharedItems[index] = value.map((id) => id.toString()).toSet();
+              }
+            });
+            final namesData = payload['names'] as Map<String, dynamic>? ?? {};
+            namesData.forEach((k, v) => _userNames[k] = v.toString());
         });
       },
     );
@@ -146,46 +177,65 @@ class _ClaimScreenState extends State<ClaimScreen> {
     super.dispose();
   }
 
-  void _broadcastUpdate(int index, int qty) {
+  void _broadcastPersonalUpdate(int index, int qty) {
     _claimChannel.sendBroadcastMessage(
       event: 'update_claim',
       payload: {
         'item_index': index,
         'user_id': _currentUserId,
         'user_name': _currentUserName,
+        'claim_type': 'personal',
         'qty': qty,
       },
     );
   }
 
-  void _increment(int index, int maxQty) {
-    final itemClaims = _claimedItems[index] ?? {};
-    int totalClaimed = itemClaims.values.fold(0, (sum, qty) => sum + qty);
-    if (totalClaimed < maxQty) {
-      setState(() {
-        final newQty = (itemClaims[_currentUserId] ?? 0) + 1;
-        itemClaims[_currentUserId] = newQty;
-        _claimedItems[index] = itemClaims;
-        _broadcastUpdate(index, newQty);
-      });
-    }
+  void _broadcastSharedUpdate(int index, bool isShared) {
+    _claimChannel.sendBroadcastMessage(
+      event: 'update_claim',
+      payload: {
+        'item_index': index,
+        'user_id': _currentUserId,
+        'user_name': _currentUserName,
+        'claim_type': 'shared',
+        'is_shared': isShared,
+      },
+    );
   }
 
-  void _decrement(int index) {
+  void _changePersonalQuantity(int index, int itemQuantity, int change) {
     final itemClaims = _claimedItems[index] ?? {};
-    final myClaimedQty = itemClaims[_currentUserId] ?? 0;
-    if (myClaimedQty > 0) {
-      setState(() {
-        final newQty = myClaimedQty - 1;
-        if (newQty == 0) {
-          itemClaims.remove(_currentUserId);
-        } else {
-          itemClaims[_currentUserId] = newQty;
-        }
-        _claimedItems[index] = itemClaims;
-        _broadcastUpdate(index, newQty);
-      });
-    }
+    final currentQty = itemClaims[_currentUserId] ?? 0;
+    final otherClaims = itemClaims.entries
+        .where((entry) => entry.key != _currentUserId)
+        .fold<int>(0, (total, entry) => total + entry.value);
+    final maxPersonalQty = (itemQuantity - otherClaims).clamp(0, itemQuantity);
+    final nextQty = (currentQty + change).clamp(0, maxPersonalQty);
+    if (nextQty == currentQty) return;
+
+    setState(() {
+      if (nextQty == 0) {
+        itemClaims.remove(_currentUserId);
+      } else {
+        itemClaims[_currentUserId] = nextQty;
+      }
+      _claimedItems[index] = itemClaims;
+      _broadcastPersonalUpdate(index, nextQty);
+    });
+  }
+
+  void _toggleShared(int index) {
+    final sharedUsers = _sharedItems[index] ?? <String>{};
+    final isShared = !sharedUsers.contains(_currentUserId);
+    setState(() {
+      if (isShared) {
+        sharedUsers.add(_currentUserId);
+      } else {
+        sharedUsers.remove(_currentUserId);
+      }
+      _sharedItems[index] = sharedUsers;
+      _broadcastSharedUpdate(index, isShared);
+    });
   }
 
   // 🚀 ฟังก์ชันถูกกดโดย Host เพื่อสั่งให้ทุกคนไปต่อ
@@ -196,18 +246,22 @@ class _ClaimScreenState extends State<ClaimScreen> {
 
   void _navigateToSummaryLocal() {
     Map<int, List<Map<String, dynamic>>> itemSharers = {};
-    _claimedItems.forEach((index, userClaims) {
+    final itemIndexes = {..._claimedItems.keys, ..._sharedItems.keys};
+    for (final index in itemIndexes) {
+      final userClaims = _claimedItems[index] ?? {};
+      final sharedUsers = _sharedItems[index] ?? {};
       List<Map<String, dynamic>> sharersList = [];
-      userClaims.forEach((userId, qty) {
-        for (int i = 0; i < qty; i++) {
-          sharersList.add({
-            'user_id': userId,
-            'user_name': _userNames[userId] ?? 'เพื่อน',
-          });
-        }
-      });
+      final userIds = {...userClaims.keys, ...sharedUsers};
+      for (final userId in userIds) {
+        sharersList.add({
+          'user_id': userId,
+          'user_name': _userNames[userId] ?? 'เพื่อน',
+          'quantity': userClaims[userId] ?? 0,
+          'is_shared': sharedUsers.contains(userId),
+        });
+      }
       itemSharers[index] = sharersList;
-    });
+    }
 
     Navigator.pushReplacementNamed(
       context,
@@ -217,6 +271,7 @@ class _ClaimScreenState extends State<ClaimScreen> {
         'receiptData': widget.receiptData,
         'receiptImageBytes': widget.receiptImageBytes,
         'itemSharers': itemSharers,
+        'roomParticipants': widget.roomParticipants,
         'isHost': widget.isHost, // ส่งสถานะต่อ
       },
     );
@@ -280,19 +335,32 @@ class _ClaimScreenState extends State<ClaimScreen> {
                 final item = items[index];
                 final itemName = item['item_name'] ?? 'ไม่ระบุชื่อ';
                 final maxQty =
-                    int.tryParse(item['qty']?.toString() ?? '1') ?? 1;
+                    int.tryParse(
+                      (item['qty'] ?? item['quantity'] ?? 1).toString(),
+                    ) ??
+                    1;
                 final unitPrice =
                     double.tryParse(item['unit_price']?.toString() ?? '0') ??
                     0.0;
 
                 final itemClaims = _claimedItems[index] ?? {};
+                final sharedUsers = _sharedItems[index] ?? <String>{};
                 final myClaimedQty = itemClaims[_currentUserId] ?? 0;
-                final totalClaimed = itemClaims.values.fold(
+                final totalPersonalQty = itemClaims.values.fold<int>(
                   0,
-                  (sum, qty) => sum + qty,
+                  (total, qty) => total + qty,
                 );
-                final isFullyClaimed = totalClaimed >= maxQty;
-                final isSelected = myClaimedQty > 0;
+                final remainingQty = (maxQty - totalPersonalQty).clamp(
+                  0,
+                  maxQty,
+                );
+                final otherPersonalQty = totalPersonalQty - myClaimedQty;
+                final maxMyQty = (maxQty - otherPersonalQty).clamp(0, maxQty);
+                final sharedPerUser = sharedUsers.isEmpty
+                    ? 0.0
+                    : (unitPrice * remainingQty) / sharedUsers.length;
+                final isShared = sharedUsers.contains(_currentUserId);
+                final isSelected = myClaimedQty > 0 || isShared;
 
                 return AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
@@ -306,7 +374,7 @@ class _ClaimScreenState extends State<ClaimScreen> {
                     border: Border.all(
                       color: isSelected
                           ? AppColors.primary
-                          : isFullyClaimed
+                          : itemClaims.isNotEmpty || sharedUsers.isNotEmpty
                           ? AppColors.success.withValues(alpha: 0.5)
                           : AppColors.border,
                       width: isSelected ? 1.5 : 1,
@@ -357,42 +425,77 @@ class _ClaimScreenState extends State<ClaimScreen> {
                             ),
                             const SizedBox(width: 8),
                             SizedBox(
-                              width: 104,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                              width: 120,
+                              child: Column(
                                 children: [
-                                  _QuantityButton(
-                                    icon: Icons.remove,
-                                    semanticLabel: 'ลดจำนวน $itemName',
-                                    color: myClaimedQty > 0
-                                        ? AppColors.error
-                                        : AppColors.textMuted,
-                                    onPressed: myClaimedQty > 0
-                                        ? () => _decrement(index)
-                                        : null,
-                                  ),
-                                  SizedBox(
-                                    width: 24,
-                                    child: Text(
-                                      '$myClaimedQty',
-                                      textAlign: TextAlign.center,
-                                      style: AppTextStyles.body.copyWith(
-                                        color: isSelected
-                                            ? AppColors.primaryDark
-                                            : AppColors.textPrimary,
-                                        fontWeight: FontWeight.w700,
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      IconButton(
+                                        tooltip: 'ลดจำนวน $itemName',
+                                        onPressed: myClaimedQty > 0
+                                            ? () => _changePersonalQuantity(
+                                                index,
+                                                maxQty,
+                                                -1,
+                                              )
+                                            : null,
+                                        icon: const Icon(
+                                          Icons.remove_circle_outline,
+                                        ),
+                                        visualDensity: VisualDensity.compact,
+                                        constraints: const BoxConstraints.tightFor(
+                                          width: 32,
+                                          height: 36,
+                                        ),
+                                        padding: EdgeInsets.zero,
                                       ),
-                                    ),
+                                      SizedBox(
+                                        width: 26,
+                                        child: Text(
+                                          '$myClaimedQty',
+                                          textAlign: TextAlign.center,
+                                          style: AppTextStyles.body.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                      IconButton(
+                                        tooltip: 'เพิ่มจำนวน $itemName',
+                                        onPressed: myClaimedQty < maxMyQty
+                                            ? () => _changePersonalQuantity(
+                                                index,
+                                                maxQty,
+                                                1,
+                                              )
+                                            : null,
+                                        icon: const Icon(
+                                          Icons.add_circle_outline,
+                                        ),
+                                        visualDensity: VisualDensity.compact,
+                                        constraints: const BoxConstraints.tightFor(
+                                          width: 32,
+                                          height: 36,
+                                        ),
+                                        padding: EdgeInsets.zero,
+                                      ),
+                                    ],
                                   ),
-                                  _QuantityButton(
-                                    icon: Icons.add,
-                                    semanticLabel: 'เพิ่มจำนวน $itemName',
-                                    color: isFullyClaimed
-                                        ? AppColors.textMuted
-                                        : AppColors.primary,
-                                    onPressed: isFullyClaimed
-                                        ? null
-                                        : () => _increment(index, maxQty),
+                                  TextButton(
+                                    onPressed: () => _toggleShared(index),
+                                    style: TextButton.styleFrom(
+                                      visualDensity: VisualDensity.compact,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                      ),
+                                      foregroundColor: isShared
+                                          ? AppColors.primary
+                                          : AppColors.textSecondary,
+                                    ),
+                                    child: Text(
+                                      isShared ? 'แชร์แล้ว' : 'กินด้วยกัน',
+                                      maxLines: 1,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -413,54 +516,66 @@ class _ClaimScreenState extends State<ClaimScreen> {
                             ),
                           ],
                         ),
-                        if (itemClaims.isNotEmpty) ...[
+                        if (remainingQty > 0 ||
+                            itemClaims.isNotEmpty ||
+                            sharedUsers.isNotEmpty) ...[
                           const SizedBox(height: 10),
+                          Text(
+                            sharedUsers.isEmpty
+                                ? 'เหลืออีก $remainingQty ชิ้น'
+                                : remainingQty > 0
+                                ? 'แชร์ $remainingQty ชิ้น หาร ${sharedUsers.length} คน: '
+                                      'คนละ ฿${sharedPerUser.toStringAsFixed(2)}'
+                                : 'ไม่มีชิ้นเหลือสำหรับหารร่วมกัน',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.primaryDark,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
                           Wrap(
                             spacing: 6,
                             runSpacing: 6,
-                            children: itemClaims.entries.map((entry) {
-                              final userId = entry.key;
-                              final qty = entry.value;
+                            children: [
+                              ...itemClaims.keys.map((userId) {
                               final name = _userNames[userId] ?? 'เพื่อน';
-                              final isMe = userId == _currentUserId;
-                              final claimColor = isMe
-                                  ? AppColors.primary
-                                  : AppColors.accent;
                               return Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 9,
                                   vertical: 5,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: claimColor.withValues(alpha: 0.1),
+                                  color: AppColors.accent.withValues(
+                                    alpha: 0.1,
+                                  ),
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: Text(
-                                  '$name × $qty',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    height: 1.2,
-                                    color: isMe
-                                        ? AppColors.primaryDark
-                                        : AppColors.textPrimary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                  '$name × ${itemClaims[userId]}',
+                                  style: const TextStyle(fontSize: 11),
                                 ),
                               );
-                            }).toList(),
-                          ),
-                        ],
-                        if (isFullyClaimed && !isSelected) ...[
-                          const SizedBox(height: 9),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              'รายการนี้ถูกเลือกครบแล้ว',
-                              style: AppTextStyles.caption.copyWith(
-                                color: AppColors.success,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                              }),
+                              ...sharedUsers.map((userId) {
+                                final name = _userNames[userId] ?? 'เพื่อน';
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 9,
+                                    vertical: 5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(
+                                      alpha: 0.1,
+                                    ),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    '$name แชร์',
+                                    style: const TextStyle(fontSize: 11),
+                                  ),
+                                );
+                              }),
+                            ],
                           ),
                         ],
                       ],
@@ -486,34 +601,6 @@ class _ClaimScreenState extends State<ClaimScreen> {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _QuantityButton extends StatelessWidget {
-  final IconData icon;
-  final String semanticLabel;
-  final Color color;
-  final VoidCallback? onPressed;
-
-  const _QuantityButton({
-    required this.icon,
-    required this.semanticLabel,
-    required this.color,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      tooltip: semanticLabel,
-      onPressed: onPressed,
-      icon: Icon(icon),
-      color: color,
-      iconSize: 19,
-      padding: EdgeInsets.zero,
-      visualDensity: VisualDensity.compact,
-      constraints: const BoxConstraints.tightFor(width: 32, height: 36),
     );
   }
 }

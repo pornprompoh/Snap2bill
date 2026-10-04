@@ -1,10 +1,10 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import '../routes/app_routes.dart';
-import '../theme/app_colors.dart';
-import '../theme/app_text_styles.dart';
-import '../utils/formatters.dart';
-import '../widgets/custom_button.dart';
+import '../../routes/app_routes.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_text_styles.dart';
+import '../../utils/formatters.dart';
+import '../../widgets/custom_button.dart';
 
 class ReviewScreen extends StatefulWidget {
   final Map<String, dynamic> receiptData;

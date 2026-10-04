@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import '../routes/app_routes.dart'; // นำเข้าระบบนำทาง
-import '../widgets/custom_button.dart'; // นำเข้าปุ่มสำเร็จรูป
+import '../../routes/app_routes.dart'; // นำเข้าระบบนำทาง
+import '../../widgets/custom_button.dart'; // นำเข้าปุ่มสำเร็จรูป
 
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});

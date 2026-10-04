@@ -6,14 +6,15 @@ import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../models/bill_model.dart';
-import '../../models/user_model.dart';
-import '../../providers/bill_provider.dart';
-import '../../routes/app_routes.dart';
-import '../../theme/app_colors.dart';
-import '../../theme/app_text_styles.dart';
-import '../../widgets/custom_button.dart';
-import '../../widgets/friend_item.dart';
+import '../../../models/bill_model.dart';
+import '../../../models/user_model.dart';
+import '../../../providers/bill_provider.dart';
+import '../../../routes/app_routes.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_text_styles.dart';
+import '../../../widgets/custom_button.dart';
+import '../../../widgets/bill/guest_dialog.dart';
+import '../../../widgets/friend_item.dart';
 
 class LobbyScreen extends StatefulWidget {
   final String? lobbyId;
@@ -202,30 +203,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
     final nameController = TextEditingController();
     final guestName = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('เพิ่มเพื่อนที่ไม่มีแอป'),
-        content: TextField(
-          controller: nameController,
-          autofocus: true,
-          textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(
-            labelText: 'ชื่อเพื่อน',
-            hintText: 'เช่น มิน',
-          ),
-          onSubmitted: (value) => Navigator.pop(dialogContext, value.trim()),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('ยกเลิก'),
-          ),
-          FilledButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, nameController.text.trim()),
-            child: const Text('เพิ่ม'),
-          ),
-        ],
-      ),
+      builder: (_) => GuestDialog(controller: nameController),
     );
     nameController.dispose();
     if (!mounted || guestName == null || guestName.trim().isEmpty) return;

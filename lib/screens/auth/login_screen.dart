@@ -240,7 +240,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 .toDouble();
 
             return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               child: ConstrainedBox(
                 constraints: BoxConstraints(minHeight: minHeight),
                 child: IntrinsicHeight(
@@ -276,7 +277,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     color: AppColors.primary,
                                   ),
                                 ),
-                                const SizedBox(height: 24),
+                                const SizedBox(height: 16),
                                 Text(
                                   'Snap2Bill',
                                   style: AppTextStyles.headline.copyWith(
@@ -303,7 +304,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     color: AppColors.textSecondary,
                                   ),
                                 ),
-                                const SizedBox(height: 28),
+                                const SizedBox(height: 16),
                                 Form(
                                   key: _formKey,
                                   child: Column(
@@ -329,7 +330,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                           ),
                                         ),
                                       ),
-                                      const SizedBox(height: 16),
+                                      const SizedBox(height: 12),
                                       TextFormField(
                                         controller: _passwordController,
                                         obscureText: _obscurePassword,
@@ -419,7 +420,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ],
                                   ),
                                 ),
-                                const SizedBox(height: 20),
+                                const SizedBox(height: 12),
                                 Row(
                                   children: [
                                     const Expanded(child: Divider()),
@@ -435,140 +436,86 @@ class _LoginScreenState extends State<LoginScreen> {
                                     const Expanded(child: Divider()),
                                   ],
                                 ),
-                                const SizedBox(height: 20),
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 58,
-                                  child: ElevatedButton(
-                                    onPressed: _isLoading
-                                        ? null
-                                        : _handleGoogleSignIn,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.surface,
-                                      foregroundColor: AppColors.textPrimary,
-                                      disabledBackgroundColor:
-                                          AppColors.surface,
-                                      disabledForegroundColor:
-                                          AppColors.textSecondary,
-                                      elevation: 0,
-                                      overlayColor: AppColors.primary
-                                          .withValues(alpha: 0.08),
-                                      splashFactory: InkRipple.splashFactory,
-                                      side: const BorderSide(
-                                        color: AppColors.border,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                    ),
-                                    child: Stack(
-                                      alignment: Alignment.center,
-                                      children: [
-                                        Align(
-                                          alignment: Alignment.centerLeft,
-                                          child: SizedBox(
-                                            width: 28,
-                                            height: 28,
-                                            child: AnimatedSwitcher(
-                                              duration: const Duration(
-                                                milliseconds: 180,
-                                              ),
-                                              child: _isGoogleSignInLoading
-                                                  ? const SizedBox(
-                                                      key: ValueKey('loading'),
-                                                      width: 22,
-                                                      height: 22,
-                                                      child:
-                                                          CircularProgressIndicator(
-                                                            color: AppColors
-                                                                .primary,
-                                                            strokeWidth: 2.4,
-                                                            strokeCap:
-                                                                StrokeCap.round,
-                                                          ),
-                                                    )
-                                                  : const Center(
-                                                      key: ValueKey('google'),
-                                                      child: Text(
-                                                        'G',
-                                                        style: TextStyle(
-                                                          color: Color(
-                                                            0xFF4285F4,
-                                                          ),
-                                                          fontSize: 23,
-                                                          fontWeight:
-                                                              FontWeight.w700,
-                                                        ),
-                                                      ),
-                                                    ),
-                                            ),
-                                          ),
-                                        ),
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 38,
-                                          ),
-                                          child: Text(
-                                            _isGoogleSignInLoading
-                                                ? 'กำลังเข้าสู่ระบบ...'
-                                                : 'เข้าสู่ระบบด้วย Google',
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            textAlign: TextAlign.center,
-                                            style: AppTextStyles.body.copyWith(
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                if (_isGoogleSignInLoading) ...[
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    'กำลังเชื่อมต่อบัญชี Google อย่างปลอดภัย',
-                                    textAlign: TextAlign.center,
-                                    style: AppTextStyles.caption,
-                                  ),
-                                ],
                                 const SizedBox(height: 12),
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 58,
-                                  child: ElevatedButton.icon(
-                                    onPressed: _isLoading
-                                        ? null
-                                        : _handleFacebookSignIn,
-                                    icon: _isFacebookSignInLoading
-                                        ? const SizedBox(
-                                            width: 22,
-                                            height: 22,
-                                            child: CircularProgressIndicator(
-                                              color: Colors.white,
-                                              strokeWidth: 2.4,
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: SizedBox(
+                                        height: 48,
+                                        child: OutlinedButton.icon(
+                                          onPressed: _isLoading
+                                              ? null
+                                              : _handleGoogleSignIn,
+                                          icon: _isGoogleSignInLoading
+                                              ? const SizedBox(
+                                                  width: 18,
+                                                  height: 18,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                      ),
+                                                )
+                                              : const Text(
+                                                  'G',
+                                                  style: TextStyle(
+                                                    color: Color(0xFF4285F4),
+                                                    fontSize: 20,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                          label: const Text('Google'),
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor:
+                                                AppColors.textPrimary,
+                                            side: const BorderSide(
+                                              color: AppColors.border,
                                             ),
-                                          )
-                                        : const Icon(Icons.facebook, size: 26),
-                                    label: Text(
-                                      _isFacebookSignInLoading
-                                          ? 'กำลังเข้าสู่ระบบ...'
-                                          : 'เข้าสู่ระบบด้วย Facebook',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF1877F2),
-                                      foregroundColor: Colors.white,
-                                      disabledBackgroundColor: const Color(
-                                        0xFF1877F2,
-                                      ).withValues(alpha: 0.6),
-                                      disabledForegroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(14),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(14),
+                                            ),
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: SizedBox(
+                                        height: 48,
+                                        child: OutlinedButton.icon(
+                                          onPressed: _isLoading
+                                              ? null
+                                              : _handleFacebookSignIn,
+                                          icon: _isFacebookSignInLoading
+                                              ? const SizedBox(
+                                                  width: 18,
+                                                  height: 18,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                      ),
+                                                )
+                                              : const Icon(
+                                                  Icons.facebook,
+                                                  size: 22,
+                                                  color: Color(0xFF1877F2),
+                                                ),
+                                          label: const Text('Facebook'),
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor:
+                                                AppColors.textPrimary,
+                                            side: const BorderSide(
+                                              color: AppColors.border,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(14),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 const SizedBox(height: 12),
                                 TextButton(

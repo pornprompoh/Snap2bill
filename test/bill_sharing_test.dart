@@ -3,6 +3,14 @@ import 'package:snap2bill/models/bill_model.dart';
 import 'package:snap2bill/providers/bill_provider.dart';
 
 void main() {
+  test('serializes guest room members with their simulated identity', () {
+    const guest = RoomMember(id: 'guest_123', name: 'Mina', isGuest: true);
+
+    expect(RoomMember.fromMap(guest.toMap()).id, 'guest_123');
+    expect(RoomMember.fromMap(guest.toMap()).name, 'Mina');
+    expect(RoomMember.fromMap(guest.toMap()).isGuest, isTrue);
+  });
+
   group('BillItemModel claimedBy', () {
     Map<String, dynamic> itemJson(Object? claimedBy) => {
       'id': 'item-1',
@@ -93,6 +101,27 @@ void main() {
     expect(shares['user-1'], closeTo(126, 0.001));
     expect(shares['user-2'], closeTo(126, 0.001));
     expect(shares['user-3'], closeTo(6, 0.001));
+  });
+
+  test('calculates a separate share for a guest room member', () {
+    final shares = BillProvider.calculateUserShares(
+      items: [
+        BillItemModel(
+          id: 'item-1',
+          billId: 'bill-1',
+          itemName: 'Tea',
+          price: 60,
+          quantity: 1,
+          userQuantities: {'guest_123': 1},
+        ),
+      ],
+      finalTotal: 60,
+      splitType: 'proportional',
+      participantIds: ['host-1', 'guest_123'],
+    );
+
+    expect(shares['guest_123'], 60);
+    expect(shares['host-1'], 0);
   });
 
   test('splits personal pieces and the remaining shared pieces per user', () {

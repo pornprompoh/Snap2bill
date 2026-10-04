@@ -227,6 +227,15 @@ class _SummaryScreenState extends State<SummaryScreen> {
     return names;
   }
 
+  bool _isGuestMember(String userId) {
+    return widget.roomParticipants.any((participant) {
+      final participantId =
+          participant['user_id']?.toString() ?? participant['id']?.toString();
+      return participantId == userId &&
+          (participant['is_guest'] == true || participant['isGuest'] == true);
+    });
+  }
+
   bool _isParticipantPaid(String userId) {
     for (final sharers in widget.itemSharers.values) {
       for (final sharer in sharers) {
@@ -619,7 +628,21 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                 : Colors.orange.shade800,
                           ),
                         ),
-                        title: Text(name),
+                        title: Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(text: name),
+                              if (_isGuestMember(userId))
+                                const TextSpan(
+                                  text: ' (Guest / จ่ายแทน)',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.deepOrange,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
                         subtitle: _isCurrentUserHost
                             ? Text(
                                 [

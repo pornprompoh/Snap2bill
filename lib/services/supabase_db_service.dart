@@ -5,6 +5,68 @@ import '../models/bill_model.dart';
 class SupabaseDbService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  String? get currentUserId => _supabase.auth.currentUser?.id;
+
+  Future<List<RoomMember>> getRoomGuestMembers(String roomCode) async {
+    final lobby = await _supabase
+        .from('lobbies')
+        .select('receipt_json')
+        .eq('room_code', roomCode)
+        .maybeSingle();
+    final receipt = lobby?['receipt_json'];
+    if (receipt is! Map) return [];
+    final rawMembers = receipt['room_members'];
+    if (rawMembers is! Iterable) return [];
+    return rawMembers
+        .whereType<Map>()
+        .map((member) => RoomMember.fromMap(Map<String, dynamic>.from(member)))
+        .where((member) => member.id.isNotEmpty && member.isGuest)
+        .toList();
+  }
+
+  Future<RoomMember> addRoomGuestMember(
+    String roomCode,
+    RoomMember member,
+  ) async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) throw StateError('ผู้ใช้ยังไม่ได้ล็อกอิน');
+
+    final lobby = await _supabase
+        .from('lobbies')
+        .select('host_id, receipt_json')
+        .eq('room_code', roomCode)
+        .maybeSingle();
+    if (lobby == null) throw StateError('ไม่พบห้องนี้');
+    if (lobby['host_id']?.toString() != userId) {
+      throw StateError('เฉพาะเจ้าของห้องเท่านั้นที่เพิ่มเพื่อนได้');
+    }
+
+    final rawReceipt = lobby['receipt_json'];
+    final receipt = rawReceipt is Map
+        ? Map<String, dynamic>.from(rawReceipt)
+        : <String, dynamic>{};
+    final rawMembers = receipt['room_members'];
+    final members = rawMembers is Iterable
+        ? rawMembers
+              .whereType<Map>()
+              .map((value) => Map<String, dynamic>.from(value))
+              .toList()
+        : <Map<String, dynamic>>[];
+    members.add(member.toMap());
+    receipt['room_members'] = members;
+
+    final updatedLobby = await _supabase
+        .from('lobbies')
+        .update({'receipt_json': receipt})
+        .eq('room_code', roomCode)
+        .select('room_code')
+        .maybeSingle();
+    if (updatedLobby == null) {
+      throw StateError('ไม่สามารถบันทึกรายชื่อเพื่อนลงในห้องได้');
+    }
+    return member;
+  }
+
   // 1. ดึงข้อมูลโปรไฟล์ของตัวเอง
   Future<UserModel?> getMyProfile() async {
     final userId = _supabase.auth.currentUser?.id;

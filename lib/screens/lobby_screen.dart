@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../models/bill_model.dart';
 import '../../models/user_model.dart';
 import '../../providers/bill_provider.dart';
 import '../../routes/app_routes.dart';
@@ -50,7 +51,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
     _roomId = widget.lobbyId ?? (100000 + Random().nextInt(900000)).toString();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      context.read<BillProvider>().setActiveRoom(_roomId);
+      _initializeRoomMembers();
     });
 
     _currentUserId =
@@ -61,11 +62,23 @@ class _LobbyScreenState extends State<LobbyScreen> {
         ? email.split('@')[0]
         : 'Guest (${_currentUserId.substring(_currentUserId.length - 4)})';
 
-    if (_isHost) {
-      _createLobbyInDB();
-    }
-
     _setupRealtimeLobby();
+  }
+
+  Future<void> _initializeRoomMembers() async {
+    final provider = context.read<BillProvider>();
+    provider.setActiveRoom(_roomId);
+    if (_isHost) await _createLobbyInDB();
+    try {
+      await provider.loadRoomMembers(_roomId);
+    } catch (error) {
+      debugPrint('โหลดสมาชิกจำลองไม่สำเร็จ: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('โหลดรายชื่อเพื่อนไม่สำเร็จ: $error')),
+        );
+      }
+    }
   }
 
   Future<void> _createLobbyInDB() async {
@@ -140,6 +153,17 @@ class _LobbyScreenState extends State<LobbyScreen> {
       callback: _mergeInvitedParticipants,
     );
 
+    _lobbyChannel.onBroadcast(
+      event: 'add_guest_member',
+      callback: (payload) {
+        final rawMember = payload['member'];
+        if (rawMember is! Map) return;
+        final member = RoomMember.fromMap(Map<String, dynamic>.from(rawMember));
+        if (!member.isGuest) return;
+        context.read<BillProvider>().mergeRoomMembers([member]);
+      },
+    );
+
     _lobbyChannel.subscribe((status, error) async {
       if (status == RealtimeSubscribeStatus.subscribed) {
         await _lobbyChannel.track({
@@ -174,6 +198,58 @@ class _LobbyScreenState extends State<LobbyScreen> {
     );
   }
 
+  Future<void> _addGuestMember() async {
+    final nameController = TextEditingController();
+    final guestName = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('เพิ่มเพื่อนที่ไม่มีแอป'),
+        content: TextField(
+          controller: nameController,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(
+            labelText: 'ชื่อเพื่อน',
+            hintText: 'เช่น มิน',
+          ),
+          onSubmitted: (value) => Navigator.pop(dialogContext, value.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('ยกเลิก'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(dialogContext, nameController.text.trim()),
+            child: const Text('เพิ่ม'),
+          ),
+        ],
+      ),
+    );
+    nameController.dispose();
+    if (!mounted || guestName == null || guestName.trim().isEmpty) return;
+
+    try {
+      final member = await context.read<BillProvider>().addGuestMember(
+        guestName,
+      );
+      _lobbyChannel.sendBroadcastMessage(
+        event: 'add_guest_member',
+        payload: {'member': member.toMap()},
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('เพิ่มเพื่อนไม่สำเร็จ: $error'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   void _mergeInvitedParticipants(Map<String, dynamic> payload) {
     final rawParticipants = payload['participants'];
     if (rawParticipants is! Iterable) return;
@@ -203,11 +279,9 @@ class _LobbyScreenState extends State<LobbyScreen> {
 
   void _startClaiming() async {
     if (!_isHost) return;
-    final roomParticipants = context
-        .read<BillProvider>()
-        .roomParticipants
-        .map((participant) => participant.toMap())
-        .toList();
+    final roomParticipants = _buildRoomParticipantMaps(
+      context.read<BillProvider>(),
+    );
     _lobbyChannel.sendBroadcastMessage(
       event: 'start_claim',
       payload: {
@@ -235,6 +309,45 @@ class _LobbyScreenState extends State<LobbyScreen> {
     pathSegments: [_roomId],
   ).toString();
 
+  List<Map<String, dynamic>> _buildRoomParticipantMaps(BillProvider provider) {
+    final participantsById = <String, Map<String, dynamic>>{};
+    for (final participant in _participants) {
+      final userId = participant['user_id']?.toString() ?? '';
+      if (userId.isEmpty) continue;
+      participantsById[userId] = Map<String, dynamic>.from(participant);
+    }
+    for (final participant in provider.roomParticipants) {
+      final displayName = participant.displayName?.trim();
+      participantsById.putIfAbsent(
+        participant.id,
+        () => {
+          'id': participant.id,
+          'user_id': participant.id,
+          'user_name': displayName?.isNotEmpty == true
+              ? displayName
+              : participant.email?.split('@').first ?? 'เพื่อน',
+          'display_name': displayName,
+          'avatar_url': participant.avatarUrl,
+          'is_host': false,
+          'is_invited': true,
+          'is_guest': false,
+        },
+      );
+    }
+    for (final member in provider.roomMembers) {
+      participantsById.putIfAbsent(
+        member.id,
+        () => {
+          ...member.toMap(),
+          'user_id': member.id,
+          'user_name': member.name,
+          'display_name': member.name,
+        },
+      );
+    }
+    return participantsById.values.toList();
+  }
+
   Future<void> _copyJoinLink() async {
     await Clipboard.setData(ClipboardData(text: _joinLink));
     if (!mounted) return;
@@ -254,27 +367,8 @@ class _LobbyScreenState extends State<LobbyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final invitees = context.watch<BillProvider>().roomParticipants;
-    final presentIds = _participants
-        .map((participant) => participant['user_id']?.toString())
-        .whereType<String>()
-        .toSet();
-    final roomParticipants = [
-      ..._participants,
-      ...invitees
-          .where((participant) => !presentIds.contains(participant.id))
-          .map((participant) {
-            final displayName = participant.displayName?.trim();
-            return {
-              'user_id': participant.id,
-              'user_name': displayName?.isNotEmpty == true
-                  ? displayName
-                  : participant.email?.split('@').first ?? 'เพื่อน',
-              'is_host': false,
-              'is_invited': true,
-            };
-          }),
-    ];
+    final billProvider = context.watch<BillProvider>();
+    final roomParticipants = _buildRoomParticipantMaps(billProvider);
     final hostName = _participants
         .where((participant) => participant['is_host'] == true)
         .map((participant) => participant['user_name']?.toString())
@@ -424,6 +518,15 @@ class _LobbyScreenState extends State<LobbyScreen> {
                   ),
               ],
             ),
+            if (_isHost)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: _addGuestMember,
+                  icon: const Icon(Icons.person_add_alt),
+                  label: const Text('+ เพิ่มเพื่อนที่ไม่มีแอป'),
+                ),
+              ),
             const SizedBox(height: 10),
             SizedBox(
               height: 82,
@@ -438,7 +541,9 @@ class _LobbyScreenState extends State<LobbyScreen> {
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: FriendAvatar(
-                          name: user['user_name']?.toString() ?? 'เพื่อน',
+                          name:
+                              '${user['user_name']?.toString() ?? 'เพื่อน'}'
+                              '${user['is_guest'] == true ? ' (Guest)' : ''}',
                           isHost: user['is_host'] == true,
                           isCurrentUser: userId == _currentUserId,
                           isInvited: user['is_invited'] == true,

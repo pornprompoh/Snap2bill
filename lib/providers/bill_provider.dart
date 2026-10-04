@@ -9,12 +9,17 @@ class BillProvider with ChangeNotifier {
   List<BillModel> _bills = [];
   String? _activeRoomCode;
   final List<UserModel> _roomParticipants = [];
+  final List<RoomMember> _roomMembers = [];
   bool _isLoading = false;
   bool _isCreatingBill = false;
   String _splitType = 'proportional';
+  String? _currentClaimingUserId;
 
   List<BillModel> get bills => _bills;
   List<UserModel> get roomParticipants => List.unmodifiable(_roomParticipants);
+  List<RoomMember> get roomMembers => List.unmodifiable(_roomMembers);
+  String get currentClaimingUserId =>
+      _currentClaimingUserId ?? _dbService.currentUserId ?? '';
   bool get isLoading => _isLoading;
   String get splitType => _splitType;
 
@@ -91,6 +96,8 @@ class BillProvider with ChangeNotifier {
     if (_activeRoomCode == roomCode) return;
     _activeRoomCode = roomCode;
     _roomParticipants.clear();
+    _roomMembers.clear();
+    _currentClaimingUserId = _dbService.currentUserId;
     _splitType = 'proportional';
     notifyListeners();
   }
@@ -107,10 +114,66 @@ class BillProvider with ChangeNotifier {
         continue;
       }
       _roomParticipants.add(participant);
+      _mergeRoomMember(
+        RoomMember(
+          id: participant.id,
+          name: participant.displayName?.trim().isNotEmpty == true
+              ? participant.displayName!.trim()
+              : participant.email?.split('@').first ?? 'เพื่อน',
+          avatarUrl: participant.avatarUrl,
+        ),
+      );
       changed = true;
     }
     if (changed) notifyListeners();
     return roomParticipants;
+  }
+
+  Future<void> loadRoomMembers(String roomCode) async {
+    final members = await _dbService.getRoomGuestMembers(roomCode);
+    mergeRoomMembers(members);
+  }
+
+  Future<RoomMember> addGuestMember(String guestName) async {
+    final name = guestName.trim();
+    if (name.isEmpty) throw ArgumentError.value(guestName, 'guestName');
+    final roomCode = _activeRoomCode;
+    if (roomCode == null || roomCode.isEmpty) {
+      throw StateError('ยังไม่ได้เลือกห้อง');
+    }
+    final member = RoomMember(
+      id: 'guest_${DateTime.now().millisecondsSinceEpoch}',
+      name: name,
+      isGuest: true,
+    );
+    final savedMember = await _dbService.addRoomGuestMember(roomCode, member);
+    mergeRoomMembers([savedMember]);
+    return savedMember;
+  }
+
+  void mergeRoomMembers(Iterable<RoomMember> members) {
+    var changed = false;
+    for (final member in members) {
+      changed = _mergeRoomMember(member) || changed;
+    }
+    if (changed) notifyListeners();
+  }
+
+  bool _mergeRoomMember(RoomMember member) {
+    if (member.id.isEmpty) return false;
+    final index = _roomMembers.indexWhere((existing) => existing.id == member.id);
+    if (index >= 0) return false;
+    _roomMembers.add(member);
+    return true;
+  }
+
+  void setClaimingUser(String userId) {
+    if (userId.isEmpty) {
+      throw ArgumentError.value(userId, 'userId', 'Must not be empty.');
+    }
+    if (_currentClaimingUserId == userId) return;
+    _currentClaimingUserId = userId;
+    notifyListeners();
   }
 
   // ดึงประวัติบิลของเรามาแสดง

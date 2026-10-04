@@ -68,6 +68,38 @@ class BillModel {
 double _asDouble(Object? value) =>
     value == null ? 0 : double.tryParse(value.toString()) ?? 0;
 
+class RoomMember {
+  final String id;
+  final String name;
+  final String? avatarUrl;
+  final bool isGuest;
+
+  const RoomMember({
+    required this.id,
+    required this.name,
+    this.avatarUrl,
+    this.isGuest = false,
+  });
+
+  factory RoomMember.fromMap(Map<String, dynamic> map) {
+    return RoomMember(
+      id: (map['id'] ?? map['user_id'] ?? '').toString(),
+      name:
+          (map['name'] ?? map['user_name'] ?? map['display_name'] ?? 'เพื่อน')
+              .toString(),
+      avatarUrl: (map['avatar_url'] ?? map['avatarUrl'])?.toString(),
+      isGuest: map['is_guest'] == true || map['isGuest'] == true,
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'name': name,
+    'avatar_url': avatarUrl,
+    'is_guest': isGuest,
+  };
+}
+
 class BillItemModel {
   final String id;
   final String billId;

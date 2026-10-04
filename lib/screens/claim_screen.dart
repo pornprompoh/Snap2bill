@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../providers/bill_provider.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
@@ -37,6 +39,13 @@ class _ClaimScreenState extends State<ClaimScreen> {
   late String _currentUserName;
   late RealtimeChannel _claimChannel;
 
+  String get _activeClaimingUserId => widget.isHost
+      ? context.read<BillProvider>().currentClaimingUserId
+      : _currentUserId;
+
+  String get _activeClaimingUserName =>
+      _userNames[_activeClaimingUserId] ?? _currentUserName;
+
   @override
   void initState() {
     super.initState();
@@ -57,7 +66,10 @@ class _ClaimScreenState extends State<ClaimScreen> {
       if (userId == null || userId.isEmpty) {
         continue;
       }
-      final displayName = participant['display_name']?.toString();
+      final displayName =
+          participant['name']?.toString() ??
+          participant['user_name']?.toString() ??
+          participant['display_name']?.toString();
       final emailName = participant['email']?.toString().split('@').first;
       if (displayName?.isNotEmpty == true) {
         _userNames[userId] = displayName!;
@@ -81,8 +93,7 @@ class _ClaimScreenState extends State<ClaimScreen> {
         final userName = payload['user_name']?.toString() ?? 'เพื่อน';
         if (index == null || userId == null || userId.isEmpty) return;
 
-        if (userId == _currentUserId) return;
-
+        if (!mounted) return;
         setState(() {
           _userNames[userId] = userName;
           if (payload['claim_type'] == 'shared') {
@@ -128,28 +139,28 @@ class _ClaimScreenState extends State<ClaimScreen> {
       callback: (payload) {
         setState(() {
           final claimsData = payload['claims'] as Map<String, dynamic>? ?? {};
-            _claimedItems.clear();
-            claimsData.forEach((key, value) {
-              if (value is! Map) return;
-              final claims = <String, int>{};
-              value.forEach((userId, qty) {
-                final parsedQty = int.tryParse(qty.toString()) ?? 0;
-                if (parsedQty > 0) claims[userId.toString()] = parsedQty;
-              });
-              final index = int.tryParse(key);
-              if (index != null) _claimedItems[index] = claims;
+          _claimedItems.clear();
+          claimsData.forEach((key, value) {
+            if (value is! Map) return;
+            final claims = <String, int>{};
+            value.forEach((userId, qty) {
+              final parsedQty = int.tryParse(qty.toString()) ?? 0;
+              if (parsedQty > 0) claims[userId.toString()] = parsedQty;
             });
-            _sharedItems.clear();
-            final sharedData =
-                payload['shared_users'] as Map<String, dynamic>? ?? {};
-            sharedData.forEach((key, value) {
-              final index = int.tryParse(key);
-              if (index != null && value is List) {
-                _sharedItems[index] = value.map((id) => id.toString()).toSet();
-              }
-            });
-            final namesData = payload['names'] as Map<String, dynamic>? ?? {};
-            namesData.forEach((k, v) => _userNames[k] = v.toString());
+            final index = int.tryParse(key);
+            if (index != null) _claimedItems[index] = claims;
+          });
+          _sharedItems.clear();
+          final sharedData =
+              payload['shared_users'] as Map<String, dynamic>? ?? {};
+          sharedData.forEach((key, value) {
+            final index = int.tryParse(key);
+            if (index != null && value is List) {
+              _sharedItems[index] = value.map((id) => id.toString()).toSet();
+            }
+          });
+          final namesData = payload['names'] as Map<String, dynamic>? ?? {};
+          namesData.forEach((k, v) => _userNames[k] = v.toString());
         });
       },
     );
@@ -182,8 +193,8 @@ class _ClaimScreenState extends State<ClaimScreen> {
       event: 'update_claim',
       payload: {
         'item_index': index,
-        'user_id': _currentUserId,
-        'user_name': _currentUserName,
+        'user_id': _activeClaimingUserId,
+        'user_name': _activeClaimingUserName,
         'claim_type': 'personal',
         'qty': qty,
       },
@@ -195,8 +206,8 @@ class _ClaimScreenState extends State<ClaimScreen> {
       event: 'update_claim',
       payload: {
         'item_index': index,
-        'user_id': _currentUserId,
-        'user_name': _currentUserName,
+        'user_id': _activeClaimingUserId,
+        'user_name': _activeClaimingUserName,
         'claim_type': 'shared',
         'is_shared': isShared,
       },
@@ -205,9 +216,10 @@ class _ClaimScreenState extends State<ClaimScreen> {
 
   void _changePersonalQuantity(int index, int itemQuantity, int change) {
     final itemClaims = _claimedItems[index] ?? {};
-    final currentQty = itemClaims[_currentUserId] ?? 0;
+    final userId = _activeClaimingUserId;
+    final currentQty = itemClaims[userId] ?? 0;
     final otherClaims = itemClaims.entries
-        .where((entry) => entry.key != _currentUserId)
+        .where((entry) => entry.key != userId)
         .fold<int>(0, (total, entry) => total + entry.value);
     final maxPersonalQty = (itemQuantity - otherClaims).clamp(0, itemQuantity);
     final nextQty = (currentQty + change).clamp(0, maxPersonalQty);
@@ -215,9 +227,9 @@ class _ClaimScreenState extends State<ClaimScreen> {
 
     setState(() {
       if (nextQty == 0) {
-        itemClaims.remove(_currentUserId);
+        itemClaims.remove(userId);
       } else {
-        itemClaims[_currentUserId] = nextQty;
+        itemClaims[userId] = nextQty;
       }
       _claimedItems[index] = itemClaims;
       _broadcastPersonalUpdate(index, nextQty);
@@ -226,12 +238,13 @@ class _ClaimScreenState extends State<ClaimScreen> {
 
   void _toggleShared(int index) {
     final sharedUsers = _sharedItems[index] ?? <String>{};
-    final isShared = !sharedUsers.contains(_currentUserId);
+    final userId = _activeClaimingUserId;
+    final isShared = !sharedUsers.contains(userId);
     setState(() {
       if (isShared) {
-        sharedUsers.add(_currentUserId);
+        sharedUsers.add(userId);
       } else {
-        sharedUsers.remove(_currentUserId);
+        sharedUsers.remove(userId);
       }
       _sharedItems[index] = sharedUsers;
       _broadcastSharedUpdate(index, isShared);
@@ -279,6 +292,26 @@ class _ClaimScreenState extends State<ClaimScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final billProvider = context.watch<BillProvider>();
+    final claimingUserId = widget.isHost
+        ? billProvider.currentClaimingUserId
+        : _currentUserId;
+    final memberNames = <String, String>{_currentUserId: _currentUserName};
+    for (final participant in widget.roomParticipants) {
+      final id =
+          participant['id']?.toString() ?? participant['user_id']?.toString();
+      if (id == null || id.isEmpty) continue;
+      memberNames[id] =
+          participant['name']?.toString() ??
+          participant['user_name']?.toString() ??
+          participant['display_name']?.toString() ??
+          'เพื่อน';
+    }
+    final claimingUserName = memberNames[claimingUserId] ?? _currentUserName;
+    final claimingUsers = <String, String>{_currentUserId: _currentUserName};
+    for (final entry in memberNames.entries) {
+      claimingUsers[entry.key] = entry.value;
+    }
     final shopName = widget.receiptData['shop_name'] ?? 'ไม่ระบุชื่อร้าน';
     final items = widget.receiptData['items'] as List<dynamic>? ?? [];
 
@@ -301,6 +334,41 @@ class _ClaimScreenState extends State<ClaimScreen> {
               ),
             ),
           ),
+          if (widget.isHost)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'กำลังเลือกอาหารให้: $claimingUserName',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  DropdownButton<String>(
+                    value: claimingUsers.containsKey(claimingUserId)
+                        ? claimingUserId
+                        : _currentUserId,
+                    items: claimingUsers.entries
+                        .map(
+                          (entry) => DropdownMenuItem<String>(
+                            value: entry.key,
+                            child: Text(
+                              '${entry.value}'
+                              '${entry.key.startsWith('guest_') ? ' (Guest)' : ''}',
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (userId) {
+                      if (userId != null) {
+                        billProvider.setClaimingUser(userId);
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 14, 24, 6),
             child: Row(
@@ -345,7 +413,7 @@ class _ClaimScreenState extends State<ClaimScreen> {
 
                 final itemClaims = _claimedItems[index] ?? {};
                 final sharedUsers = _sharedItems[index] ?? <String>{};
-                final myClaimedQty = itemClaims[_currentUserId] ?? 0;
+                final myClaimedQty = itemClaims[claimingUserId] ?? 0;
                 final totalPersonalQty = itemClaims.values.fold<int>(
                   0,
                   (total, qty) => total + qty,
@@ -359,7 +427,7 @@ class _ClaimScreenState extends State<ClaimScreen> {
                 final sharedPerUser = sharedUsers.isEmpty
                     ? 0.0
                     : (unitPrice * remainingQty) / sharedUsers.length;
-                final isShared = sharedUsers.contains(_currentUserId);
+                final isShared = sharedUsers.contains(claimingUserId);
                 final isSelected = myClaimedQty > 0 || isShared;
 
                 return AnimatedContainer(
@@ -444,10 +512,11 @@ class _ClaimScreenState extends State<ClaimScreen> {
                                           Icons.remove_circle_outline,
                                         ),
                                         visualDensity: VisualDensity.compact,
-                                        constraints: const BoxConstraints.tightFor(
-                                          width: 32,
-                                          height: 36,
-                                        ),
+                                        constraints:
+                                            const BoxConstraints.tightFor(
+                                              width: 32,
+                                              height: 36,
+                                            ),
                                         padding: EdgeInsets.zero,
                                       ),
                                       SizedBox(
@@ -473,10 +542,11 @@ class _ClaimScreenState extends State<ClaimScreen> {
                                           Icons.add_circle_outline,
                                         ),
                                         visualDensity: VisualDensity.compact,
-                                        constraints: const BoxConstraints.tightFor(
-                                          width: 32,
-                                          height: 36,
-                                        ),
+                                        constraints:
+                                            const BoxConstraints.tightFor(
+                                              width: 32,
+                                              height: 36,
+                                            ),
                                         padding: EdgeInsets.zero,
                                       ),
                                     ],
@@ -538,23 +608,23 @@ class _ClaimScreenState extends State<ClaimScreen> {
                             runSpacing: 6,
                             children: [
                               ...itemClaims.keys.map((userId) {
-                              final name = _userNames[userId] ?? 'เพื่อน';
-                              return Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 9,
-                                  vertical: 5,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.accent.withValues(
-                                    alpha: 0.1,
+                                final name = _userNames[userId] ?? 'เพื่อน';
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 9,
+                                    vertical: 5,
                                   ),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  '$name × ${itemClaims[userId]}',
-                                  style: const TextStyle(fontSize: 11),
-                                ),
-                              );
+                                  decoration: BoxDecoration(
+                                    color: AppColors.accent.withValues(
+                                      alpha: 0.1,
+                                    ),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    '$name × ${itemClaims[userId]}',
+                                    style: const TextStyle(fontSize: 11),
+                                  ),
+                                );
                               }),
                               ...sharedUsers.map((userId) {
                                 final name = _userNames[userId] ?? 'เพื่อน';

@@ -11,6 +11,7 @@ import '../../../services/supabase_storage_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../utils/formatters.dart';
 import '../../../widgets/bill/promptpay_card.dart';
+import '../../../widgets/bill/member_summary_list.dart';
 import '../../../widgets/custom_button.dart';
 
 class SummaryScreen extends StatefulWidget {
@@ -551,76 +552,32 @@ class _SummaryScreenState extends State<SummaryScreen> {
                       ),
                     ),
                   ),
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: displayedUserIds.length,
-                    itemBuilder: (context, index) {
-                      final userId = displayedUserIds[index];
-                      final name = userNames[userId] ?? 'เพื่อน';
-                      final amount = totalsByUser[userId] ?? 0.0;
-                      final paid = _isParticipantPaid(userId);
-                      final isSelected = userId == selectedQrUserId;
-                      return ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                        ),
-                        selected: isSelected,
-                        selectedTileColor: AppColors.primary.withValues(
-                          alpha: 0.08,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          side: BorderSide(
-                            color: isSelected
-                                ? AppColors.primary
-                                : Colors.transparent,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        onTap: _isCurrentUserHost
-                            ? () => setState(() => _selectedUserId = userId)
-                            : null,
-                        leading: CircleAvatar(
-                          backgroundColor: paid
-                              ? Colors.green.shade50
-                              : Colors.orange.shade50,
-                          child: Icon(
-                            paid
-                                ? Icons.check_circle_outline
-                                : Icons.pending_outlined,
-                            color: paid
-                                ? Colors.green.shade700
-                                : Colors.orange.shade800,
-                          ),
-                        ),
-                        title: Text.rich(
-                          TextSpan(
-                            children: [
-                              TextSpan(text: name),
-                              if (_isGuestMember(userId))
-                                const TextSpan(
-                                  text: ' (Guest / จ่ายแทน)',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.deepOrange,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                        subtitle: _isCurrentUserHost
-                            ? Text(
-                                [
-                                  paid ? 'ชำระแล้ว' : 'รอชำระ',
+                  MemberSummaryList(
+                    members: [
+                      for (final userId in displayedUserIds)
+                        MemberSummaryEntry(
+                          id: userId,
+                          name: userNames[userId] ?? 'เพื่อน',
+                          amount: totalsByUser[userId] ?? 0.0,
+                          isPaid: _isParticipantPaid(userId),
+                          isGuest: _isGuestMember(userId),
+                          subtitle: _isCurrentUserHost
+                              ? [
+                                  _isParticipantPaid(userId)
+                                      ? 'ชำระแล้ว'
+                                      : 'รอชำระ',
                                   ...?itemSharesByUser[userId],
-                                ].join('\n'),
-                              )
-                            : (itemSharesByUser[userId]?.isNotEmpty == true
-                                  ? Text(itemSharesByUser[userId]!.join('\n'))
-                                  : null),
-                        trailing: Text(AppFormatters.formatCurrency(amount)),
-                      );
-                    },
+                                ].join('\n')
+                              : (itemSharesByUser[userId]?.isNotEmpty == true
+                                    ? itemSharesByUser[userId]!.join('\n')
+                                    : null),
+                        ),
+                    ],
+                    selectedMemberId: selectedQrUserId,
+                    onMemberTap: _isCurrentUserHost
+                        ? (userId) =>
+                              setState(() => _selectedUserId = userId)
+                        : null,
                   ),
                   const Divider(thickness: 2),
                   const SizedBox(height: 16),

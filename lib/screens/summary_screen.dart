@@ -46,6 +46,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
   String? _hostPromptPayType;
   String _hostName = 'เจ้าของบิล';
   String? _currentUserId;
+  String? _selectedUserId;
   bool _isCurrentUserHost = false;
   bool _isLoadingHost = true;
 
@@ -60,6 +61,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
   @override
   void initState() {
     super.initState();
+    _currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    _selectedUserId = _currentUserId;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _fetchHostPromptPayInfo();
     });
@@ -99,6 +102,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
         final emailName = hostProfile?.email?.split('@').first;
         setState(() {
           _currentUserId = currentUserId;
+          _selectedUserId ??= currentUserId;
           _isCurrentUserHost = currentUserId != null && currentUserId == hostId;
           _hostPromptPay = hostProfile?.promptPayNumber ?? '';
           _hostPromptPayType = hostProfile?.promptPayType;
@@ -459,73 +463,6 @@ class _SummaryScreenState extends State<SummaryScreen> {
     return crc.toRadixString(16).toUpperCase().padLeft(4, '0');
   }
 
-  void _showPromptPayDialog(String userName, double amount) {
-    if (!_hasValidPromptPay) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('เจ้าของบิลยังไม่ได้ตั้งค่าเบอร์ PromptPay'),
-        ),
-      );
-      return;
-    }
-
-    final String qrPayload = _generatePromptPayPayload(_hostPromptPay, amount);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Column(
-          children: [
-            const Icon(Icons.qr_code_2, size: 48, color: Colors.blue),
-            const SizedBox(height: 8),
-            Text(
-              'สแกนจ่ายให้ $_hostName\n($_hostPromptPay)',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 14),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: QrImageView(
-                data: qrPayload,
-                version: QrVersions.auto,
-                size: 200.0,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              userName,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              'ยอดชำระ: ${AppFormatters.formatCurrency(amount)}',
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.green,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('ปิด'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final splitType = context.watch<BillProvider>().splitType;
@@ -548,7 +485,18 @@ class _SummaryScreenState extends State<SummaryScreen> {
         ? 0.0
         : totalsByUser[_currentUserId] ?? 0.0;
     final displayedAmount = _isCurrentUserHost ? billTotal : myShare;
-    final qrAmount = _isCurrentUserHost ? billTotal : myShare;
+    final selectedQrUserId = _isCurrentUserHost
+        ? (_selectedUserId ?? _currentUserId)
+        : _currentUserId;
+    final selectedQrName = selectedQrUserId == null
+        ? 'คุณ'
+        : userNames[selectedQrUserId] ??
+              (selectedQrUserId == _currentUserId
+                  ? (_isCurrentUserHost ? _hostName : 'คุณ')
+                  : 'เพื่อน');
+    final qrAmount = selectedQrUserId == null
+        ? 0.0
+        : totalsByUser[selectedQrUserId] ?? 0.0;
     final displayedUserIds = _isCurrentUserHost
         ? totalsByUser.keys.toList()
         : (_currentUserId != null && totalsByUser.containsKey(_currentUserId)
@@ -660,10 +608,26 @@ class _SummaryScreenState extends State<SummaryScreen> {
                       final name = userNames[userId] ?? 'เพื่อน';
                       final amount = totalsByUser[userId] ?? 0.0;
                       final paid = _isParticipantPaid(userId);
+                      final isSelected = userId == selectedQrUserId;
                       return ListTile(
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16,
                         ),
+                        selected: isSelected,
+                        selectedTileColor: AppColors.primary.withValues(
+                          alpha: 0.08,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          side: BorderSide(
+                            color: isSelected
+                                ? AppColors.primary
+                                : Colors.transparent,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        onTap: _isCurrentUserHost
+                            ? () => setState(() => _selectedUserId = userId)
+                            : null,
                         leading: CircleAvatar(
                           backgroundColor: paid
                               ? Colors.green.shade50
@@ -703,9 +667,6 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                   ? Text(itemSharesByUser[userId]!.join('\n'))
                                   : null),
                         trailing: Text(AppFormatters.formatCurrency(amount)),
-                        onTap: _hasValidPromptPay
-                            ? () => _showPromptPayDialog(name, amount)
-                            : null,
                       );
                     },
                   ),
@@ -815,9 +776,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                   children: [
                                     Expanded(
                                       child: Text(
-                                        _isCurrentUserHost
-                                            ? 'ยอดรวมบิล'
-                                            : 'ยอดที่คุณต้องชำระ',
+                                        'ยอดชำระของ $selectedQrName',
                                         style: Theme.of(context)
                                             .textTheme
                                             .bodyMedium

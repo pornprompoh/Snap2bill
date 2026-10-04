@@ -33,15 +33,16 @@ snap2bill/
 │   │   ├── auth/login_screen.dart        # เข้าสู่ระบบ
 │   │   ├── friends/friend_list_screen.dart # เลือกเพื่อนจากประวัติบิล
 │   │   ├── profile/profile_screen.dart   # ดู/แก้ไขโปรไฟล์และ PromptPay
-│   │   ├── claim_screen.dart             # เลือกรายการอาหารและผู้รับผิดชอบ
 │   │   ├── detail_screen.dart            # รายละเอียดบิลย้อนหลัง
 │   │   ├── home_screen.dart              # หน้าหลักและประวัติบิล
 │   │   ├── loading_screen.dart           # สถานะระหว่างประมวลผล OCR
-│   │   ├── lobby_screen.dart             # ห้อง Realtime, QR และรายชื่อสมาชิก
 │   │   ├── main_screen.dart              # Navigation หลัก
-│   │   ├── review_screen.dart            # ตรวจ/แก้ข้อมูล OCR ก่อนเริ่มหาร
-│   │   ├── scan_screen.dart              # ถ่ายภาพหรือเลือกรูปใบเสร็จ
-│   │   └── summary_screen.dart           # ยอดชำระ, PromptPay QR และบันทึกบิล
+│   │   ├── bill/                         # หน้าจอ Flow การหารบิล
+│   │   │   ├── claim_screen.dart         # เลือกรายการอาหารและผู้รับผิดชอบ
+│   │   │   ├── lobby_screen.dart         # ห้อง Realtime, QR และรายชื่อสมาชิก
+│   │   │   ├── review_screen.dart        # ตรวจ/แก้ข้อมูล OCR ก่อนเริ่มหาร
+│   │   │   ├── scan_screen.dart          # ถ่ายภาพหรือเลือกรูปใบเสร็จ
+│   │   │   └── summary_screen.dart       # ยอดชำระ, PromptPay QR และบันทึกบิล
 │   ├── services/                         # การเชื่อมต่อ API และ business services
 │   │   ├── ocr_service.dart              # Gemini OCR พร้อม retry/fallback model
 │   │   ├── supabase_auth_service.dart    # Supabase Auth และ Google Sign-In
@@ -56,7 +57,11 @@ snap2bill/
 │   └── widgets/                          # Widgets ที่ใช้ซ้ำ
 │       ├── bill_card.dart                # การ์ดสรุปบิล
 │       ├── custom_button.dart            # ปุ่มมาตรฐานพร้อม loading state
-│       └── friend_item.dart              # รายการเพื่อนและสถานะเลือก
+│       ├── friend_item.dart              # รายการเพื่อนและสถานะเลือก
+│       └── bill/                         # Components เฉพาะใน Bill Flow
+│           ├── claim_item_card.dart      # การ์ดเลือกรายการ/แชร์เมนู
+│           ├── guest_dialog.dart         # Dialog เพิ่มสมาชิก Guest
+│           └── promptpay_card.dart       # การ์ด PromptPay และปุ่มบันทึก QR
 ├── test/
 │   └── widget_test.dart                  # Flutter widget tests
 ├── web/                                  # Web manifest, icons และ HTML shell

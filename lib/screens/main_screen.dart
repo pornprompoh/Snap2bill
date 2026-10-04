@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import 'home_screen.dart';
-import 'scan_screen.dart'; // 🚀 Import หน้าสแกน
+import 'bill/scan_screen.dart'; // 🚀 Import หน้าสแกน
 import 'profile/profile_screen.dart'; // 🚀 Import หน้าโปรไฟล์
 
 class MainScreen extends StatefulWidget {

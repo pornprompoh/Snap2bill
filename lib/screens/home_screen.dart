@@ -180,12 +180,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text('Snap2Bill'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.group_add),
-            tooltip: 'เข้าร่วมห้องด้วยรหัส',
-            onPressed: () => _showJoinRoomDialog(context),
+            icon: const Icon(Icons.people_outline),
+            tooltip: 'สมุดรายชื่อเพื่อน',
+            onPressed: () => Navigator.pushNamed(context, AppRoutes.friends),
           ),
         ],
       ),

@@ -310,7 +310,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
           GestureDetector(
             onTap: _showEditHeaderDialog,
             child: Container(
-              color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.4),
+              color: Theme.of(
+                context,
+              ).colorScheme.primaryContainer.withValues(alpha: 0.4),
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
@@ -385,7 +387,16 @@ class _ReviewScreenState extends State<ReviewScreen> {
           // 3. ปุ่มเพิ่มรายการ และยืนยัน
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))]),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -5),
+                ),
+              ],
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [

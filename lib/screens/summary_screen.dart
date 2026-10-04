@@ -271,9 +271,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
       final image = await renderObject.toImage(pixelRatio: 3);
       late final Uint8List pngBytes;
       try {
-        final byteData = await image.toByteData(
-          format: ui.ImageByteFormat.png,
-        );
+        final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
         if (byteData == null) {
           throw StateError('ไม่สามารถแปลงการ์ดคิวอาร์โค้ดเป็นรูปภาพได้');
         }
@@ -304,6 +302,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
 
   Future<void> _saveAndFinish() async {
     if (_isFinishing) return;
+    final splitType = context.read<BillProvider>().splitType;
     setState(() => _isFinishing = true);
 
     // 🚀 ถ้าเป็น Guest (หรือรันบน Web) แค่เตะกลับหน้า Home เลย ไม่ต้องเซฟลงฐานข้อมูลซ้ำซ้อน
@@ -355,7 +354,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
               ...widget.receiptData,
               'final_total': finalTotal,
               'total_amount': finalTotal,
-              'split_type': context.read<BillProvider>().splitType,
+              'split_type': splitType,
             },
             'sharers_json': sharersJson,
           })
@@ -738,106 +737,108 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(
-                                  Icons.account_balance_wallet_outlined,
-                                  color: AppColors.primary,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'PROMPTPAY',
-                                  style: Theme.of(context).textTheme.labelLarge
-                                      ?.copyWith(
-                                        color: AppColors.primary,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'ชำระให้ $_hostName',
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(color: AppColors.textSecondary),
-                            ),
-                            const SizedBox(height: 16),
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: AppColors.surface,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: AppColors.border),
-                              ),
-                              child: QrImageView(
-                                data: _generatePromptPayPayload(
-                                  _hostPromptPay,
-                                  qrAmount,
-                                ),
-                                version: QrVersions.auto,
-                                size: 190,
-                                eyeStyle: const QrEyeStyle(
-                                  eyeShape: QrEyeShape.square,
-                                  color: AppColors.primaryDark,
-                                ),
-                                dataModuleStyle: const QrDataModuleStyle(
-                                  dataModuleShape: QrDataModuleShape.square,
-                                  color: AppColors.primaryDark,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              _hostPromptPay,
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(
-                                    color: AppColors.textSecondary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                            ),
-                            const SizedBox(height: 14),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.secondary.withValues(
-                                  alpha: 0.35,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Expanded(
-                                    child: Text(
-                                      _isCurrentUserHost
-                                          ? 'ยอดรวมบิล'
-                                          : 'ยอดที่คุณต้องชำระ',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium
-                                          ?.copyWith(
-                                            color: AppColors.textSecondary,
-                                          ),
-                                    ),
+                                  const Icon(
+                                    Icons.account_balance_wallet_outlined,
+                                    color: AppColors.primary,
+                                    size: 20,
                                   ),
+                                  const SizedBox(width: 8),
                                   Text(
-                                    AppFormatters.formatCurrency(qrAmount),
+                                    'PROMPTPAY',
                                     style: Theme.of(context)
                                         .textTheme
-                                        .titleMedium
+                                        .labelLarge
                                         ?.copyWith(
-                                          color: AppColors.primaryDark,
+                                          color: AppColors.primary,
                                           fontWeight: FontWeight.w700,
                                         ),
                                   ),
                                 ],
                               ),
-                            ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'ชำระให้ $_hostName',
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(color: AppColors.textSecondary),
+                              ),
+                              const SizedBox(height: 16),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: AppColors.border),
+                                ),
+                                child: QrImageView(
+                                  data: _generatePromptPayPayload(
+                                    _hostPromptPay,
+                                    qrAmount,
+                                  ),
+                                  version: QrVersions.auto,
+                                  size: 190,
+                                  eyeStyle: const QrEyeStyle(
+                                    eyeShape: QrEyeShape.square,
+                                    color: AppColors.primaryDark,
+                                  ),
+                                  dataModuleStyle: const QrDataModuleStyle(
+                                    dataModuleShape: QrDataModuleShape.square,
+                                    color: AppColors.primaryDark,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                _hostPromptPay,
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(
+                                      color: AppColors.textSecondary,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                              ),
+                              const SizedBox(height: 14),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.secondary.withValues(
+                                    alpha: 0.35,
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        _isCurrentUserHost
+                                            ? 'ยอดรวมบิล'
+                                            : 'ยอดที่คุณต้องชำระ',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium
+                                            ?.copyWith(
+                                              color: AppColors.textSecondary,
+                                            ),
+                                      ),
+                                    ),
+                                    Text(
+                                      AppFormatters.formatCurrency(qrAmount),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(
+                                            color: AppColors.primaryDark,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -854,9 +855,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                             )
                           : const Icon(Icons.download_outlined),
                       label: Text(
-                        _isSavingQr
-                            ? 'กำลังบันทึก...'
-                            : 'บันทึกคิวอาร์โค้ด',
+                        _isSavingQr ? 'กำลังบันทึก...' : 'บันทึกคิวอาร์โค้ด',
                       ),
                     ),
                   ],

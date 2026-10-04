@@ -1,10 +1,18 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
 import '../models/bill_model.dart';
 import '../models/user_model.dart';
+import 'contact_provider.dart';
 import '../services/supabase_db_service.dart';
 
 class BillProvider with ChangeNotifier {
   final SupabaseDbService _dbService = SupabaseDbService();
+  ContactProvider? _contactProvider;
+
+  void setContactProvider(ContactProvider contactProvider) {
+    _contactProvider = contactProvider;
+  }
 
   List<BillModel> _bills = [];
   String? _activeRoomCode;
@@ -114,15 +122,15 @@ class BillProvider with ChangeNotifier {
         continue;
       }
       _roomParticipants.add(participant);
-      _mergeRoomMember(
-        RoomMember(
-          id: participant.id,
-          name: participant.displayName?.trim().isNotEmpty == true
-              ? participant.displayName!.trim()
-              : participant.email?.split('@').first ?? 'เพื่อน',
-          avatarUrl: participant.avatarUrl,
-        ),
+      final member = RoomMember(
+        id: participant.id,
+        name: participant.displayName?.trim().isNotEmpty == true
+            ? participant.displayName!.trim()
+            : participant.email?.split('@').first ?? 'เพื่อน',
+        avatarUrl: participant.avatarUrl,
       );
+      _mergeRoomMember(member);
+      if (member.id != _dbService.currentUserId) _saveContact(member.name);
       changed = true;
     }
     if (changed) notifyListeners();
@@ -148,7 +156,25 @@ class BillProvider with ChangeNotifier {
     );
     final savedMember = await _dbService.addRoomGuestMember(roomCode, member);
     mergeRoomMembers([savedMember]);
+    await _saveContact(name);
     return savedMember;
+  }
+
+  Future<void> saveRoomMemberContacts(Iterable<RoomMember> members) async {
+    for (final member in members) {
+      if (!member.isGuest && member.id == _dbService.currentUserId) continue;
+      await _saveContact(member.name);
+    }
+  }
+
+  Future<void> _saveContact(String name) async {
+    final contactProvider = _contactProvider;
+    if (contactProvider == null) return;
+    try {
+      await contactProvider.saveContactIfNotExists(name);
+    } catch (error, stackTrace) {
+      debugPrint('บันทึกชื่อเพื่อนในสมุดรายชื่อไม่สำเร็จ: $error\n$stackTrace');
+    }
   }
 
   void mergeRoomMembers(Iterable<RoomMember> members) {

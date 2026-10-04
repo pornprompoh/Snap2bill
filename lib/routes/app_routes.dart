@@ -43,7 +43,10 @@ class AppRoutes {
       case profile:
         return MaterialPageRoute(builder: (_) => const ProfileScreen());
       case friends:
-        return MaterialPageRoute(builder: (_) => const FriendListScreen());
+        final selectionMode = settings.arguments == true;
+        return MaterialPageRoute(
+          builder: (_) => FriendListScreen(selectionMode: selectionMode),
+        );
 
       case detail:
         final billData = settings.arguments as Map<String, dynamic>? ?? {};

@@ -8,6 +8,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart'; // 🚀 นำเข้า 
 import 'package:provider/provider.dart';
 import 'routes/app_routes.dart';
 import 'providers/bill_provider.dart';
+import 'providers/contact_provider.dart';
 import 'providers/user_provider.dart';
 import 'services/supabase_auth_service.dart';
 import 'theme/app_colors.dart';
@@ -33,7 +34,12 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => UserProvider()),
-        ChangeNotifierProvider(create: (_) => BillProvider()),
+        ChangeNotifierProvider(create: (_) => ContactProvider()),
+        ChangeNotifierProxyProvider<ContactProvider, BillProvider>(
+          create: (_) => BillProvider(),
+          update: (_, contacts, bills) =>
+              (bills ?? BillProvider())..setContactProvider(contacts),
+        ),
       ],
       child: const _DeepLinkHandler(child: MyApp()),
     ),

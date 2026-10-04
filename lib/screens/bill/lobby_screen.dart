@@ -128,7 +128,14 @@ class _LobbyScreenState extends State<LobbyScreen> {
           });
         }
       }
-      if (mounted) setState(() => _participants = users);
+      if (mounted) {
+        setState(() => _participants = users);
+        unawaited(
+          context.read<BillProvider>().saveRoomMemberContacts(
+            users.map(RoomMember.fromMap),
+          ),
+        );
+      }
     });
 
     _lobbyChannel.onBroadcast(
@@ -180,6 +187,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
     final selected = await Navigator.pushNamed<List<UserModel>>(
       context,
       AppRoutes.friends,
+      arguments: true,
     );
     if (!mounted || selected == null || selected.isEmpty) return;
 

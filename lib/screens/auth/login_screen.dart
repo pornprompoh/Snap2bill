@@ -15,7 +15,16 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
+  bool _isNavigatingHome = false;
   late final StreamSubscription<AuthState> _authStateSubscription;
+
+  void _navigateToHome() {
+    if (!mounted || _isNavigatingHome) return;
+    _isNavigatingHome = true;
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(AppRoutes.home, (route) => false);
+  }
 
   @override
   void initState() {
@@ -25,7 +34,7 @@ class _LoginScreenState extends State<LoginScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final session = Supabase.instance.client.auth.currentSession;
       if (session != null && mounted) {
-        Navigator.pushReplacementNamed(context, AppRoutes.home);
+        _navigateToHome();
       }
     });
 
@@ -37,9 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
           // ถ้าพบว่าล็อกอินสำเร็จ ให้เด้งไปหน้า Home ทันที
           if (event == AuthChangeEvent.signedIn || session != null) {
-            if (mounted) {
-              Navigator.pushReplacementNamed(context, AppRoutes.home);
-            }
+            _navigateToHome();
           }
         });
   }
@@ -62,7 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('เข้าสู่ระบบสำเร็จ')));
-        Navigator.pushReplacementNamed(context, AppRoutes.home);
+        _navigateToHome();
       }
       // หมายเหตุ: บนเว็บ โค้ดจะหยุดทำแค่นี้ เพราะมัน Redirect โยนไปหน้า Google แล้ว
     } catch (e) {

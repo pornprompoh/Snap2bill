@@ -10,6 +10,36 @@ class SupabaseAuthService {
 
   bool _isInitialized = false;
 
+  Future<AuthResponse> signInWithPassword({
+    required String email,
+    required String password,
+  }) {
+    return _supabase.auth.signInWithPassword(email: email, password: password);
+  }
+
+  Future<AuthResponse> signUpWithPassword({
+    required String email,
+    required String password,
+  }) {
+    return _supabase.auth.signUp(email: email, password: password);
+  }
+
+  Future<void> resetPasswordForEmail(String email) {
+    return _supabase.auth.resetPasswordForEmail(email);
+  }
+
+  Future<bool> signInWithFacebook() async {
+    try {
+      return await _supabase.auth.signInWithOAuth(
+        OAuthProvider.facebook,
+        redirectTo: kIsWeb ? null : 'io.supabase.snap2bill://login-callback',
+      );
+    } on AuthException catch (e) {
+      debugPrint('เกิดข้อผิดพลาดในการล็อกอินด้วย Facebook: $e');
+      rethrow;
+    }
+  }
+
   Future<void> _ensureInitialized() async {
     if (!_isInitialized) {
       await _googleSignIn.initialize(

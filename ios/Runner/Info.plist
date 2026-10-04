@@ -28,6 +28,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>snap2bill</string>
+				<string>io.supabase.snap2bill</string>
 			</array>
 		</dict>
 	</array>

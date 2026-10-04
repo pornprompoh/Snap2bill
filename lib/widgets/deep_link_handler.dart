@@ -71,6 +71,10 @@ class _DeepLinkHandlerState extends State<DeepLinkHandler> {
   }
 
   void _handleIncomingLink(Uri uri) {
+    if (uri.scheme == 'io.supabase.snap2bill' && uri.host == 'login-callback') {
+      return;
+    }
+
     final roomCode = _roomCodeFromUri(uri);
     if (roomCode == null || !RegExp(r'^\d{6}$').hasMatch(roomCode)) {
       _showLinkMessage('ลิงก์เข้าห้องไม่ถูกต้อง');

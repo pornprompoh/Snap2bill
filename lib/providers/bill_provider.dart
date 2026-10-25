@@ -3,10 +3,8 @@ import 'package:flutter/material.dart';
 
 import '../models/bill_model.dart';
 import '../models/user_model.dart';
-import '../services/cache_service.dart';
 import 'contact_provider.dart';
 import '../services/supabase_db_service.dart';
-import '../utils/validation.dart';
 
 class BillProvider with ChangeNotifier {
   final SupabaseDbService _dbService = SupabaseDbService();
@@ -21,7 +19,6 @@ class BillProvider with ChangeNotifier {
   final List<UserModel> _roomParticipants = [];
   final List<RoomMember> _roomMembers = [];
   bool _isLoading = false;
-  bool _isOffline = false;
   bool _isCreatingBill = false;
   String _splitType = 'proportional';
   String? _currentClaimingUserId;
@@ -32,32 +29,7 @@ class BillProvider with ChangeNotifier {
   String get currentClaimingUserId =>
       _currentClaimingUserId ?? _dbService.currentUserId ?? '';
   bool get isLoading => _isLoading;
-  bool get isOffline => _isOffline;
   String get splitType => _splitType;
-
-  void setOffline(bool value) {
-    if (_isOffline == value) return;
-    _isOffline = value;
-    notifyListeners();
-  }
-
-  static bool isNetworkError(Object error) {
-    final errorType = error.runtimeType.toString().toLowerCase();
-    final message = error.toString().toLowerCase();
-    return errorType == 'socketexception' ||
-        errorType == 'clientexception' ||
-        errorType == 'networkexception' ||
-        message.contains('socketexception') ||
-        message.contains('clientexception') ||
-        message.contains('failed host lookup') ||
-        message.contains('network is unreachable') ||
-        message.contains('connection refused') ||
-        message.contains('connection reset') ||
-        message.contains('connection timed out') ||
-        message.contains('network error') ||
-        message.contains('xmlhttprequest error') ||
-        message.contains('fetch failed');
-  }
 
   void setSplitType(String type) {
     if (type != 'equal' && type != 'proportional') {
@@ -75,11 +47,7 @@ class BillProvider with ChangeNotifier {
     Iterable<String> participantIds = const [],
   }) {
     if (splitType != 'equal' && splitType != 'proportional') {
-      throw ArgumentError.value(
-        splitType,
-        'splitType',
-        'Unsupported split type.',
-      );
+      throw ArgumentError.value(splitType, 'splitType', 'Unsupported split type.');
     }
 
     final itemTotalsByUser = <String, double>{
@@ -131,34 +99,6 @@ class BillProvider with ChangeNotifier {
                       : 0)),
     };
   }
-
-  static double calculateSubtotal(Iterable<BillItemModel> items) {
-    final subtotal = items.fold<double>(
-      0,
-      (total, item) => total + item.price * item.quantity,
-    );
-    BillValidation.validateAmount(subtotal, field: 'subtotal');
-    return subtotal;
-  }
-
-  static double calculateCharge({
-    required double subtotal,
-    required double rate,
-  }) {
-    BillValidation.validateAmount(subtotal, field: 'subtotal');
-    if (!rate.isFinite || rate < 0) {
-      throw ArgumentError.value(rate, 'rate', 'Must be non-negative.');
-    }
-    return subtotal * rate / 100;
-  }
-
-  static double calculateVat({required double subtotal, double rate = 7}) =>
-      calculateCharge(subtotal: subtotal, rate: rate);
-
-  static double calculateServiceCharge({
-    required double subtotal,
-    required double rate,
-  }) => calculateCharge(subtotal: subtotal, rate: rate);
 
   void setActiveRoom(String roomCode) {
     if (_activeRoomCode == roomCode) return;
@@ -247,9 +187,7 @@ class BillProvider with ChangeNotifier {
 
   bool _mergeRoomMember(RoomMember member) {
     if (member.id.isEmpty) return false;
-    final index = _roomMembers.indexWhere(
-      (existing) => existing.id == member.id,
-    );
+    final index = _roomMembers.indexWhere((existing) => existing.id == member.id);
     if (index >= 0) return false;
     _roomMembers.add(member);
     return true;
@@ -267,30 +205,12 @@ class BillProvider with ChangeNotifier {
   // ดึงประวัติบิลของเรามาแสดง
   Future<void> loadMyBills() async {
     _isLoading = true;
-    try {
-      _bills = CacheService.instance
-          .getCachedBills()
-          .map(BillModel.fromJson)
-          .toList();
-      notifyListeners();
+    notifyListeners();
 
-      try {
-        final freshBills = await _dbService.getMyBills();
-        setOffline(false);
-        _bills = freshBills;
-        notifyListeners();
+    _bills = await _dbService.getMyBills();
 
-        await CacheService.instance.saveBills(
-          freshBills.map((bill) => bill.toJson()).toList(),
-        );
-      } catch (error) {
-        if (!isNetworkError(error)) rethrow;
-        setOffline(true);
-      }
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
+    _isLoading = false;
+    notifyListeners();
   }
 
   // สร้างบิลใหม่ แล้วยัดใส่บนสุดของลิสต์ให้ผู้ใช้เห็นทันที

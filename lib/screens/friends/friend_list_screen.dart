@@ -30,7 +30,11 @@ class _FriendListScreenState extends State<FriendListScreen> {
   @override
   void initState() {
     super.initState();
-    unawaited(context.read<ContactProvider>().loadContacts());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        unawaited(context.read<ContactProvider>().loadContacts());
+      }
+    });
     if (widget.selectionMode) _loadPastParticipants();
   }
 

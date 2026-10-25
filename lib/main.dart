@@ -99,6 +99,7 @@ class MyApp extends StatelessWidget {
       scaffoldMessengerKey: _scaffoldMessengerKey,
       themeMode: themeProvider.themeMode,
       theme: ThemeData(
+        fontFamily: AppTextStyles.fontFamily,
         colorScheme: lightColorScheme,
         textTheme: AppTextStyles.textTheme,
         scaffoldBackgroundColor: AppColors.background,
@@ -129,6 +130,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       darkTheme: ThemeData(
+        fontFamily: AppTextStyles.fontFamily,
         colorScheme: darkColorScheme,
         brightness: Brightness.dark,
         scaffoldBackgroundColor: AppColors.darkBackground,

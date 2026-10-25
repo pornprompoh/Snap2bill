@@ -4,9 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/bill_provider.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/app_colors.dart';
-import '../../theme/app_text_styles.dart';
 import '../../utils/formatters.dart';
-import '../../widgets/custom_button.dart';
 
 class ReviewScreen extends StatefulWidget {
   final Map<String, dynamic> receiptData;
@@ -115,33 +113,6 @@ class _ReviewScreenState extends State<ReviewScreen> {
     });
   }
 
-  Widget _summaryLine(String label, double amount, {bool isDiscount = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: AppTextStyles.body.copyWith(
-                fontSize: 13,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
-          Text(
-            '${isDiscount ? '-' : ''}${AppFormatters.formatCurrency(amount)}',
-            style: AppTextStyles.body.copyWith(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: isDiscount ? AppColors.error : AppColors.textPrimary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _showEditHeaderDialog() async {
     final shopCtrl = TextEditingController(text: _shopName);
     final discCtrl = TextEditingController(text: _discount.toString());
@@ -149,7 +120,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('แก้ไขข้อมูลร้านค้า & ส่วนลด'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('แก้ไขข้อมูลร้านค้า & ส่วนลด', style: TextStyle(fontWeight: FontWeight.bold)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -173,7 +145,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('ยกเลิก'),
+            child: const Text('ยกเลิก', style: TextStyle(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -184,6 +156,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
               });
               Navigator.pop(context);
             },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
             child: const Text('บันทึก'),
           ),
         ],
@@ -206,7 +183,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(isNew ? '➕ เพิ่มรายการใหม่' : '✏️ แก้ไขรายการอาหาร'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(isNew ? '➕ เพิ่มรายการใหม่' : '✏️ แก้ไขรายการอาหาร', style: const TextStyle(fontWeight: FontWeight.bold)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -216,7 +194,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 autofocus: true,
                 decoration: const InputDecoration(
                   labelText: 'ชื่อเมนู',
-                  hintText: 'เช่น ข้าวมันไก่, ชาเขียว',
+                  hintText: 'เช่น ชุดเนื้อวากิว, ชาเขียว',
                 ),
               ),
               const SizedBox(height: 12),
@@ -226,7 +204,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     child: TextField(
                       controller: qtyCtrl,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'จำนวน (ชิ้น/จาน)'),
+                      decoration: const InputDecoration(labelText: 'จำนวน'),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -234,7 +212,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     child: TextField(
                       controller: priceCtrl,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: const InputDecoration(labelText: 'ราคาต่อหน่วย (฿)'),
+                      decoration: const InputDecoration(labelText: 'ราคา/หน่วย (฿)'),
                     ),
                   ),
                 ],
@@ -245,7 +223,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('ยกเลิก'),
+            child: const Text('ยกเลิก', style: TextStyle(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -275,6 +253,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
               });
               Navigator.pop(context);
             },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
             child: const Text('บันทึก'),
           ),
         ],
@@ -316,461 +299,766 @@ class _ReviewScreenState extends State<ReviewScreen> {
     );
   }
 
+  IconData _getDishIcon(String name) {
+    final lower = name.toLowerCase();
+    if (lower.contains('ชา') || lower.contains('น้ำ') || lower.contains('กาแฟ') || lower.contains('เบียร์')) {
+      return Icons.local_cafe_rounded;
+    }
+    if (lower.contains('เนื้อ') || lower.contains('หมู') || lower.contains('ไก่') || lower.contains('ปลา')) {
+      return Icons.set_meal_rounded;
+    }
+    if (lower.contains('ผัก') || lower.contains('สลัด')) {
+      return Icons.eco_rounded;
+    }
+    if (lower.contains('ข้าว')) {
+      return Icons.rice_bowl_rounded;
+    }
+    return Icons.ramen_dining_rounded;
+  }
+
+  Color _getDishColor(int index) {
+    const colors = [
+      AppColors.blossomPink,
+      AppColors.blushPink,
+      AppColors.warmCream,
+      AppColors.butterPeach,
+    ];
+    return colors[index % colors.length];
+  }
+
+  Color _getDishIconColor(int index) {
+    const colors = [
+      AppColors.primary,
+      Color(0xFFBD4560),
+      Color(0xFFD97706),
+      AppColors.primaryDark,
+    ];
+    return colors[index % colors.length];
+  }
+
   @override
   Widget build(BuildContext context) {
     final subTotal = _calculateSubtotal();
     final total = _calculateTotal();
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('ตรวจสอบบิล & AI OCR'),
+        title: const Text('ตรวจสอบใบเสร็จ'),
+        backgroundColor: AppColors.background,
+        elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
-            tooltip: 'เพิ่มรายการเอง',
+            icon: const Icon(Icons.add_circle_outline_rounded, color: AppColors.primary),
+            tooltip: 'เพิ่มเมนูเอง',
             onPressed: () => _showEditItemDialog(-1),
           ),
         ],
       ),
       body: Column(
         children: [
-          // ⚡ Banner แสดงความเร็ว AI OCR
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              border: Border(bottom: BorderSide(color: Colors.blue.shade100)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.bolt, color: Colors.blue, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'AI สแกนและถอดข้อมูลสำเร็จใน ~2.3 วินาที ⚡',
-                    style: TextStyle(
-                      color: Colors.blue.shade900,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // แถบ Step Indicator
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.secondary,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text(
+                          'ขั้นตอน 2 จาก 6  ตรวจสอบใบเสร็จ',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        child: const Text('ยกเลิกบิล', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // การ์ดข้อมูลร้านค้า
+                  InkWell(
+                    borderRadius: BorderRadius.circular(18),
+                    onTap: _showEditHeaderDialog,
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: AppColors.secondary,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.storefront_rounded, color: AppColors.primary, size: 22),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _shopName,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),
+                                const Text(
+                                  'แตะเพื่อแก้ไขชื่อร้าน หรือใส่ส่วนลด',
+                                  style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.edit_note_rounded, color: AppColors.textSecondary),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                Text(
-                  '${_items.length} รายการ',
-                  style: TextStyle(
-                    color: Colors.blue.shade700,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
+                  const SizedBox(height: 12),
 
-          // 1. ส่วนหัวบิล (ชื่อร้าน & ส่วนลด)
-          InkWell(
-            onTap: _showEditHeaderDialog,
-            child: Container(
-              color: Theme.of(
-                context,
-              ).colorScheme.primaryContainer.withValues(alpha: 0.35),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  Expanded(
+                  // แบนเนอร์แสดงความเร็ว AI OCR (Soft Periwinkle Card)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.warmCream,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.butterPeach),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.auto_awesome, size: 18, color: AppColors.primary),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Text(
+                                    'AI ถอดข้อมูลสำเร็จใน ~1.8 วินาที',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 12.5,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.blushPink,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      '${_items.length} รายการ',
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 3),
+                              const Text(
+                                'ตรวจสอบยอดถูกต้องครบถ้วน และกดไอคอนดินสอเพื่อปรับปรุงจำนวนหรือราคาได้ทันที',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+
+                  // ส่วนรายการอาหาร
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Text(
+                            'รายการอาหาร',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: AppColors.secondary,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '${_items.length}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Text(
+                        'ราคาต่อหน่วย x จำนวน',
+                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  // ลิสต์รายการอาหาร
+                  if (_items.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 30),
+                      alignment: Alignment.center,
+                      child: Column(
+                        children: [
+                          Icon(Icons.fastfood_outlined, size: 40, color: Colors.grey.shade400),
+                          const SizedBox(height: 6),
+                          const Text('ไม่มีรายการอาหาร', style: TextStyle(color: AppColors.textSecondary)),
+                        ],
+                      ),
+                    )
+                  else
+                    ..._items.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final item = entry.value;
+                      final name = item['item_name']?.toString() ?? 'เมนู';
+                      final qty = int.tryParse(item['qty'].toString()) ?? 1;
+                      final unitPrice = double.tryParse(item['unit_price'].toString()) ?? 0.0;
+                      final itemTotal = qty * unitPrice;
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: _getDishColor(index),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                _getDishIcon(name),
+                                color: _getDishIconColor(index),
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    name,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '$qty ชุด • ${AppFormatters.formatCurrency(unitPrice)} / ชุด',
+                                    style: const TextStyle(
+                                      fontSize: 11.5,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              AppFormatters.formatCurrency(itemTotal),
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            IconButton(
+                              icon: const Icon(Icons.edit_outlined, size: 16, color: AppColors.textSecondary),
+                              tooltip: 'แก้ไข',
+                              visualDensity: VisualDensity.compact,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+                              onPressed: () => _showEditItemDialog(index),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.error),
+                              tooltip: 'ลบ',
+                              visualDensity: VisualDensity.compact,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+                              onPressed: () => setState(() {
+                                _items.removeAt(index);
+                                _hasEditedReceipt = true;
+                              }),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+
+                  const SizedBox(height: 6),
+
+                  // ปุ่มเพิ่มรายการเอง
+                  OutlinedButton.icon(
+                    onPressed: () => _showEditItemDialog(-1),
+                    icon: const Icon(Icons.add_rounded, size: 18),
+                    label: const Text('เพิ่มรายการอาหารเอง', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.primary, width: 1.2),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      minimumSize: const Size(double.infinity, 44),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // ส่วนการตั้งค่าการคิดเงิน (Service Charge, VAT, Split Model)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.border),
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Icon(Icons.storefront, size: 20, color: AppColors.primary),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                _shopName,
-                                style: const TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                overflow: TextOverflow.ellipsis,
+                            const Text(
+                              '⚙️ ตั้งค่าการคิดเงิน',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            Text(
+                              'ปรับตามใบเสร็จจริง',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade600,
                               ),
                             ),
                           ],
                         ),
-                        if (_discount > 0) ...[
-                          const SizedBox(height: 3),
-                          Text(
-                            'ส่วนลดพิเศษ: -${AppFormatters.formatCurrency(_discount)}',
-                            style: const TextStyle(
-                              color: AppColors.error,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
+                        const SizedBox(height: 14),
+
+                        // Service Charge 10%
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Text('Service Charge 10%', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                                      if (_enableSc) ...[
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.success.withValues(alpha: 0.12),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            '+${AppFormatters.formatCurrency(_sc)}',
+                                            style: const TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.success,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  const Text('คำนวณอัตโนมัติจากค่าอาหาร', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                                ],
+                              ),
+                            ),
+                            Switch(
+                              value: _enableSc,
+                              activeThumbColor: AppColors.primary,
+                              activeTrackColor: AppColors.primary.withValues(alpha: 0.5),
+                              onChanged: _onToggleSc,
+                            ),
+                          ],
+                        ),
+                        const Divider(height: 18, color: AppColors.border),
+
+                        // VAT 7%
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Text('VAT 7%', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                                      if (_enableVat) ...[
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.success.withValues(alpha: 0.12),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            '+${AppFormatters.formatCurrency(_vat)}',
+                                            style: const TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.success,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  const Text('คำนวณจากค่าอาหารรวม Service Charge', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                                ],
+                              ),
+                            ),
+                            Switch(
+                              value: _enableVat,
+                              activeThumbColor: AppColors.primary,
+                              activeTrackColor: AppColors.primary.withValues(alpha: 0.5),
+                              onChanged: _onToggleVat,
+                            ),
+                          ],
+                        ),
+                        const Divider(height: 18, color: AppColors.border),
+
+                        // โหมดการหาร
+                        const Text(
+                          'โหมดการหารค่าใช้จ่าย',
+                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                        ),
+                        const SizedBox(height: 8),
+
+                        // ตัวเลือก 1: หารตามสัดส่วน (แนะนำ)
+                        InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () => setState(() => _splitModel = 'proportional'),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: _splitModel == 'proportional'
+                                  ? AppColors.secondary
+                                  : AppColors.background,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _splitModel == 'proportional'
+                                    ? AppColors.primary
+                                    : AppColors.border,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  _splitModel == 'proportional'
+                                      ? Icons.check_circle_rounded
+                                      : Icons.radio_button_unchecked_rounded,
+                                  color: _splitModel == 'proportional'
+                                      ? AppColors.primary
+                                      : AppColors.textSecondary,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          const Text(
+                                            'หารตามสัดส่วน',
+                                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.primary,
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: const Text(
+                                              'แนะนำ',
+                                              style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 2),
+                                      const Text(
+                                        'จ่ายเฉพาะสิ่งที่เลือกกินจริง แฟร์ที่สุด',
+                                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
+                        ),
+                        const SizedBox(height: 8),
+
+                        // ตัวเลือก 2: หารเท่าทุกคน
+                        InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () => setState(() => _splitModel = 'equal'),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: _splitModel == 'equal'
+                                  ? AppColors.secondary
+                                  : AppColors.background,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _splitModel == 'equal'
+                                    ? AppColors.primary
+                                    : AppColors.border,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  _splitModel == 'equal'
+                                      ? Icons.check_circle_rounded
+                                      : Icons.radio_button_unchecked_rounded,
+                                  color: _splitModel == 'equal'
+                                      ? AppColors.primary
+                                      : AppColors.textSecondary,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 10),
+                                const Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'หารเท่าทุกคน',
+                                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                                      ),
+                                      SizedBox(height: 2),
+                                      Text(
+                                        'นำยอดรวมสุทธิมาแบ่งเท่ากันตามจำนวนคน',
+                                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  const Row(
-                    mainAxisSize: MainAxisSize.min,
+
+                  const SizedBox(height: 14),
+
+                  // ทิปคำแนะนำ
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.handshake_outlined, size: 16, color: AppColors.primary),
+                        SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'เพื่อนร่วมโต๊ะจะสแกนเลือกจานตัวเองได้ในหน้าถัดไป',
+                            style: TextStyle(fontSize: 11.5, color: AppColors.primary, fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ),
+
+          // Sticky Bottom Summary Bar
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              border: const Border(top: BorderSide(color: AppColors.border)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -4),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Breakdown Chips
+                  Row(
                     children: [
-                      Text('แก้ไข', style: TextStyle(color: Colors.blue, fontSize: 13, fontWeight: FontWeight.bold)),
-                      SizedBox(width: 4),
-                      Icon(Icons.edit_outlined, color: Colors.blue, size: 16),
+                      Text(
+                        'ยอดอาหาร ${AppFormatters.formatCurrency(subTotal)}',
+                        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      ),
+                      if (_sc > 0) ...[
+                        const SizedBox(width: 6),
+                        const Text('•', style: TextStyle(fontSize: 10, color: AppColors.textMuted)),
+                        const SizedBox(width: 6),
+                        Text(
+                          'SVC ${AppFormatters.formatCurrency(_sc)}',
+                          style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                        ),
+                      ],
+                      if (_vat > 0) ...[
+                        const SizedBox(width: 6),
+                        const Text('•', style: TextStyle(fontSize: 10, color: AppColors.textMuted)),
+                        const SizedBox(width: 6),
+                        Text(
+                          'VAT ${AppFormatters.formatCurrency(_vat)}',
+                          style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                        ),
+                      ],
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.success.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          '✓ ตรงใบเสร็จ',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.success),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  // แถวปุ่มยืนยันพร้อมราคารวมสุทธิ
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('ยอดรวมสุทธิ', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                            Text(
+                              AppFormatters.formatCurrency(total),
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton(
+                        onPressed: _confirmAndGoNext,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'ยืนยัน & ชวนเพื่อน',
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                            ),
+                            SizedBox(width: 6),
+                            Icon(Icons.arrow_forward_rounded, size: 18),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ],
               ),
             ),
           ),
-
-          // หัวตารางรายการอาหาร: ชื่อเมนู | จำนวน | ราคา/หน่วย | ราคารวม
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            color: Colors.grey.shade100,
-            child: const Row(
-              children: [
-                Expanded(
-                  flex: 5,
-                  child: Text(
-                    'ชื่อเมนู',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
-                  ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    'จำนวน',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
-                  ),
-                ),
-                Expanded(
-                  flex: 3,
-                  child: Text(
-                    'ราคา/หน่วย',
-                    textAlign: TextAlign.right,
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
-                  ),
-                ),
-                Expanded(
-                  flex: 3,
-                  child: Text(
-                    'ราคารวม',
-                    textAlign: TextAlign.right,
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
-                  ),
-                ),
-                SizedBox(width: 48), // สำหรับช่องไอคอนดินสอ & ลบ
-              ],
-            ),
-          ),
-
-          // 2. รายการอาหาร (กดแก้ไขดินสอ หรือ ลบได้ทันที)
-          Expanded(
-            child: _items.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.receipt_long_outlined, size: 48, color: Colors.grey),
-                        const SizedBox(height: 8),
-                        const Text('ไม่มีรายการอาหาร กรุณากดปุ่มเพิ่มรายการ'),
-                        const SizedBox(height: 12),
-                        OutlinedButton.icon(
-                          onPressed: () => _showEditItemDialog(-1),
-                          icon: const Icon(Icons.add),
-                          label: const Text('เพิ่มรายการใหม่'),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
-                    itemCount: _items.length,
-                    itemBuilder: (context, index) {
-                      final item = _items[index];
-                      final qty = int.tryParse(item['qty'].toString()) ?? 1;
-                      final unitPrice =
-                          double.tryParse(item['unit_price'].toString()) ?? 0.0;
-                      final itemTotal = qty * unitPrice;
-
-                      return Card(
-                        elevation: 0,
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        shape: RoundedRectangleBorder(
-                          side: BorderSide(color: Colors.grey.shade200),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                          child: Row(
-                            children: [
-                              // ชื่อเมนู
-                              Expanded(
-                                flex: 5,
-                                child: Text(
-                                  item['item_name'].toString(),
-                                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              // จำนวน
-                              Expanded(
-                                flex: 2,
-                                child: Container(
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    '$qty',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                                  ),
-                                ),
-                              ),
-                              // ราคา/หน่วย
-                              Expanded(
-                                flex: 3,
-                                child: Text(
-                                  AppFormatters.formatCurrency(unitPrice),
-                                  textAlign: TextAlign.right,
-                                  style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
-                                ),
-                              ),
-                              // ราคารวม
-                              Expanded(
-                                flex: 3,
-                                child: Text(
-                                  AppFormatters.formatCurrency(itemTotal),
-                                  textAlign: TextAlign.right,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                    color: AppColors.primaryDark,
-                                  ),
-                                ),
-                              ),
-                              // ปุ่มดินสอแก้ไข & ลบ
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.edit, color: Colors.blue, size: 18),
-                                    tooltip: 'แก้ไข',
-                                    visualDensity: VisualDensity.compact,
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints.tightFor(width: 28, height: 28),
-                                    onPressed: () => _showEditItemDialog(index),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.close, color: Colors.red, size: 18),
-                                    tooltip: 'ลบ',
-                                    visualDensity: VisualDensity.compact,
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints.tightFor(width: 28, height: 28),
-                                    onPressed: () => setState(() {
-                                      _items.removeAt(index);
-                                      _hasEditedReceipt = true;
-                                    }),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-
-          // 3. ส่วนควบคุมด้านล่าง: สวิตช์ VAT 7%, Service Charge 10%, โมเดลการหาร & สรุปยอด
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 14,
-                  offset: const Offset(0, -4),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // สวิตช์ Toggle VAT 7% และ Service Charge 10%
-                Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: _enableVat ? Colors.blue.shade50 : Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: _enableVat ? Colors.blue.shade300 : Colors.grey.shade300,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('VAT 7%', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                Text(
-                                  _enableVat ? '฿${_vat.toStringAsFixed(2)}' : 'ปิดอยู่',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: _enableVat ? Colors.blue.shade800 : Colors.grey,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Switch(
-                              value: _enableVat,
-                              activeTrackColor: AppColors.primary,
-                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              onChanged: _onToggleVat,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: _enableSc ? Colors.orange.shade50 : Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: _enableSc ? Colors.orange.shade300 : Colors.grey.shade300,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('Service 10%', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                Text(
-                                  _enableSc ? '฿${_sc.toStringAsFixed(2)}' : 'ปิดอยู่',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: _enableSc ? Colors.orange.shade800 : Colors.grey,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Switch(
-                              value: _enableSc,
-                              activeTrackColor: Colors.deepOrange,
-                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              onChanged: _onToggleSc,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-
-                // ตัวเลือกโมเดลการหาร: "หารตามสัดส่วนที่กินจริง" หรือ "หารเท่าทุกคน"
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('การหาร VAT & Service Charge:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
-                        Text(
-                          _splitModel == 'equal' ? 'หารเท่าเฉพาะคนที่กิน' : 'หารตามสัดส่วนที่กินจริง',
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    SizedBox(
-                      width: double.infinity,
-                      child: SegmentedButton<String>(
-                        segments: const [
-                          ButtonSegment<String>(
-                            value: 'proportional',
-                            icon: Icon(Icons.pie_chart_outline, size: 16),
-                            label: Text('หารตามที่กินจริง', style: TextStyle(fontSize: 12)),
-                          ),
-                          ButtonSegment<String>(
-                            value: 'equal',
-                            icon: Icon(Icons.people_outline, size: 16),
-                            label: Text('หารเท่าเฉพาะคนที่กิน', style: TextStyle(fontSize: 12)),
-                          ),
-                        ],
-                        selected: {_splitModel},
-                        onSelectionChanged: (newSelection) {
-                          setState(() {
-                            _splitModel = newSelection.first;
-                          });
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-
-                // สรุปยอดรวม
-                _summaryLine('ยอดรวมสินค้า (Subtotal)', subTotal),
-                if (_sc > 0) _summaryLine('Service Charge (10%)', _sc),
-                if (_vat > 0) _summaryLine('VAT (7%)', _vat),
-                if (_discount > 0)
-                  _summaryLine('ส่วนลด', _discount, isDiscount: true),
-                const Divider(height: 12, color: AppColors.border),
-                Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'ยอดสุทธิทั้งสิ้น',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    Text(
-                      AppFormatters.formatCurrency(total),
-                      style: AppTextStyles.title.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 20,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: () => _showEditItemDialog(-1),
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('เพิ่มเมนู'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: CustomButton(
-                        text: 'ข้อมูลถูกต้อง ไปเปิดห้องชวนเพื่อน',
-                        onPressed: _confirmAndGoNext,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          )
         ],
       ),
     );
   }
 }
-

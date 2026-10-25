@@ -1,29 +1,46 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  static const Color primary = Color(0xFF0F766E);
-  static const Color primaryDark = Color(0xFF004D40);
-  static const Color secondary = Color(0xFFA7F3D0);
-  static const Color accent = Color(0xFFF59E0B);
+  // 🌸 The 4 Signature Theme Colors (พาเลตต์หลัก 4 สีละมุนตามสั่ง)
+  static const Color blossomPink = Color(0xFFFFCED8); // #FFCED8 ชมพูดอกซากุระละมุน
+  static const Color blushPink = Color(0xFFFFDDDD);   // #FFDDDD ชมพูบลัชพาสเทล
+  static const Color warmCream = Color(0xFFFFF4DE);   // #FFF4DE ครีมวานิลลาอบอุ่น
+  static const Color butterPeach = Color(0xFFFFE8C4); // #FFE8C4 พีชเนยละมุน
 
-  static const Color background = Color(0xFFF5F8F7);
+  // Brand Primary & Accents (คุมโทนให้เข้ากับ FFCED8 และตัวหนังสือคมชัดอ่านง่าย)
+  static const Color primary = Color(0xFFD95D77);     // โทน Rose Berry ที่ดึงจาก FFCED8 อ่านง่าย ไม่แสบตา
+  static const Color primaryDark = Color(0xFFBD4560);
+  static const Color primaryLight = Color(0xFFFFCED8);// #FFCED8
+  static const Color secondary = Color(0xFFFFDDDD);   // #FFDDDD
+  static const Color accent = Color(0xFFFFE8C4);      // #FFE8C4
+
+  // Neutral Background & Surface
+  static const Color background = Color(0xFFFFFBF7); // รองพื้นครีมละมุน สบายตา อิงจาก #FFF4DE
   static const Color surface = Color(0xFFFFFFFF);
   static const Color cardBackground = Color(0xFFFFFFFF);
-  static const Color border = Color(0xFFDCE5E1);
+  static const Color border = Color(0xFFF2E3E3);      // เส้นขอบสีพาสเทลอ่อน
 
-  static const Color textPrimary = Color(0xFF172521);
-  static const Color textSecondary = Color(0xFF5F6F6A);
-  static const Color textMuted = Color(0xFF899590);
+  // Typography (สีตัวหนังสือโทนอบอุ่น อ่านง่าย สบายตา)
+  static const Color textPrimary = Color(0xFF2E2427); // น้ำตาลเอสเปรสโซเข้ม ไม่ดำกระด้าง
+  static const Color textSecondary = Color(0xFF7A6E71);
+  static const Color textMuted = Color(0xFFA69B9E);
 
-  static const Color success = Color(0xFF267A4B);
-  static const Color warning = Color(0xFFB45309);
-  static const Color error = Color(0xFFB5473C);
+  // Semantics & Status (คงสีแดงและเขียวตามหลักสากล UX)
+  static const Color success = Color(0xFF10B981);     // เขียวมิ้นต์ (จ่ายแล้ว/สำเร็จ)
+  static const Color successLight = Color(0xFFECFDF5);
+  static const Color warning = Color(0xFFF59E0B);     // ส้มอำพัน (รอชำระ)
+  static const Color warningLight = Color(0xFFFFFBEB);
+  static const Color error = Color(0xFFEF4444);       // แดง (ลบ/แจ้งเตือนข้อผิดพลาด)
+  static const Color errorLight = Color(0xFFFEF2F2);
+  static const Color info = Color(0xFF8B5CF6);        // ม่วงลาเวนเดอร์พาสเทล
+  static const Color infoLight = Color(0xFFF5F3FF);
+  static const Color lineGreen = Color(0xFF06C755);   // สีเขียวแอป LINE
 
   // Dark Mode Colors
-  static const Color darkBackground = Color(0xFF0F1715);
-  static const Color darkSurface = Color(0xFF18221F);
-  static const Color darkCardBackground = Color(0xFF1E2A27);
-  static const Color darkBorder = Color(0xFF2C3B37);
-  static const Color darkTextPrimary = Color(0xFFF1F5F4);
-  static const Color darkTextSecondary = Color(0xFF98A8A4);
+  static const Color darkBackground = Color(0xFF161314);
+  static const Color darkSurface = Color(0xFF201B1D);
+  static const Color darkCardBackground = Color(0xFF282225);
+  static const Color darkBorder = Color(0xFF382F33);
+  static const Color darkTextPrimary = Color(0xFFF7F2F4);
+  static const Color darkTextSecondary = Color(0xFFA89CA0);
 }

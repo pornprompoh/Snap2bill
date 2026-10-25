@@ -18,4 +18,12 @@ class AppColors {
   static const Color success = Color(0xFF267A4B);
   static const Color warning = Color(0xFFB45309);
   static const Color error = Color(0xFFB5473C);
+
+  // Dark Mode Colors
+  static const Color darkBackground = Color(0xFF0F1715);
+  static const Color darkSurface = Color(0xFF18221F);
+  static const Color darkCardBackground = Color(0xFF1E2A27);
+  static const Color darkBorder = Color(0xFF2C3B37);
+  static const Color darkTextPrimary = Color(0xFFF1F5F4);
+  static const Color darkTextSecondary = Color(0xFF98A8A4);
 }

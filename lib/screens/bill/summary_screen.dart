@@ -43,6 +43,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
   bool _isFinishing = false;
   String _hostPromptPay = '';
   String? _hostPromptPayType;
+  String? _hostBankName;
+  String _hostBankAccountNumber = '';
+  String? _hostBankAccountName;
   String _hostName = 'เจ้าของบิล';
   String? _currentUserId;
   String? _selectedUserId;
@@ -56,6 +59,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
             cleanTarget.startsWith('0')) ||
         (_hostPromptPayType == 'id_card' && cleanTarget.length == 13);
   }
+
+  bool get _hasValidBankTransfer => _hostBankAccountNumber.isNotEmpty;
+  bool get _hasPaymentMethod => _hasValidPromptPay || _hasValidBankTransfer;
 
   @override
   void initState() {
@@ -105,6 +111,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
           _isCurrentUserHost = currentUserId != null && currentUserId == hostId;
           _hostPromptPay = hostProfile?.promptPayNumber ?? '';
           _hostPromptPayType = hostProfile?.promptPayType;
+          _hostBankName = hostProfile?.bankName;
+          _hostBankAccountNumber = hostProfile?.bankAccountNumber ?? '';
+          _hostBankAccountName = hostProfile?.bankAccountName;
           _hostName = hostProfile?.displayName?.trim().isNotEmpty == true
               ? hostProfile!.displayName!.trim()
               : emailName ?? 'เจ้าของบิล';
@@ -641,10 +650,16 @@ class _SummaryScreenState extends State<SummaryScreen> {
                       icon: const Icon(Icons.send_outlined, size: 18),
                       label: const Text('ส่งแจ้งเตือนทวงเงินเข้า LINE (สะกิด)'),
                       onPressed: () {
+                        final bankInfo = _hasValidBankTransfer
+                            ? '\n🏦 บัญชีธนาคาร: ${_hostBankName ?? ''} เลขบัญชี $_hostBankAccountNumber ($_hostName)'
+                            : '';
+                        final promptPayInfo = _hasValidPromptPay
+                            ? '\n💳 พร้อมเพย์: $_hostPromptPay ($_hostName)'
+                            : '';
                         final reminder = '👋 สวัสดี $memberName!\n'
-                            '🍲 ยอดหารบิลร้าน $shopName ของคุณคือ ฿${amount.toStringAsFixed(2)}\n'
-                            '💳 พร้อมเพย์: $_hostPromptPay ($_hostName)\n'
-                            '✨ สแกน QR โอนแล้วรบกวนส่งสลิปด้วยน้า ขอบคุณครับ/ค่ะ 🙏';
+                            '🍲 ยอดหารบิลร้าน $shopName ของคุณคือ ฿${amount.toStringAsFixed(2)}'
+                            '$promptPayInfo$bankInfo\n'
+                            '✨ โอนแล้วรบกวนส่งสลิปด้วยน้า ขอบคุณครับ/ค่ะ 🙏';
                         SharePlus.instance.share(
                           ShareParams(
                             title: 'ทวงเงินค่าอาหาร',
@@ -808,10 +823,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
                             color: Colors.grey.shade600,
                           ),
                         ),
-                        if (!_hasValidPromptPay) ...[
+                        if (!_hasPaymentMethod) ...[
                           const SizedBox(height: 8),
                           const Text(
-                            'เจ้าของบิลยังไม่ได้ตั้งค่า PromptPay ในหน้าโปรไฟล์',
+                            'เจ้าของบิลยังไม่ได้ตั้งค่าช่องทางชำระเงิน (PromptPay หรือ บัญชีธนาคาร)',
                             style: TextStyle(
                               color: Colors.orange,
                               fontSize: 12,
@@ -824,7 +839,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                 AppRoutes.profile,
                               ),
                               icon: const Icon(Icons.edit_outlined),
-                              label: const Text('ตั้งค่า PromptPay'),
+                              label: const Text('ตั้งค่าช่องทางรับเงิน'),
                             ),
                         ],
                       ],
@@ -994,9 +1009,15 @@ class _SummaryScreenState extends State<SummaryScreen> {
                               final listNames = unpaidMembers
                                   .map((uid) => '- ${userNames[uid] ?? 'เพื่อน'}: ฿${AppFormatters.formatCurrency(totalsByUser[uid] ?? 0)}')
                                   .join('\n');
+                              final bankInfo = _hasValidBankTransfer
+                                  ? '\n🏦 บัญชีธนาคาร: ${_hostBankName ?? ''} เลขบัญชี $_hostBankAccountNumber ($_hostName)'
+                                  : '';
+                              final promptPayInfo = _hasValidPromptPay
+                                  ? '\n💳 พร้อมเพย์: $_hostPromptPay ($_hostName)'
+                                  : '';
                               final msg = '📢 สะกิดเตือนตี้บิล "$shopName" จ้า (เตือนอัตโนมัติทุก 1 ชม.)\n'
-                                  '🍲 สมาชิกที่มียอดค้างชำระ:\n$listNames\n'
-                                  '💳 พร้อมเพย์: $_hostPromptPay ($_hostName)\n'
+                                  '🍲 สมาชิกที่มียอดค้างชำระ:\n$listNames'
+                                  '$promptPayInfo$bankInfo\n'
                                   '✨ โอนแล้วรบกวนส่งสลิปด้วยน้า ขอบคุณครับ/ค่ะ 🙏';
                               SharePlus.instance.share(
                                 ShareParams(
@@ -1065,15 +1086,20 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   const Divider(thickness: 2),
                   const SizedBox(height: 16),
 
-                  if (_hasValidPromptPay && qrAmount > 0) ...[
+                  if (_hasPaymentMethod && qrAmount > 0) ...[
                     const SizedBox(height: 8),
                     PromptPayCard(
                       hostName: _hostName,
                       promptPayNumber: _hostPromptPay,
-                      qrPayload: _generatePromptPayPayload(
-                        _hostPromptPay,
-                        qrAmount,
-                      ),
+                      bankName: _hostBankName,
+                      bankAccountNumber: _hostBankAccountNumber,
+                      bankAccountName: _hostBankAccountName,
+                      qrPayload: _hasValidPromptPay
+                          ? _generatePromptPayPayload(
+                              _hostPromptPay,
+                              qrAmount,
+                            )
+                          : '',
                       selectedUserName: selectedQrName,
                       amount: qrAmount,
                       isPaid: selectedQrUserId != null && _isParticipantPaid(selectedQrUserId),

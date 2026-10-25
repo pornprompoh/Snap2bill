@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../providers/theme_provider.dart';
 import '../repositories/local_bill_repository.dart';
 import '../routes/app_routes.dart';
 import '../theme/app_colors.dart';
@@ -229,10 +231,30 @@ class _HomeScreenState extends State<HomeScreen> {
         automaticallyImplyLeading: false,
         title: const Text('Snap2Bill'),
         actions: [
+          Consumer<ThemeProvider>(
+            builder: (context, themeProvider, _) {
+              return IconButton(
+                icon: Icon(
+                  themeProvider.isDarkMode
+                      ? Icons.light_mode_rounded
+                      : Icons.dark_mode_rounded,
+                ),
+                tooltip: themeProvider.isDarkMode
+                    ? 'สลับเป็นโหมดสว่าง (Light Mode)'
+                    : 'สลับเป็นโหมดมืด (Dark Mode)',
+                onPressed: () => themeProvider.toggleTheme(),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.people_outline),
             tooltip: 'สมุดรายชื่อเพื่อน',
             onPressed: () => Navigator.pushNamed(context, AppRoutes.friends),
+          ),
+          IconButton(
+            icon: const Icon(Icons.person_outline),
+            tooltip: 'โปรไฟล์ & ช่องทางรับเงิน',
+            onPressed: () => Navigator.pushNamed(context, AppRoutes.profile),
           ),
         ],
       ),

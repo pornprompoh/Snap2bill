@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
@@ -26,6 +27,9 @@ class _DetailScreenState extends State<DetailScreen> {
   bool _isSharing = false;
   String _hostPromptPay = '';
   String? _hostPromptPayType;
+  String? _hostBankName;
+  String _hostBankAccountNumber = '';
+  String? _hostBankAccountName;
   String _hostName = 'เจ้าของบิล';
 
   @override
@@ -46,9 +50,17 @@ class _DetailScreenState extends State<DetailScreen> {
             .eq('id', ownerId)
             .maybeSingle();
         if (profile != null && mounted) {
+          final paymentInfo = profile['payment_info'] as Map<String, dynamic>?;
           setState(() {
-            _hostPromptPay = profile['promptpay_number']?.toString() ?? '';
-            _hostPromptPayType = profile['promptpay_type']?.toString();
+            _hostPromptPay = profile['promptpay_number']?.toString() ??
+                paymentInfo?['number']?.toString() ??
+                '';
+            _hostPromptPayType = profile['promptpay_type']?.toString() ??
+                paymentInfo?['type']?.toString();
+            _hostBankName = paymentInfo?['bank_name']?.toString();
+            _hostBankAccountNumber =
+                paymentInfo?['bank_account_number']?.toString() ?? '';
+            _hostBankAccountName = paymentInfo?['bank_account_name']?.toString();
             final name = profile['display_name']?.toString().trim();
             _hostName = name?.isNotEmpty == true
                 ? name!
@@ -514,6 +526,105 @@ class _DetailScreenState extends State<DetailScreen> {
                       'สแกนจ่ายได้ทันที ยอด ฿${member.amount.toStringAsFixed(2)}',
                       style: const TextStyle(fontSize: 12, color: AppColors.success, fontWeight: FontWeight.bold),
                     ),
+                    if (_hostBankAccountNumber.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.account_balance, size: 16, color: Colors.blue),
+                                SizedBox(width: 6),
+                                Text(
+                                  'ทางเลือกโอนด้วยเลขบัญชีธนาคาร',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text('ธนาคาร: ${_hostBankName ?? 'ธนาคารพาณิชย์'}', style: const TextStyle(fontSize: 11)),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'เลขบัญชี: $_hostBankAccountNumber',
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.copy_rounded, size: 16),
+                                  tooltip: 'คัดลอกเลขบัญชี',
+                                  onPressed: () {
+                                    Clipboard.setData(ClipboardData(text: _hostBankAccountNumber));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('คัดลอกเลขบัญชีแล้ว 📋')),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                            Text('ชื่อบัญชี: ${_hostBankAccountName ?? _hostName}', style: const TextStyle(fontSize: 11)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ] else if (_hostBankAccountNumber.isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.account_balance, size: 18, color: Colors.blue),
+                              SizedBox(width: 8),
+                              Text(
+                                'โอนด้วยเลขบัญชีธนาคาร',
+                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.blue),
+                              ),
+                            ],
+                          ),
+                          const Divider(height: 16),
+                          Text('ธนาคาร: ${_hostBankName ?? 'ธนาคารพาณิชย์'}', style: const TextStyle(fontSize: 12)),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'เลขบัญชี: $_hostBankAccountNumber',
+                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              FilledButton.tonalIcon(
+                                style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
+                                onPressed: () {
+                                  Clipboard.setData(ClipboardData(text: _hostBankAccountNumber));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('คัดลอกเลขบัญชีแล้ว 📋')),
+                                  );
+                                },
+                                icon: const Icon(Icons.copy, size: 14),
+                                label: const Text('คัดลอก', style: TextStyle(fontSize: 11)),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text('ชื่อบัญชี: ${_hostBankAccountName ?? _hostName}', style: const TextStyle(fontSize: 12)),
+                        ],
+                      ),
+                    ),
                   ] else ...[
                     Container(
                       padding: const EdgeInsets.all(14),
@@ -521,7 +632,7 @@ class _DetailScreenState extends State<DetailScreen> {
                         color: Colors.orange.shade50,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Text('ยังไม่ได้ระบุเลขพร้อมเพย์ของเจ้าของบิล'),
+                      child: const Text('ยังไม่ได้ระบุช่องทางรับเงินของเจ้าของบิล'),
                     ),
                   ],
                   const SizedBox(height: 16),
@@ -538,10 +649,16 @@ class _DetailScreenState extends State<DetailScreen> {
                       icon: const Icon(Icons.send_outlined, size: 18),
                       label: const Text('ส่งแจ้งเตือนทวงเงินเข้า LINE (สะกิด)'),
                       onPressed: () {
+                        final bankInfo = _hostBankAccountNumber.isNotEmpty
+                            ? '\n🏦 บัญชีธนาคาร: ${_hostBankName ?? ''} เลขบัญชี $_hostBankAccountNumber ($_hostName)'
+                            : '';
+                        final promptPayInfo = _hostPromptPay.isNotEmpty
+                            ? '\n💳 พร้อมเพย์: $_hostPromptPay ($_hostName)'
+                            : '';
                         final reminder = '👋 สวัสดี ${member.name}!\n'
-                            '🍲 ยอดหารบิลร้าน $shopName ของคุณคือ ฿${member.amount.toStringAsFixed(2)}\n'
-                            '💳 พร้อมเพย์: $_hostPromptPay ($_hostName)\n'
-                            '✨ สแกน QR โอนแล้วรบกวนส่งสลิปด้วยน้า ขอบคุณครับ/ค่ะ 🙏';
+                            '🍲 ยอดหารบิลร้าน $shopName ของคุณคือ ฿${member.amount.toStringAsFixed(2)}'
+                            '$promptPayInfo$bankInfo\n'
+                            '✨ โอนแล้วรบกวนส่งสลิปด้วยน้า ขอบคุณครับ/ค่ะ 🙏';
                         SharePlus.instance.share(
                           ShareParams(
                             title: 'ทวงเงินค่าอาหาร',

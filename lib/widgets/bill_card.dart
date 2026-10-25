@@ -41,10 +41,17 @@ class BillCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? AppColors.darkCardBackground : AppColors.cardBackground;
+    final borderCol = isDark ? AppColors.darkBorder : AppColors.border;
+    final textPrim = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final textSec = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final surfaceBg = isDark ? AppColors.darkSurface : AppColors.surface;
+
     final statusColor = _isSettled ? AppColors.success : AppColors.warning;
     final statusBgColor = _isSettled
         ? AppColors.success.withValues(alpha: 0.12)
-        : AppColors.secondary;
+        : (isDark ? AppColors.darkSurface : AppColors.secondary);
     final statusLabel = _isSettled ? 'เคลียร์แล้ว' : 'รอชำระเงิน';
 
     final safeCollected = collectedAmount ?? (_isSettled ? totalAmount : totalAmount * 0.7);
@@ -55,12 +62,12 @@ class BillCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
-        color: AppColors.cardBackground,
+        color: cardBg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: borderCol),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -112,7 +119,7 @@ class BillCard extends StatelessWidget {
                                 child: Text(
                                   shopName,
                                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                    color: AppColors.textPrimary,
+                                    color: textPrim,
                                     fontWeight: FontWeight.w700,
                                     fontSize: 15,
                                   ),
@@ -160,7 +167,7 @@ class BillCard extends StatelessWidget {
                                 Text(
                                   dateText,
                                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppColors.textSecondary,
+                                    color: textSec,
                                     fontSize: 12,
                                   ),
                                 ),
@@ -171,7 +178,7 @@ class BillCard extends StatelessWidget {
                               Text(
                                 '$memberCount คน',
                                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: AppColors.textSecondary,
+                                  color: textSec,
                                   fontSize: 12,
                                 ),
                               ),
@@ -179,7 +186,7 @@ class BillCard extends StatelessWidget {
                               Text(
                                 AppFormatters.formatCurrency(totalAmount),
                                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                  color: AppColors.textPrimary,
+                                  color: textPrim,
                                   fontWeight: FontWeight.w800,
                                   fontSize: 16,
                                 ),
@@ -198,9 +205,9 @@ class BillCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppColors.surface,
+                      color: surfaceBg,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.border),
+                      border: Border.all(color: borderCol),
                     ),
                     child: Column(
                       children: [
@@ -223,7 +230,7 @@ class BillCard extends StatelessWidget {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: AppColors.secondary,
+                                  color: isDark ? AppColors.darkCardBackground : AppColors.secondary,
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: Text(
@@ -246,7 +253,7 @@ class BillCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(6),
                           child: LinearProgressIndicator(
                             value: progress,
-                            backgroundColor: AppColors.border,
+                            backgroundColor: borderCol,
                             color: AppColors.primary,
                             minHeight: 5,
                           ),
@@ -257,14 +264,14 @@ class BillCard extends StatelessWidget {
                           children: [
                             Text(
                               'เก็บได้แล้ว ${(progress * 100).toStringAsFixed(0)}%',
-                              style: const TextStyle(fontSize: 10.5, color: AppColors.textSecondary),
+                              style: TextStyle(fontSize: 10.5, color: textSec),
                             ),
                             Text(
                               '${AppFormatters.formatCurrency(safeCollected)} / ${AppFormatters.formatCurrency(totalAmount)}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
+                                color: textPrim,
                               ),
                             ),
                           ],
@@ -296,8 +303,8 @@ class BillCard extends StatelessWidget {
                         OutlinedButton(
                           onPressed: onTap,
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.textPrimary,
-                            side: const BorderSide(color: AppColors.border),
+                            foregroundColor: textPrim,
+                            side: BorderSide(color: borderCol),
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),

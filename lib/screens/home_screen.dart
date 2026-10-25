@@ -247,19 +247,20 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final email = _supabase.auth.currentUser?.email;
     final userName = email != null ? email.split('@')[0] : 'คุณ';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        backgroundColor: AppColors.background,
         elevation: 0,
         title: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: AppColors.secondary,
+                color: isDark ? AppColors.darkCardBackground : AppColors.secondary,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(Icons.receipt_long_rounded, color: AppColors.primary, size: 20),
@@ -280,10 +281,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 Text(
                   _historyFilter == 'all' ? 'Home' : 'History',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
+                    color: textPrimary,
                   ),
                 ),
               ],
@@ -298,7 +299,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   themeProvider.isDarkMode
                       ? Icons.light_mode_rounded
                       : Icons.dark_mode_rounded,
-                  color: AppColors.textPrimary,
+                  color: textPrimary,
                   size: 20,
                 ),
                 tooltip: themeProvider.isDarkMode
@@ -309,7 +310,7 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.people_outline_rounded, color: AppColors.textPrimary, size: 22),
+            icon: Icon(Icons.people_outline_rounded, color: textPrimary, size: 22),
             tooltip: 'สมุดรายชื่อเพื่อน',
             onPressed: () => Navigator.pushNamed(context, AppRoutes.friends),
           ),
@@ -317,7 +318,7 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Stack(
               clipBehavior: Clip.none,
               children: [
-                const Icon(Icons.notifications_none_rounded, color: AppColors.textPrimary, size: 22),
+                Icon(Icons.notifications_none_rounded, color: textPrimary, size: 22),
                 Positioned(
                   right: -2,
                   top: -2,
@@ -437,10 +438,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               children: [
                                 Text(
                                   'สวัสดีคุณ$userName',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.w800,
-                                    color: AppColors.textPrimary,
+                                    color: textPrimary,
                                   ),
                                 ),
                                 const SizedBox(width: 4),
@@ -448,11 +449,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               ],
                             ),
                             const SizedBox(height: 2),
-                            const Text(
+                            Text(
                               'วันนี้ทานอะไรอร่อยๆ มาหรือยัง?',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: AppColors.textSecondary,
+                                color: textSecondary,
                               ),
                             ),
                           ],
@@ -496,16 +497,18 @@ class _HomeScreenState extends State<HomeScreen> {
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                         decoration: BoxDecoration(
-                          color: AppColors.secondary,
+                          color: isDark ? AppColors.darkCardBackground : AppColors.secondary,
                           borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                          border: Border.all(
+                            color: isDark ? AppColors.darkBorder : AppColors.primary.withValues(alpha: 0.2),
+                          ),
                         ),
                         child: Row(
                           children: [
                             Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: isDark ? AppColors.darkSurface : Colors.white,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.primary, size: 22),
@@ -517,10 +520,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                 children: [
                                   Text(
                                     'บิลที่รอเคลียร์ $unpaidCount รายการ',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
-                                      color: AppColors.textSecondary,
+                                      color: textSecondary,
                                     ),
                                   ),
                                   const SizedBox(height: 2),
@@ -535,11 +538,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                         ),
                                       ),
                                       const SizedBox(width: 6),
-                                      const Text(
+                                      Text(
                                         'ค้างรับจากเพื่อน',
                                         style: TextStyle(
                                           fontSize: 12,
-                                          color: AppColors.textSecondary,
+                                          color: textSecondary,
                                         ),
                                       ),
                                     ],
@@ -721,21 +724,21 @@ class _HomeScreenState extends State<HomeScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: AppColors.warmCream,
+                      color: isDark ? AppColors.darkCardBackground : AppColors.warmCream,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.butterPeach),
+                      border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.butterPeach),
                     ),
-                    child: const Row(
+                    child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.lightbulb_rounded, size: 18, color: Color(0xFFD97706)),
-                        SizedBox(width: 8),
+                        const Icon(Icons.lightbulb_rounded, size: 18, color: Color(0xFFD97706)),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             'เคล็ดลับ: ถ่ายใบเสร็จในที่แสงสว่างและวางให้แบนเรียบเพื่อความแม่นยำ 99%',
                             style: TextStyle(
                               fontSize: 11.5,
-                              color: AppColors.textPrimary,
+                              color: textPrimary,
                               height: 1.3,
                             ),
                           ),
@@ -973,6 +976,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildFilterChip(String key, String title, int count) {
     final isSelected = _historyFilter == key;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return InkWell(
       borderRadius: BorderRadius.circular(20),
       onTap: () {
@@ -981,10 +986,14 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : AppColors.surface,
+          color: isSelected
+              ? AppColors.primary
+              : (isDark ? AppColors.darkCardBackground : AppColors.surface),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.border,
+            color: isSelected
+                ? AppColors.primary
+                : (isDark ? AppColors.darkBorder : AppColors.border),
           ),
         ),
         child: Row(
@@ -995,7 +1004,9 @@ class _HomeScreenState extends State<HomeScreen> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? Colors.white : AppColors.textPrimary,
+                color: isSelected
+                    ? Colors.white
+                    : (isDark ? AppColors.darkTextPrimary : AppColors.textPrimary),
               ),
             ),
             if (count > 0 && !isSelected) ...[
@@ -1003,15 +1014,15 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppColors.secondary,
+                  color: isDark ? AppColors.darkSurface : AppColors.secondary,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   count.toString(),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
+                    color: isDark ? AppColors.secondary : AppColors.primary,
                   ),
                 ),
               ),

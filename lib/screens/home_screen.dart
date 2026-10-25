@@ -4,6 +4,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../repositories/local_bill_repository.dart';
 import '../routes/app_routes.dart';
+import 'detail_screen.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../utils/formatters.dart';
@@ -723,60 +724,22 @@ class _HomeScreenState extends State<HomeScreen> {
                               '';
                           final isSettled = _isBillSettled(bill);
 
-                          return Column(
-                            children: [
-                              Hero(
-                                tag: 'bill_${bill['id']}',
-                                child: Material(
-                                  type: MaterialType.transparency,
-                                  child: BillCard(
-                                    shopName: shopName,
-                                    totalAmount: totalAmount,
-                                    dateText: date,
-                                    status: isSettled ? 'completed' : 'pending',
-                                    onTap: () => Navigator.pushNamed(
-                                      context,
-                                      AppRoutes.detail,
-                                      arguments: bill,
-                                    ),
-                                  ),
-                                ),
+                          return BillCard(
+                            shopName: shopName,
+                            totalAmount: totalAmount,
+                            dateText: date,
+                            status: isSettled ? 'completed' : 'pending',
+                            onTap: () => Navigator.push(
+                              context,
+                              PageRouteBuilder<void>(
+                                pageBuilder:
+                                    (context, animation, secondaryAnimation) =>
+                                        DetailScreen(billData: bill),
+                                transitionDuration: Duration.zero,
+                                reverseTransitionDuration: Duration.zero,
                               ),
-                              // ถ้ายังเป็นบิลค้างรับ มีปุ่มสะกิดเตือนเพื่อน
-                              if (!isSettled)
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                    top: 0,
-                                    bottom: 8,
-                                  ),
-                                  child: Align(
-                                    alignment: Alignment.centerRight,
-                                    child: OutlinedButton.icon(
-                                      style: OutlinedButton.styleFrom(
-                                        visualDensity: VisualDensity.compact,
-                                        foregroundColor: Colors.orange.shade900,
-                                        side: BorderSide(
-                                          color: Colors.orange.shade300,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            16,
-                                          ),
-                                        ),
-                                      ),
-                                      onPressed: () => _pokeFriends(bill),
-                                      icon: const Icon(
-                                        Icons.notifications_active_outlined,
-                                        size: 15,
-                                      ),
-                                      label: const Text(
-                                        'สะกิดเตือนเพื่อน 🔔',
-                                        style: TextStyle(fontSize: 12),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                            ],
+                            ),
+                            onPoke: isSettled ? null : () => _pokeFriends(bill),
                           );
                         },
                       ),

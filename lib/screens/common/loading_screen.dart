@@ -1,11 +1,11 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import '../../services/ocr_service.dart';
-import '../../routes/app_routes.dart';
+import 'package:snap2bill/routes/app_routes.dart';
+import 'package:snap2bill/services/ocr_service.dart';
 
-import '../../widgets/shimmer_loading.dart';
-import '../../theme/app_colors.dart';
-import '../../theme/app_text_styles.dart';
+import 'package:snap2bill/theme/app_colors.dart';
+import 'package:snap2bill/theme/app_text_styles.dart';
+import 'package:snap2bill/widgets/shimmer_loading.dart';
 
 class LoadingScreen extends StatefulWidget {
   final Uint8List imageBytes;

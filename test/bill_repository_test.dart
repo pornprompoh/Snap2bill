@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:snap2bill/database/app_database.dart';
-import 'package:snap2bill/database/bill_repository.dart';
+import 'package:snap2bill/repositories/bill_repository.dart';
 import 'package:snap2bill/models/bill_model.dart';
 
 void main() {

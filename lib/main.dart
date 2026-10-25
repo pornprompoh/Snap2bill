@@ -7,7 +7,7 @@ import 'providers/bill_provider.dart';
 import 'providers/contact_provider.dart';
 import 'providers/user_provider.dart';
 import 'theme/app_theme.dart';
-import 'package:snap2bill/widgets/deep_link_handler.dart';
+import 'package:snap2bill/widgets/common/deep_link_handler.dart';
 
 final _navigatorKey = GlobalKey<NavigatorState>();
 final _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();

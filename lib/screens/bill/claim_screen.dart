@@ -7,7 +7,7 @@ import '../../../routes/app_routes.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../../widgets/bill/claim_item_card.dart';
-import '../../../widgets/custom_button.dart';
+import '../../widgets/common/custom_button.dart';
 
 class ClaimScreen extends StatefulWidget {
   final String lobbyId;

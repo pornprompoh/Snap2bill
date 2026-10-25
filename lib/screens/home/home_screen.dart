@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../repositories/local_bill_repository.dart';
-import '../routes/app_routes.dart';
-import 'detail_screen.dart';
-import '../theme/app_colors.dart';
-import '../theme/app_text_styles.dart';
-import '../utils/formatters.dart';
-import '../widgets/bill_card.dart';
-import '../models/bill_model.dart';
+import 'package:snap2bill/models/bill_model.dart';
+import 'package:snap2bill/repositories/bill_repository.dart';
+import 'package:snap2bill/routes/app_routes.dart';
+import 'package:snap2bill/screens/bill/bill_detail_screen.dart';
+import 'package:snap2bill/theme/app_colors.dart';
+import 'package:snap2bill/theme/app_text_styles.dart';
+import 'package:snap2bill/utils/formatters.dart';
+import 'package:snap2bill/widgets/bill/bill_card.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,7 +20,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _supabase = Supabase.instance.client;
-  final LocalBillRepository _localRepo = LocalBillRepository();
+  final BillRepository _localRepo = BillRepository();
 
   late Future<List<Map<String, dynamic>>> _billsFuture;
   bool _isCheckingRoom = false;

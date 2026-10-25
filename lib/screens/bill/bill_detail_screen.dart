@@ -4,21 +4,23 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../models/bill_model.dart';
-import '../providers/bill_provider.dart';
-import '../services/receipt_share_service.dart';
-import '../theme/app_colors.dart';
-import '../utils/formatters.dart';
-import '../widgets/bill/member_summary_list.dart';
+import 'package:snap2bill/models/bill_model.dart';
+import 'package:snap2bill/providers/bill_provider.dart';
+import 'package:snap2bill/services/receipt_share_service.dart';
+import 'package:snap2bill/theme/app_colors.dart';
+import 'package:snap2bill/utils/formatters.dart';
+import 'package:snap2bill/widgets/bill/member_summary_list.dart';
 
-class DetailScreen extends StatefulWidget {
+class BillDetailScreen extends StatefulWidget {
   final Map<String, dynamic> billData;
 
-  const DetailScreen({super.key, required this.billData});
+  const BillDetailScreen({super.key, required this.billData});
 
   @override
-  State<DetailScreen> createState() => _DetailScreenState();
+  State<BillDetailScreen> createState() => _DetailScreenState();
 }
+
+typedef DetailScreen = BillDetailScreen;
 
 class _DetailScreenState extends State<DetailScreen> {
   late Future<List<MemberSummaryEntry>> _membersFuture;

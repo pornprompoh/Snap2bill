@@ -5,6 +5,7 @@ import '../models/bill_model.dart';
 import '../models/user_model.dart';
 import 'contact_provider.dart';
 import '../services/supabase_db_service.dart';
+import '../utils/validation.dart';
 
 class BillProvider with ChangeNotifier {
   final SupabaseDbService _dbService = SupabaseDbService();
@@ -31,6 +32,24 @@ class BillProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String get splitType => _splitType;
 
+  static bool isNetworkError(Object error) {
+    final errorType = error.runtimeType.toString().toLowerCase();
+    final message = error.toString().toLowerCase();
+    return errorType == 'socketexception' ||
+        errorType == 'clientexception' ||
+        errorType == 'networkexception' ||
+        message.contains('socketexception') ||
+        message.contains('clientexception') ||
+        message.contains('failed host lookup') ||
+        message.contains('network is unreachable') ||
+        message.contains('connection refused') ||
+        message.contains('connection reset') ||
+        message.contains('connection timed out') ||
+        message.contains('network error') ||
+        message.contains('xmlhttprequest error') ||
+        message.contains('fetch failed');
+  }
+
   void setSplitType(String type) {
     if (type != 'equal' && type != 'proportional') {
       throw ArgumentError.value(type, 'type', 'Unsupported split type.');
@@ -47,7 +66,11 @@ class BillProvider with ChangeNotifier {
     Iterable<String> participantIds = const [],
   }) {
     if (splitType != 'equal' && splitType != 'proportional') {
-      throw ArgumentError.value(splitType, 'splitType', 'Unsupported split type.');
+      throw ArgumentError.value(
+        splitType,
+        'splitType',
+        'Unsupported split type.',
+      );
     }
 
     final itemTotalsByUser = <String, double>{
@@ -99,6 +122,34 @@ class BillProvider with ChangeNotifier {
                       : 0)),
     };
   }
+
+  static double calculateSubtotal(Iterable<BillItemModel> items) {
+    final subtotal = items.fold<double>(
+      0,
+      (total, item) => total + item.price * item.quantity,
+    );
+    BillValidation.validateAmount(subtotal, field: 'subtotal');
+    return subtotal;
+  }
+
+  static double calculateCharge({
+    required double subtotal,
+    required double rate,
+  }) {
+    BillValidation.validateAmount(subtotal, field: 'subtotal');
+    if (!rate.isFinite || rate < 0) {
+      throw ArgumentError.value(rate, 'rate', 'Must be non-negative.');
+    }
+    return subtotal * rate / 100;
+  }
+
+  static double calculateVat({required double subtotal, double rate = 7}) =>
+      calculateCharge(subtotal: subtotal, rate: rate);
+
+  static double calculateServiceCharge({
+    required double subtotal,
+    required double rate,
+  }) => calculateCharge(subtotal: subtotal, rate: rate);
 
   void setActiveRoom(String roomCode) {
     if (_activeRoomCode == roomCode) return;
@@ -187,7 +238,9 @@ class BillProvider with ChangeNotifier {
 
   bool _mergeRoomMember(RoomMember member) {
     if (member.id.isEmpty) return false;
-    final index = _roomMembers.indexWhere((existing) => existing.id == member.id);
+    final index = _roomMembers.indexWhere(
+      (existing) => existing.id == member.id,
+    );
     if (index >= 0) return false;
     _roomMembers.add(member);
     return true;

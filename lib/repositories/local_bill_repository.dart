@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../database/app_database.dart';
+import '../models/bill_model.dart';
 
 class LocalBillRepository {
   final AppDatabase _db;
@@ -16,16 +17,16 @@ class LocalBillRepository {
     for (final b in rawBills) {
       final id = b['id']?.toString() ?? '';
       if (id.isEmpty) continue;
-      final total = double.tryParse(b['total_amount']?.toString() ?? '0') ?? 0.0;
+      final total = BillModel.totalFromJson(b);
       final receiptJsonStr = b['receipt_json'] != null
           ? (b['receipt_json'] is String
-              ? b['receipt_json'] as String
-              : jsonEncode(b['receipt_json']))
+                ? b['receipt_json'] as String
+                : jsonEncode(b['receipt_json']))
           : null;
       final sharersJsonStr = b['sharers_json'] != null
           ? (b['sharers_json'] is String
-              ? b['sharers_json'] as String
-              : jsonEncode(b['sharers_json']))
+                ? b['sharers_json'] as String
+                : jsonEncode(b['sharers_json']))
           : null;
 
       companions.add(
@@ -33,7 +34,9 @@ class LocalBillRepository {
           id: Value(id),
           shopName: Value(b['shop_name']?.toString()),
           totalAmount: Value(total),
-          receiptDate: Value(b['receipt_date']?.toString() ?? b['created_at']?.toString()),
+          receiptDate: Value(
+            b['receipt_date']?.toString() ?? b['created_at']?.toString(),
+          ),
           status: Value(b['status']?.toString() ?? 'completed'),
           receiptJson: Value(receiptJsonStr),
           sharersJson: Value(sharersJsonStr),
@@ -72,6 +75,7 @@ class LocalBillRepository {
           'id': row.id,
           'shop_name': row.shopName ?? 'ไม่ระบุชื่อร้าน',
           'total_amount': row.totalAmount,
+          'final_total': row.totalAmount,
           'created_at': row.receiptDate ?? row.cachedAt.toIso8601String(),
           'status': row.status,
           'receipt_json': parsedReceipt,

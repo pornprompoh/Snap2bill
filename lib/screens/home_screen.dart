@@ -8,6 +8,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../utils/formatters.dart';
 import '../widgets/bill_card.dart';
+import '../models/bill_model.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -50,19 +51,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _pokeFriends(Map<String, dynamic> bill) async {
     final shopName = bill['shop_name'] ?? 'ร้านอาหาร';
-    final amount =
-        double.tryParse(
-          (bill['total_amount'] ?? bill['sub_total'])?.toString() ?? '0',
-        ) ??
-        0.0;
-    final message = '📢 สะกิดเตือนเพื่อนตี้ "$shopName" จ้า!\n'
+    final amount = BillModel.totalFromJson(bill);
+    final message =
+        '📢 สะกิดเตือนเพื่อนตี้ "$shopName" จ้า!\n'
         '🍲 ยอดบิลรวม ฿${amount.toStringAsFixed(2)} ยังมียอดค้างชำระอยู่น้า\n'
         '📲 ใครยังไม่ได้โอนเงิน รบกวนเปิด Snap2Bill โอนเงินพร้อมส่งสลิปด้วยเน้อ ขอบคุณครับ/ค่ะ 🙏✨';
     await SharePlus.instance.share(
-      ShareParams(
-        title: 'สะกิดเตือนเพื่อนหารบิล',
-        text: message,
-      ),
+      ShareParams(title: 'สะกิดเตือนเพื่อนหารบิล', text: message),
     );
   }
 
@@ -303,7 +298,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [Colors.orange.shade50, Colors.amber.shade50],
+                              colors: [
+                                Colors.orange.shade50,
+                                Colors.amber.shade50,
+                              ],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
@@ -315,7 +313,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               Row(
                                 children: [
-                                  Icon(Icons.pending_actions, size: 18, color: Colors.orange.shade800),
+                                  Icon(
+                                    Icons.pending_actions,
+                                    size: 18,
+                                    color: Colors.orange.shade800,
+                                  ),
                                   const SizedBox(width: 6),
                                   Text(
                                     'ยอดค้างรับ',
@@ -338,7 +340,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               Text(
                                 'รอเก็บ $unpaidCount บิล',
-                                style: TextStyle(fontSize: 11, color: Colors.orange.shade800),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.orange.shade800,
+                                ),
                               ),
                             ],
                           ),
@@ -351,7 +356,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [Colors.green.shade50, Colors.teal.shade50],
+                              colors: [
+                                Colors.green.shade50,
+                                Colors.teal.shade50,
+                              ],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
@@ -363,7 +371,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               Row(
                                 children: [
-                                  Icon(Icons.check_circle_outline, size: 18, color: Colors.green.shade800),
+                                  Icon(
+                                    Icons.check_circle_outline,
+                                    size: 18,
+                                    color: Colors.green.shade800,
+                                  ),
                                   const SizedBox(width: 6),
                                   Text(
                                     'ทวงคืนสำเร็จเดือนนี้',
@@ -377,7 +389,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                AppFormatters.formatCurrency(recoveredMonthlyTotal),
+                                AppFormatters.formatCurrency(
+                                  recoveredMonthlyTotal,
+                                ),
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800,
@@ -386,7 +400,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               Text(
                                 'ปิดยอด $recoveredMonthlyCount บิล',
-                                style: TextStyle(fontSize: 11, color: Colors.green.shade800),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.green.shade800,
+                                ),
                               ),
                             ],
                           ),
@@ -402,10 +419,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [
-                          AppColors.primaryDark,
-                          AppColors.primary,
-                        ],
+                        colors: [AppColors.primaryDark, AppColors.primary],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -470,14 +484,17 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: [
                             Expanded(
                               child: ElevatedButton.icon(
-                                onPressed: () => _pickImageAndScan(ImageSource.camera),
+                                onPressed: () =>
+                                    _pickImageAndScan(ImageSource.camera),
                                 icon: const Icon(Icons.camera_alt, size: 18),
                                 label: const Text('เปิดกล้องถ่าย'),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.white,
                                   foregroundColor: AppColors.primaryDark,
                                   elevation: 0,
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
@@ -487,13 +504,16 @@ class _HomeScreenState extends State<HomeScreen> {
                             const SizedBox(width: 10),
                             Expanded(
                               child: OutlinedButton.icon(
-                                onPressed: () => _pickImageAndScan(ImageSource.gallery),
+                                onPressed: () =>
+                                    _pickImageAndScan(ImageSource.gallery),
                                 icon: const Icon(Icons.photo_library, size: 18),
                                 label: const Text('เลือกจากอัลบั้ม'),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: Colors.white,
                                   side: const BorderSide(color: Colors.white70),
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
@@ -518,7 +538,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.lightbulb_outline, size: 20, color: Colors.amber.shade900),
+                        Icon(
+                          Icons.lightbulb_outline,
+                          size: 20,
+                          color: Colors.amber.shade900,
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
@@ -543,10 +567,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primaryContainer.withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.primary.withValues(alpha: 0.3),
                         ),
                       ),
                       child: Row(
@@ -569,11 +597,17 @@ class _HomeScreenState extends State<HomeScreen> {
                               children: [
                                 Text(
                                   'มีเพื่อนสร้างห้องไว้แล้ว?',
-                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                                 Text(
                                   'กรอกรหัส 6 หลักเพื่อเข้าร่วมตี้',
-                                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
                                 ),
                               ],
                             ),
@@ -592,7 +626,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       Text('ประวัติการหารบิล', style: AppTextStyles.title),
                       Text(
                         'ทั้งหมด ${bills.length} บิล',
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
                       ),
                     ],
                   ),
@@ -606,16 +643,28 @@ class _HomeScreenState extends State<HomeScreen> {
                         ButtonSegment<String>(
                           value: 'unpaid',
                           icon: const Icon(Icons.schedule, size: 16),
-                          label: Text('ยังไม่ครบ ($unpaidCount)', style: const TextStyle(fontSize: 12)),
+                          label: Text(
+                            'ยังไม่ครบ ($unpaidCount)',
+                            style: const TextStyle(fontSize: 12),
+                          ),
                         ),
                         ButtonSegment<String>(
                           value: 'completed',
-                          icon: const Icon(Icons.check_circle_outline, size: 16),
-                          label: Text('เสร็จสิ้น ($recoveredMonthlyCount)', style: const TextStyle(fontSize: 12)),
+                          icon: const Icon(
+                            Icons.check_circle_outline,
+                            size: 16,
+                          ),
+                          label: Text(
+                            'เสร็จสิ้น ($recoveredMonthlyCount)',
+                            style: const TextStyle(fontSize: 12),
+                          ),
                         ),
                         const ButtonSegment<String>(
                           value: 'all',
-                          label: Text('ทั้งหมด', style: TextStyle(fontSize: 12)),
+                          label: Text(
+                            'ทั้งหมด',
+                            style: TextStyle(fontSize: 12),
+                          ),
                         ),
                       ],
                       selected: {_historyFilter},
@@ -633,7 +682,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       alignment: Alignment.center,
                       child: Column(
                         children: [
-                          Icon(Icons.inbox_outlined, size: 48, color: Colors.grey.shade400),
+                          Icon(
+                            Icons.inbox_outlined,
+                            size: 48,
+                            color: Colors.grey.shade400,
+                          ),
                           const SizedBox(height: 8),
                           Text(
                             _historyFilter == 'unpaid'
@@ -654,13 +707,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       itemBuilder: (context, index) {
                         final bill = filteredBills[index];
                         final shopName = bill['shop_name'] ?? 'ไม่ระบุชื่อร้าน';
-                        final totalAmount =
-                            double.tryParse(
-                              (bill['total_amount'] ?? bill['sub_total'])
-                                      ?.toString() ??
-                                  '0',
-                            ) ??
-                            0.0;
+                        final totalAmount = BillModel.totalFromJson(bill);
                         final date =
                             bill['created_at']?.toString().split('T')[0] ?? '';
                         final isSettled = _isBillSettled(bill);
@@ -687,21 +734,32 @@ class _HomeScreenState extends State<HomeScreen> {
                             // ถ้ายังเป็นบิลค้างรับ มีปุ่มสะกิดเตือนเพื่อน
                             if (!isSettled)
                               Padding(
-                                padding: const EdgeInsets.only(top: 0, bottom: 8),
+                                padding: const EdgeInsets.only(
+                                  top: 0,
+                                  bottom: 8,
+                                ),
                                 child: Align(
                                   alignment: Alignment.centerRight,
                                   child: OutlinedButton.icon(
                                     style: OutlinedButton.styleFrom(
                                       visualDensity: VisualDensity.compact,
                                       foregroundColor: Colors.orange.shade900,
-                                      side: BorderSide(color: Colors.orange.shade300),
+                                      side: BorderSide(
+                                        color: Colors.orange.shade300,
+                                      ),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(16),
                                       ),
                                     ),
                                     onPressed: () => _pokeFriends(bill),
-                                    icon: const Icon(Icons.notifications_active_outlined, size: 15),
-                                    label: const Text('สะกิดเตือนเพื่อน 🔔', style: TextStyle(fontSize: 12)),
+                                    icon: const Icon(
+                                      Icons.notifications_active_outlined,
+                                      size: 15,
+                                    ),
+                                    label: const Text(
+                                      'สะกิดเตือนเพื่อน 🔔',
+                                      style: TextStyle(fontSize: 12),
+                                    ),
                                   ),
                                 ),
                               ),

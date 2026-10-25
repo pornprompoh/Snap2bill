@@ -14,9 +14,42 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  bool _isLogin = true;
+  bool _obscurePassword = true;
   bool _isLoading = false;
+  bool _isGoogleSignInLoading = false;
+  bool _isFacebookSignInLoading = false;
   bool _isNavigatingHome = false;
   late final StreamSubscription<AuthState> _authStateSubscription;
+
+  String? _validateEmail(String? value) {
+    final email = value?.trim() ?? '';
+    if (email.isEmpty) return 'กรุณากรอกอีเมล';
+    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+      return 'กรุณากรอกอีเมลให้ถูกต้อง';
+    }
+    return null;
+  }
+
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) return 'กรุณากรอกรหัสผ่าน';
+    if (value.length < 6) return 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร';
+    return null;
+  }
+
+  void _toggleFormMode() {
+    setState(() {
+      _isLogin = !_isLogin;
+      _obscurePassword = true;
+      _formKey.currentState?.reset();
+      _emailController.clear();
+      _passwordController.clear();
+    });
+  }
 
   void _navigateToHome() {
     if (!mounted || _isNavigatingHome) return;
@@ -24,6 +57,76 @@ class _LoginScreenState extends State<LoginScreen> {
     Navigator.of(
       context,
     ).pushNamedAndRemoveUntil(AppRoutes.home, (route) => false);
+  }
+
+  Future<void> _handleEmailPasswordSubmit() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final authService = SupabaseAuthService();
+      if (_isLogin) {
+        await authService.signInWithPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
+      } else {
+        await authService.signUpWithPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_isLogin ? 'เข้าสู่ระบบสำเร็จ' : 'สมัครสมาชิกสำเร็จ'),
+        ),
+      );
+      _navigateToHome();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${_isLogin ? 'เข้าสู่ระบบ' : 'สมัครสมาชิก'}ไม่สำเร็จ: $e',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _handleForgotPassword() async {
+    final email = _emailController.text.trim();
+    final emailError = _validateEmail(email);
+    if (emailError != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(emailError)));
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      await SupabaseAuthService().resetPasswordForEmail(email);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ส่งลิงก์รีเซ็ตรหัสผ่านไปยังอีเมลแล้ว')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('ส่งลิงก์รีเซ็ตรหัสผ่านไม่สำเร็จ: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -54,11 +157,16 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void dispose() {
     _authStateSubscription.cancel(); // ปิดตัวดักฟังเมื่อเปลี่ยนหน้า
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
   Future<void> _handleGoogleSignIn() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _isGoogleSignInLoading = true;
+    });
     try {
       final response = await SupabaseAuthService().signInWithGoogle();
 
@@ -79,7 +187,43 @@ class _LoginScreenState extends State<LoginScreen> {
       ).showSnackBar(SnackBar(content: Text('ล็อกอินล้มเหลว: $e')));
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+          _isGoogleSignInLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleFacebookSignIn() async {
+    setState(() {
+      _isLoading = true;
+      _isFacebookSignInLoading = true;
+    });
+    try {
+      final started = await SupabaseAuthService().signInWithFacebook();
+      if (!mounted) return;
+
+      if (!started) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('เข้าสู่ระบบด้วย Facebook ไม่สำเร็จหรือถูกยกเลิก'),
+          ),
+        );
+      } else if (SupabaseAuthService().currentUser != null) {
+        _navigateToHome();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('เข้าสู่ระบบด้วย Facebook ไม่สำเร็จ: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isFacebookSignInLoading = false;
+        });
       }
     }
   }
@@ -96,7 +240,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 .toDouble();
 
             return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               child: ConstrainedBox(
                 constraints: BoxConstraints(minHeight: minHeight),
                 child: IntrinsicHeight(
@@ -132,7 +277,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     color: AppColors.primary,
                                   ),
                                 ),
-                                const SizedBox(height: 24),
+                                const SizedBox(height: 16),
                                 Text(
                                   'Snap2Bill',
                                   style: AppTextStyles.headline.copyWith(
@@ -141,109 +286,249 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  'สแกนบิล แบ่งรายการ และสรุปยอดกับเพื่อน',
+                                  _isLogin
+                                      ? 'ยินดีต้อนรับกลับมา'
+                                      : 'สร้างบัญชีใหม่',
+                                  textAlign: TextAlign.center,
+                                  style: AppTextStyles.headline.copyWith(
+                                    fontSize: 22,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  _isLogin
+                                      ? 'เข้าสู่ระบบเพื่อจัดการบิล'
+                                      : 'สมัครสมาชิกเพื่อเริ่มต้นใช้งาน',
                                   textAlign: TextAlign.center,
                                   style: AppTextStyles.body.copyWith(
                                     color: AppColors.textSecondary,
                                   ),
                                 ),
-                                const SizedBox(height: 40),
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 58,
-                                  child: ElevatedButton(
-                                    onPressed: _isLoading
-                                        ? null
-                                        : _handleGoogleSignIn,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.surface,
-                                      foregroundColor: AppColors.textPrimary,
-                                      disabledBackgroundColor:
-                                          AppColors.surface,
-                                      disabledForegroundColor:
-                                          AppColors.textSecondary,
-                                      elevation: 0,
-                                      overlayColor: AppColors.primary
-                                          .withValues(alpha: 0.08),
-                                      splashFactory: InkRipple.splashFactory,
-                                      side: const BorderSide(
-                                        color: AppColors.border,
+                                const SizedBox(height: 16),
+                                Form(
+                                  key: _formKey,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      TextFormField(
+                                        controller: _emailController,
+                                        keyboardType:
+                                            TextInputType.emailAddress,
+                                        textInputAction: TextInputAction.next,
+                                        autocorrect: false,
+                                        validator: _validateEmail,
+                                        decoration: InputDecoration(
+                                          labelText: 'อีเมล',
+                                          prefixIcon: const Icon(
+                                            Icons.email_outlined,
+                                          ),
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              14,
+                                            ),
+                                          ),
+                                        ),
                                       ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(14),
+                                      const SizedBox(height: 12),
+                                      TextFormField(
+                                        controller: _passwordController,
+                                        obscureText: _obscurePassword,
+                                        textInputAction: TextInputAction.done,
+                                        validator: _validatePassword,
+                                        onFieldSubmitted: (_) {
+                                          if (!_isLoading) {
+                                            _handleEmailPasswordSubmit();
+                                          }
+                                        },
+                                        decoration: InputDecoration(
+                                          labelText: 'รหัสผ่าน',
+                                          prefixIcon: const Icon(
+                                            Icons.lock_outline,
+                                          ),
+                                          suffixIcon: IconButton(
+                                            tooltip: _obscurePassword
+                                                ? 'แสดงรหัสผ่าน'
+                                                : 'ซ่อนรหัสผ่าน',
+                                            onPressed: () {
+                                              setState(() {
+                                                _obscurePassword =
+                                                    !_obscurePassword;
+                                              });
+                                            },
+                                            icon: Icon(
+                                              _obscurePassword
+                                                  ? Icons.visibility_off
+                                                  : Icons.visibility,
+                                            ),
+                                          ),
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              14,
+                                            ),
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                    child: Stack(
-                                      alignment: Alignment.center,
-                                      children: [
+                                      if (_isLogin)
                                         Align(
-                                          alignment: Alignment.centerLeft,
-                                          child: SizedBox(
-                                            width: 28,
-                                            height: 28,
-                                            child: AnimatedSwitcher(
-                                              duration: const Duration(
-                                                milliseconds: 180,
-                                              ),
-                                              child: _isLoading
-                                                  ? const SizedBox(
-                                                      key: ValueKey('loading'),
-                                                      width: 22,
-                                                      height: 22,
-                                                      child:
-                                                          CircularProgressIndicator(
-                                                            color: AppColors
-                                                                .primary,
-                                                            strokeWidth: 2.4,
-                                                            strokeCap:
-                                                                StrokeCap.round,
-                                                          ),
-                                                    )
-                                                  : const Center(
-                                                      key: ValueKey('google'),
-                                                      child: Text(
-                                                        'G',
-                                                        style: TextStyle(
-                                                          color: Color(
-                                                            0xFF4285F4,
-                                                          ),
-                                                          fontSize: 23,
-                                                          fontWeight:
-                                                              FontWeight.w700,
-                                                        ),
+                                          alignment: Alignment.centerRight,
+                                          child: TextButton(
+                                            onPressed: _isLoading
+                                                ? null
+                                                : _handleForgotPassword,
+                                            child: const Text('ลืมรหัสผ่าน?'),
+                                          ),
+                                        )
+                                      else
+                                        const SizedBox(height: 12),
+                                      SizedBox(
+                                        height: 54,
+                                        child: ElevatedButton(
+                                          onPressed: _isLoading
+                                              ? null
+                                              : _handleEmailPasswordSubmit,
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: AppColors.primary,
+                                            foregroundColor: Colors.white,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(14),
+                                            ),
+                                          ),
+                                          child:
+                                              _isLoading &&
+                                                  !_isGoogleSignInLoading
+                                              ? const SizedBox(
+                                                  width: 22,
+                                                  height: 22,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        color: Colors.white,
+                                                        strokeWidth: 2.4,
                                                       ),
-                                                    ),
-                                            ),
-                                          ),
+                                                )
+                                              : Text(
+                                                  _isLogin
+                                                      ? 'เข้าสู่ระบบ'
+                                                      : 'สมัครสมาชิก',
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
                                         ),
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 38,
-                                          ),
-                                          child: Text(
-                                            _isLoading
-                                                ? 'กำลังเข้าสู่ระบบ...'
-                                                : 'เข้าสู่ระบบด้วย Google',
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            textAlign: TextAlign.center,
-                                            style: AppTextStyles.body.copyWith(
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                if (_isLoading) ...[
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    'กำลังเชื่อมต่อบัญชี Google อย่างปลอดภัย',
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    const Expanded(child: Divider()),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                      ),
+                                      child: Text(
+                                        'หรือ',
+                                        style: AppTextStyles.caption,
+                                      ),
+                                    ),
+                                    const Expanded(child: Divider()),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: SizedBox(
+                                        height: 48,
+                                        child: OutlinedButton.icon(
+                                          onPressed: _isLoading
+                                              ? null
+                                              : _handleGoogleSignIn,
+                                          icon: _isGoogleSignInLoading
+                                              ? const SizedBox(
+                                                  width: 18,
+                                                  height: 18,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                      ),
+                                                )
+                                              : const Text(
+                                                  'G',
+                                                  style: TextStyle(
+                                                    color: Color(0xFF4285F4),
+                                                    fontSize: 20,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                          label: const Text('Google'),
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor:
+                                                AppColors.textPrimary,
+                                            side: const BorderSide(
+                                              color: AppColors.border,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(14),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: SizedBox(
+                                        height: 48,
+                                        child: OutlinedButton.icon(
+                                          onPressed: _isLoading
+                                              ? null
+                                              : _handleFacebookSignIn,
+                                          icon: _isFacebookSignInLoading
+                                              ? const SizedBox(
+                                                  width: 18,
+                                                  height: 18,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                      ),
+                                                )
+                                              : const Icon(
+                                                  Icons.facebook,
+                                                  size: 22,
+                                                  color: Color(0xFF1877F2),
+                                                ),
+                                          label: const Text('Facebook'),
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor:
+                                                AppColors.textPrimary,
+                                            side: const BorderSide(
+                                              color: AppColors.border,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(14),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                TextButton(
+                                  onPressed: _isLoading
+                                      ? null
+                                      : _toggleFormMode,
+                                  child: Text(
+                                    _isLogin
+                                        ? 'ยังไม่มีบัญชีใช่ไหม? สมัครสมาชิก'
+                                        : 'มีบัญชีอยู่แล้ว? เข้าสู่ระบบ',
                                     textAlign: TextAlign.center,
-                                    style: AppTextStyles.caption,
                                   ),
-                                ],
+                                ),
                               ],
                             ),
                           ),

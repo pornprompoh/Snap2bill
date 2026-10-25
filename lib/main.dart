@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // 🚀 นำเข้า dotenv
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
+import 'services/cache_service.dart';
 import 'routes/app_routes.dart';
 import 'providers/bill_provider.dart';
 import 'providers/contact_provider.dart';
@@ -15,6 +17,8 @@ final _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
+  await CacheService.instance.init();
 
   // 🚀 โหลดไฟล์ .env ก่อนเรียกใช้ตัวแปร
   await dotenv.load(fileName: ".env");

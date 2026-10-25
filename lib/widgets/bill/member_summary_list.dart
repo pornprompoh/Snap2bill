@@ -65,8 +65,9 @@ class MemberSummaryList extends StatelessWidget {
         return ListTile(
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
-            vertical: 4,
+            vertical: 6,
           ),
+          minVerticalPadding: 0,
           selected: isSelected,
           selectedTileColor: AppColors.primary.withValues(alpha: 0.08),
           shape: RoundedRectangleBorder(
@@ -110,6 +111,7 @@ class MemberSummaryList extends StatelessWidget {
           ),
           subtitle: member.subtitle == null ? null : Text(member.subtitle!),
           trailing: Column(
+            mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -130,7 +132,7 @@ class MemberSummaryList extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
-                    vertical: 3,
+                    vertical: 2,
                   ),
                   decoration: BoxDecoration(
                     color: member.isPaid

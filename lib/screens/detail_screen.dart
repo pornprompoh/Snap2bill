@@ -386,7 +386,97 @@ class _DetailScreenState extends State<DetailScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (hasPromptPay && qrPayload.isNotEmpty) ...[
+                  if (member.isPaid) ...[
+                    // 🎉 Shopee-style Payment Success View
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.green.shade300, width: 2),
+                      ),
+                      child: const Icon(
+                        Icons.check_circle_rounded,
+                        color: Color(0xFF00AA5B),
+                        size: 48,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'ชำระเงินสำเร็จเรียบร้อยแล้ว! 🎉',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF008A4B),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'ยอดชำระของ ${member.name} ได้รับการชำระเงินแล้ว',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF7FAF8),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.green.shade100),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('ยอดชำระ', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                              Text(
+                                '${AppFormatters.formatCurrency(member.amount)} ฿',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF00AA5B),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const Divider(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('ผู้รับเงิน', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                              Text('$_hostName ($_hostPromptPay)', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          const Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('สถานะ', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                              Text('ชำระเงินแล้ว ✅', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF00AA5B))),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else if (hasPromptPay && qrPayload.isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.amber.shade300),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.timer_outlined, size: 14, color: Colors.amber),
+                          SizedBox(width: 4),
+                          Text('คิวอาร์โค้ดใช้ครั้งเดียว (Single-Use)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.brown)),
+                        ],
+                      ),
+                    ),
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -436,30 +526,32 @@ class _DetailScreenState extends State<DetailScreen> {
                   ],
                   const SizedBox(height: 16),
 
-                  // ปุ่มทวงเงินเข้า LINE
-                  FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF06C755),
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(double.infinity, 44),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  // ปุ่มทวงเงินเข้า LINE (เฉพาะคนที่ยังไม่จ่าย)
+                  if (!member.isPaid) ...[
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF06C755),
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(double.infinity, 44),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      icon: const Icon(Icons.send_outlined, size: 18),
+                      label: const Text('ส่งแจ้งเตือนทวงเงินเข้า LINE (สะกิด)'),
+                      onPressed: () {
+                        final reminder = '👋 สวัสดี ${member.name}!\n'
+                            '🍲 ยอดหารบิลร้าน $shopName ของคุณคือ ฿${member.amount.toStringAsFixed(2)}\n'
+                            '💳 พร้อมเพย์: $_hostPromptPay ($_hostName)\n'
+                            '✨ สแกน QR โอนแล้วรบกวนส่งสลิปด้วยน้า ขอบคุณครับ/ค่ะ 🙏';
+                        SharePlus.instance.share(
+                          ShareParams(
+                            title: 'ทวงเงินค่าอาหาร',
+                            text: reminder,
+                          ),
+                        );
+                      },
                     ),
-                    icon: const Icon(Icons.send_outlined, size: 18),
-                    label: const Text('ส่งแจ้งเตือนทวงเงินเข้า LINE'),
-                    onPressed: () {
-                      final reminder = '👋 สวัสดี ${member.name}!\n'
-                          '🍲 ยอดหารบิลร้าน $shopName ของคุณคือ ฿${member.amount.toStringAsFixed(2)}\n'
-                          '💳 พร้อมเพย์: $_hostPromptPay ($_hostName)\n'
-                          '✨ สแกน QR โอนแล้วรบกวนส่งสลิปด้วยน้า ขอบคุณครับ/ค่ะ 🙏';
-                      SharePlus.instance.share(
-                        ShareParams(
-                          title: 'ทวงเงินค่าอาหาร',
-                          text: reminder,
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 8),
+                    const SizedBox(height: 8),
+                  ],
 
                   // ปุ่มแนบสลิปแจ้งโอน
                   OutlinedButton.icon(

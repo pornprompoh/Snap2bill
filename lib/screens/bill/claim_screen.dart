@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../models/bill_model.dart';
 import '../../../providers/bill_provider.dart';
 import '../../../routes/app_routes.dart';
 import '../../../theme/app_colors.dart';
@@ -257,6 +258,83 @@ class _ClaimScreenState extends State<ClaimScreen> {
     _navigateToSummaryLocal();
   }
 
+  Future<void> _showAddGuestDialog(BuildContext context) async {
+    final billProvider = context.read<BillProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    final textController = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.person_add_alt_1, color: AppColors.primary),
+            SizedBox(width: 8),
+            Text('เพิ่มเพื่อนที่ไม่มีแอป', style: TextStyle(fontSize: 16)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'สำหรับเพื่อนที่ไม่ได้พกมือถือมา หรือไม่มีแอป Snap2Bill เพื่อให้หัวหน้าห้องเลือกอาหารและหารยอดให้',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: textController,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'ชื่อเพื่อน',
+                hintText: 'เช่น ต้น, น้องบิว',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('ยกเลิก'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final val = textController.text.trim();
+              if (val.isNotEmpty) Navigator.pop(dialogCtx, val);
+            },
+            child: const Text('เพิ่มเพื่อน'),
+          ),
+        ],
+      ),
+    );
+
+    if (name != null && name.isNotEmpty && mounted) {
+      RoomMember newMember;
+      try {
+        newMember = await billProvider.addGuestMember(name);
+      } catch (_) {
+        newMember = RoomMember(
+          id: 'guest_${DateTime.now().millisecondsSinceEpoch}',
+          name: name,
+          isGuest: true,
+        );
+        billProvider.mergeRoomMembers([newMember]);
+      }
+      setState(() {
+        _userNames[newMember.id] = newMember.name;
+      });
+      billProvider.setClaimingUser(newMember.id);
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('เพิ่มเพื่อน "${newMember.name}" แล้ว สามารถเลือกอาหารแทนเพื่อนได้ทันที ✅'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    }
+  }
+
   void _navigateToSummaryLocal() {
     Map<int, List<Map<String, dynamic>>> itemSharers = {};
     final itemIndexes = {..._claimedItems.keys, ..._sharedItems.keys};
@@ -276,6 +354,19 @@ class _ClaimScreenState extends State<ClaimScreen> {
       itemSharers[index] = sharersList;
     }
 
+    final allParticipants = <Map<String, dynamic>>[...widget.roomParticipants];
+    final existingIds = allParticipants
+        .map((p) => p['id']?.toString() ?? p['user_id']?.toString() ?? '')
+        .toSet();
+
+    final billProvider = context.read<BillProvider>();
+    for (final member in billProvider.roomMembers) {
+      if (!existingIds.contains(member.id)) {
+        allParticipants.add(member.toMap());
+        existingIds.add(member.id);
+      }
+    }
+
     Navigator.pushReplacementNamed(
       context,
       AppRoutes.summary,
@@ -284,7 +375,7 @@ class _ClaimScreenState extends State<ClaimScreen> {
         'receiptData': widget.receiptData,
         'receiptImageBytes': widget.receiptImageBytes,
         'itemSharers': itemSharers,
-        'roomParticipants': widget.roomParticipants,
+        'roomParticipants': allParticipants,
         'isHost': widget.isHost, // ส่งสถานะต่อ
       },
     );
@@ -307,7 +398,11 @@ class _ClaimScreenState extends State<ClaimScreen> {
           participant['display_name']?.toString() ??
           'เพื่อน';
     }
-    final claimingUserName = memberNames[claimingUserId] ?? _currentUserName;
+    for (final member in billProvider.roomMembers) {
+      if (member.id.isNotEmpty) {
+        memberNames[member.id] = member.name;
+      }
+    }
     final claimingUsers = <String, String>{_currentUserId: _currentUserName};
     for (final entry in memberNames.entries) {
       claimingUsers[entry.key] = entry.value;
@@ -335,36 +430,50 @@ class _ClaimScreenState extends State<ClaimScreen> {
             ),
           ),
           if (widget.isHost)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              color: Colors.blue.shade50.withValues(alpha: 0.5),
               child: Row(
                 children: [
+                  const Icon(Icons.person, size: 18, color: AppColors.primary),
+                  const SizedBox(width: 6),
                   Expanded(
-                    child: Text(
-                      'กำลังเลือกอาหารให้: $claimingUserName',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    child: DropdownButton<String>(
+                      isExpanded: true,
+                      underline: const SizedBox(),
+                      value: claimingUsers.containsKey(claimingUserId)
+                          ? claimingUserId
+                          : _currentUserId,
+                      items: claimingUsers.entries
+                          .map(
+                            (entry) => DropdownMenuItem<String>(
+                              value: entry.key,
+                              child: Text(
+                                'เลือกอาหารให้: ${entry.value}'
+                                '${entry.key.startsWith('guest_') ? ' (Guest)' : ''}',
+                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (userId) {
+                        if (userId != null) {
+                          billProvider.setClaimingUser(userId);
+                        }
+                      },
                     ),
                   ),
-                  DropdownButton<String>(
-                    value: claimingUsers.containsKey(claimingUserId)
-                        ? claimingUserId
-                        : _currentUserId,
-                    items: claimingUsers.entries
-                        .map(
-                          (entry) => DropdownMenuItem<String>(
-                            value: entry.key,
-                            child: Text(
-                              '${entry.value}'
-                              '${entry.key.startsWith('guest_') ? ' (Guest)' : ''}',
-                            ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (userId) {
-                      if (userId != null) {
-                        billProvider.setClaimingUser(userId);
-                      }
-                    },
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      visualDensity: VisualDensity.compact,
+                      side: const BorderSide(color: AppColors.primary),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: () => _showAddGuestDialog(context),
+                    icon: const Icon(Icons.person_add, size: 15),
+                    label: const Text('+ เพื่อนไม่มีแอป', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),

@@ -684,25 +684,51 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               ),
                             ),
-                            // ถ้ายังเป็นบิลค้างรับ มีปุ่มสะกิดเตือนเพื่อน
+                            // ถ้ายังเป็นบิลค้างรับ มีปุ่มสะกิดเตือนเพื่อน & แจ้งเตือนทุก 1 ชม.
                             if (!isSettled)
                               Padding(
-                                padding: const EdgeInsets.only(top: 0, bottom: 8),
-                                child: Align(
-                                  alignment: Alignment.centerRight,
-                                  child: OutlinedButton.icon(
-                                    style: OutlinedButton.styleFrom(
-                                      visualDensity: VisualDensity.compact,
-                                      foregroundColor: Colors.orange.shade900,
-                                      side: BorderSide(color: Colors.orange.shade300),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(16),
+                                padding: const EdgeInsets.only(top: 2, bottom: 8),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.orange.shade50,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: Colors.orange.shade200),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.schedule, size: 12, color: Colors.orange.shade800),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'เตือนทุก 1 ชม.',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.orange.shade900,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                    onPressed: () => _pokeFriends(bill),
-                                    icon: const Icon(Icons.notifications_active_outlined, size: 15),
-                                    label: const Text('สะกิดเตือนเพื่อน 🔔', style: TextStyle(fontSize: 12)),
-                                  ),
+                                    const SizedBox(width: 8),
+                                    OutlinedButton.icon(
+                                      style: OutlinedButton.styleFrom(
+                                        visualDensity: VisualDensity.compact,
+                                        foregroundColor: Colors.orange.shade900,
+                                        side: BorderSide(color: Colors.orange.shade300),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(14),
+                                        ),
+                                      ),
+                                      onPressed: () => _pokeFriends(bill),
+                                      icon: const Icon(Icons.notifications_active_outlined, size: 14),
+                                      label: const Text('สะกิดเตือน (LINE) 🔔', style: TextStyle(fontSize: 12)),
+                                    ),
+                                  ],
                                 ),
                               ),
                           ],

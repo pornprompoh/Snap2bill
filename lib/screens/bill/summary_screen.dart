@@ -174,7 +174,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
   }
 
   List<String> _getRoomMemberIds() {
-    return widget.roomParticipants
+    final ids = widget.roomParticipants
         .map(
           (participant) =>
               participant['user_id']?.toString() ??
@@ -182,8 +182,12 @@ class _SummaryScreenState extends State<SummaryScreen> {
               '',
         )
         .where((userId) => userId.isNotEmpty)
-        .toSet()
-        .toList();
+        .toSet();
+
+    for (final member in context.read<BillProvider>().roomMembers) {
+      if (member.id.isNotEmpty) ids.add(member.id);
+    }
+    return ids.toList();
   }
 
   Map<String, List<String>> _getItemSharesByUser() {
@@ -224,6 +228,11 @@ class _SummaryScreenState extends State<SummaryScreen> {
           participant['display_name']?.toString() ??
           'เพื่อน';
     }
+    for (final member in context.read<BillProvider>().roomMembers) {
+      if (member.id.isNotEmpty) {
+        names[member.id] = member.name;
+      }
+    }
     for (final sharers in widget.itemSharers.values) {
       for (final sharer in sharers) {
         final userId = sharer['user_id']?.toString();
@@ -236,6 +245,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
   }
 
   bool _isGuestMember(String userId) {
+    if (userId.startsWith('guest_')) return true;
+    if (context.read<BillProvider>().roomMembers.any((m) => m.id == userId && m.isGuest)) {
+      return true;
+    }
     return widget.roomParticipants.any((participant) {
       final participantId =
           participant['user_id']?.toString() ?? participant['id']?.toString();
@@ -245,6 +258,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
   }
 
   final Map<String, bool> _manualPaidStatus = {};
+  bool _hourlyReminderEnabled = true; // เปิดใช้งานระบบเตือนทุก 1 ชม. โดยเริ่มต้น
 
   bool _isParticipantPaid(String userId) {
     if (_manualPaidStatus.containsKey(userId)) {
@@ -474,7 +488,98 @@ class _SummaryScreenState extends State<SummaryScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (canGenerateQr && qrPayload.isNotEmpty) ...[
+                  if (currentPaid) ...[
+                    // 🎉 Shopee-style Payment Success View
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.green.shade300, width: 2),
+                      ),
+                      child: const Icon(
+                        Icons.check_circle_rounded,
+                        color: Color(0xFF00AA5B),
+                        size: 48,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'ชำระเงินสำเร็จเรียบร้อยแล้ว! 🎉',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF008A4B),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'ยอดชำระของ $memberName บันทึกเรียบร้อย',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF7FAF8),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.green.shade100),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('ยอดชำระ', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                              Text(
+                                '${AppFormatters.formatCurrency(amount)} ฿',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF00AA5B),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const Divider(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('ผู้รับเงิน', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                              Text('$_hostName ($_hostPromptPay)', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          const Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('สถานะ', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                              Text('ชำระเงินแล้ว ✅', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF00AA5B))),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else if (canGenerateQr && qrPayload.isNotEmpty) ...[
+                    // ⏱️ Single-use dynamic QR with countdown reminder
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.amber.shade300),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.timer_outlined, size: 14, color: Colors.amber),
+                          SizedBox(width: 4),
+                          Text('คิวอาร์โค้ดใช้ครั้งเดียว (Single-Use)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.brown)),
+                        ],
+                      ),
+                    ),
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -524,30 +629,32 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   ],
                   const SizedBox(height: 16),
 
-                  // ปุ่มทวงเงินเข้า LINE
-                  FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF06C755),
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(double.infinity, 44),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  // ปุ่มทวงเงินเข้า LINE (เฉพาะคนที่ยังไม่จ่าย)
+                  if (!currentPaid) ...[
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF06C755),
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(double.infinity, 44),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      icon: const Icon(Icons.send_outlined, size: 18),
+                      label: const Text('ส่งแจ้งเตือนทวงเงินเข้า LINE (สะกิด)'),
+                      onPressed: () {
+                        final reminder = '👋 สวัสดี $memberName!\n'
+                            '🍲 ยอดหารบิลร้าน $shopName ของคุณคือ ฿${amount.toStringAsFixed(2)}\n'
+                            '💳 พร้อมเพย์: $_hostPromptPay ($_hostName)\n'
+                            '✨ สแกน QR โอนแล้วรบกวนส่งสลิปด้วยน้า ขอบคุณครับ/ค่ะ 🙏';
+                        SharePlus.instance.share(
+                          ShareParams(
+                            title: 'ทวงเงินค่าอาหาร',
+                            text: reminder,
+                          ),
+                        );
+                      },
                     ),
-                    icon: const Icon(Icons.send_outlined, size: 18),
-                    label: const Text('ส่งแจ้งเตือนทวงเงินเข้า LINE'),
-                    onPressed: () {
-                      final reminder = '👋 สวัสดี $memberName!\n'
-                          '🍲 ยอดหารบิลร้าน $shopName ของคุณคือ ฿${amount.toStringAsFixed(2)}\n'
-                          '💳 พร้อมเพย์: $_hostPromptPay ($_hostName)\n'
-                          '✨ สแกน QR โอนแล้วรบกวนส่งสลิปด้วยน้า ขอบคุณครับ/ค่ะ 🙏';
-                      SharePlus.instance.share(
-                        ShareParams(
-                          title: 'ทวงเงินค่าอาหาร',
-                          text: reminder,
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 8),
+                    const SizedBox(height: 8),
+                  ],
 
                   // ปุ่มแนบสลิปแจ้งโอน
                   OutlinedButton.icon(
@@ -656,6 +763,15 @@ class _SummaryScreenState extends State<SummaryScreen> {
               ? [_currentUserId!]
               : <String>[]);
 
+    final activeUserIds = displayedUserIds
+        .where((uid) => (totalsByUser[uid] ?? 0) > 0)
+        .toList();
+    final allParticipantsPaid = activeUserIds.isNotEmpty &&
+        activeUserIds.every((uid) => _isParticipantPaid(uid));
+    final unpaidMembers = activeUserIds
+        .where((uid) => !_isParticipantPaid(uid))
+        .toList();
+
     return Scaffold(
       appBar: AppBar(title: const Text('สรุปยอดและเคลียร์บิล')),
       body: _isLoadingHost
@@ -685,8 +801,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         const SizedBox(height: 8),
                         Text(
                           splitType == 'equal'
-                              ? '*ส่วนเกินหารเท่ากันในสมาชิกทุกคน'
-                              : '*ส่วนเกินหารตามสัดส่วนค่าอาหารที่เลือก',
+                              ? '*ส่วนเกิน/VAT หารเท่าเฉพาะคนที่กินจริง (คนไม่กินจ่าย 0)'
+                              : '*ส่วนเกิน/VAT หารตามสัดส่วนค่าอาหารที่เลือกกินจริง',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey.shade600,
@@ -714,18 +830,98 @@ class _SummaryScreenState extends State<SummaryScreen> {
                       ],
                     ),
                   ),
+
+                  // 🚀 3. แบนเนอร์ฉลองเมื่อทุกคนจ่ายครบ 100% แจ้งให้เจ้าของบิลมาปิดบิล
+                  if (allParticipantsPaid)
+                    Container(
+                      margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFE8F5E9), Color(0xFFC8E6C9)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.green.shade400, width: 1.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.green.withValues(alpha: 0.12),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF00AA5B),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.celebration, color: Colors.white, size: 24),
+                              ),
+                              const SizedBox(width: 12),
+                              const Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '🎉 สมาชิกทุกคนชำระเงินครบ 100% แล้ว!',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                        color: Color(0xFF1B5E20),
+                                      ),
+                                    ),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      'ยอดเงินครบตามบิลแล้ว เจ้าของบิลสามารถกดปิดบิลเสร็จสิ้นได้เลย',
+                                      style: TextStyle(fontSize: 12, color: Color(0xFF2E7D32)),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (_isCurrentUserHost) ...[
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF00AA5B),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                ),
+                                icon: const Icon(Icons.check_circle_outline, size: 18),
+                                label: const Text('แตะเพื่อปิดบิลนี้ทันที 🚀', style: TextStyle(fontWeight: FontWeight.bold)),
+                                onPressed: _isFinishing ? null : _saveAndFinish,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
                   const SizedBox(height: 16),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: SegmentedButton<String>(
                       segments: const [
                         ButtonSegment(
-                          value: 'equal',
-                          label: Text('หารส่วนเกินเท่ากัน'),
+                          value: 'proportional',
+                          icon: Icon(Icons.pie_chart_outline, size: 16),
+                          label: Text('หารตามที่กินจริง'),
                         ),
                         ButtonSegment(
-                          value: 'proportional',
-                          label: Text('หารตามสัดส่วนที่กิน'),
+                          value: 'equal',
+                          icon: Icon(Icons.people_outline, size: 16),
+                          label: Text('หารเท่าเฉพาะคนที่กิน'),
                         ),
                       ],
                       selected: {splitType},
@@ -737,15 +933,92 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
+
+                  // ⏰ 2. การ์ดระบบแจ้งเตือนทวงเงินอัตโนมัติ ทุกๆ 1 ชม.
+                  if (_isCurrentUserHost && !allParticipantsPaid && unpaidMembers.isNotEmpty)
+                    Container(
+                      margin: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.orange.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.schedule, color: Colors.orange.shade900, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'ระบบแจ้งเตือนสะกิดทุก 1 ชม. (${unpaidMembers.length} คนยังไม่จ่าย)',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: Colors.orange.shade900,
+                                  ),
+                                ),
+                              ),
+                              Switch.adaptive(
+                                value: _hourlyReminderEnabled,
+                                activeTrackColor: AppColors.primary.withValues(alpha: 0.5),
+                                activeThumbColor: AppColors.primary,
+                                onChanged: (val) {
+                                  setState(() => _hourlyReminderEnabled = val);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(val
+                                          ? 'เปิดระบบเตือนสะกิดทุก 1 ชม. สำหรับคนที่ยังไม่จ่ายแล้ว 🔔'
+                                          : 'ปิดการเตือนรายชั่วโมงแล้ว'),
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: const Color(0xFF06C755),
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size(double.infinity, 38),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            icon: const Icon(Icons.send, size: 16),
+                            label: Text('📢 สะกิดเพื่อนที่ยังไม่จ่ายทุกคนเข้า LINE (${unpaidMembers.length} คน)'),
+                            onPressed: () {
+                              final shopName = widget.receiptData['shop_name'] ?? 'ร้านอาหาร';
+                              final listNames = unpaidMembers
+                                  .map((uid) => '- ${userNames[uid] ?? 'เพื่อน'}: ฿${AppFormatters.formatCurrency(totalsByUser[uid] ?? 0)}')
+                                  .join('\n');
+                              final msg = '📢 สะกิดเตือนตี้บิล "$shopName" จ้า (เตือนอัตโนมัติทุก 1 ชม.)\n'
+                                  '🍲 สมาชิกที่มียอดค้างชำระ:\n$listNames\n'
+                                  '💳 พร้อมเพย์: $_hostPromptPay ($_hostName)\n'
+                                  '✨ โอนแล้วรบกวนส่งสลิปด้วยน้า ขอบคุณครับ/ค่ะ 🙏';
+                              SharePlus.instance.share(
+                                ShareParams(
+                                  title: 'สะกิดเตือนเพื่อนจ่ายเงิน',
+                                  text: msg,
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+
                   Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16.0),
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
                         _isCurrentUserHost
                             ? 'ยอดชำระและสถานะของเพื่อน'
                             : 'ส่วนแบ่งของคุณ',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
@@ -803,6 +1076,25 @@ class _SummaryScreenState extends State<SummaryScreen> {
                       ),
                       selectedUserName: selectedQrName,
                       amount: qrAmount,
+                      isPaid: selectedQrUserId != null && _isParticipantPaid(selectedQrUserId),
+                      onAttachSlip: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final picker = ImagePicker();
+                        final file = await picker.pickImage(source: ImageSource.gallery);
+                        if (file != null && mounted) {
+                          if (selectedQrUserId != null) {
+                            setState(() {
+                              _manualPaidStatus[selectedQrUserId] = true;
+                            });
+                          }
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text('แนบสลิปและบันทึกสถานะจ่ายแล้วให้ $selectedQrName แล้ว ✅'),
+                              backgroundColor: AppColors.success,
+                            ),
+                          );
+                        }
+                      },
                     ),
                   ],
 
@@ -812,7 +1104,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     // 🚀 ถ้าเป็น Host ถึงจะขึ้นปุ่มเซฟบิลสีเขียว ถ้าเป็น Guest จะเป็นปุ่ม "กลับหน้าแรก" เฉยๆ ไม่แตะฐานข้อมูล
                     child: CustomButton(
                       text: _isCurrentUserHost
-                          ? 'เสร็จสิ้นการหารบิล'
+                          ? (allParticipantsPaid ? 'ปิดบิลเสร็จสมบูรณ์ 🎉' : 'เสร็จสิ้นการหารบิล')
                           : 'กลับหน้าแรก',
                       backgroundColor: _isCurrentUserHost
                           ? AppColors.success

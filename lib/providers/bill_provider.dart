@@ -87,16 +87,24 @@ class BillProvider with ChangeNotifier {
     }
 
     final extraAmount = finalTotal - totalMenuValue;
-    final equalShareCount = itemTotalsByUser.length;
+    final activeEaterIds = itemTotalsByUser.entries
+        .where((entry) => entry.value > 0)
+        .map((entry) => entry.key)
+        .toSet();
+    final activeCount = activeEaterIds.isNotEmpty
+        ? activeEaterIds.length
+        : itemTotalsByUser.length;
+
     return {
       for (final entry in itemTotalsByUser.entries)
-        entry.key:
-            entry.value +
-            (splitType == 'equal'
-                ? (equalShareCount > 0 ? extraAmount / equalShareCount : 0)
-                : (totalMenuValue > 0
-                      ? extraAmount * entry.value / totalMenuValue
-                      : 0)),
+        entry.key: activeEaterIds.isNotEmpty && !activeEaterIds.contains(entry.key)
+            ? 0.0
+            : entry.value +
+                (splitType == 'equal'
+                    ? (activeCount > 0 ? extraAmount / activeCount : 0.0)
+                    : (totalMenuValue > 0
+                          ? extraAmount * entry.value / totalMenuValue
+                          : 0.0)),
     };
   }
 

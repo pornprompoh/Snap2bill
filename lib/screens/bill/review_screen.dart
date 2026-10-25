@@ -682,7 +682,16 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('โมเดลการหารบิล:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('การหาร VAT & Service Charge:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+                        Text(
+                          _splitModel == 'equal' ? 'หารเท่าเฉพาะคนที่กิน' : 'หารตามสัดส่วนที่กินจริง',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 6),
                     SizedBox(
                       width: double.infinity,
@@ -696,7 +705,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                           ButtonSegment<String>(
                             value: 'equal',
                             icon: Icon(Icons.people_outline, size: 16),
-                            label: Text('หารเท่าทุกคน', style: TextStyle(fontSize: 12)),
+                            label: Text('หารเท่าเฉพาะคนที่กิน', style: TextStyle(fontSize: 12)),
                           ),
                         ],
                         selected: {_splitModel},

@@ -6,9 +6,11 @@ import '../models/user_model.dart';
 import 'contact_provider.dart';
 import '../services/supabase_db_service.dart';
 import '../utils/validation.dart';
+import '../database/bill_repository.dart';
 
 class BillProvider with ChangeNotifier {
   final SupabaseDbService _dbService = SupabaseDbService();
+  final BillRepository _billRepository = BillRepository();
   ContactProvider? _contactProvider;
 
   void setContactProvider(ContactProvider contactProvider) {
@@ -260,7 +262,18 @@ class BillProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    _bills = await _dbService.getMyBills();
+    _bills = await _billRepository.getBills();
+    notifyListeners();
+
+    try {
+      await _billRepository.syncWithSupabase();
+      _bills = await _billRepository.getBills();
+    } catch (error) {
+      if (!isNetworkError(error)) rethrow;
+      debugPrint(
+        'โหลดบิลล่าสุดจากเซิร์ฟเวอร์ไม่สำเร็จ ใช้ข้อมูลออฟไลน์: $error',
+      );
+    }
 
     _isLoading = false;
     notifyListeners();
@@ -275,6 +288,7 @@ class BillProvider with ChangeNotifier {
     _isCreatingBill = true;
     try {
       final newBill = await _dbService.createBill(shopName, totalAmount);
+      await _billRepository.saveOrUpdateBill(newBill);
       _bills.insert(0, newBill);
       notifyListeners();
       return newBill;

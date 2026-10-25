@@ -1,4 +1,3 @@
-// coverage:ignore-file
 import 'package:hive_flutter/hive_flutter.dart';
 
 class CacheService {
@@ -7,7 +6,10 @@ class CacheService {
   static final CacheService instance = CacheService._();
 
   static const String _boxName = 'bills_cache';
-  static const String _recentBillsKey = 'recent_bills';
+  static const String authSessionKey = 'auth_session';
+  static const String currentUserProfileKey = 'current_user_profile';
+  static const String appSettingsKey = 'app_settings';
+  static const String themePreferenceKey = 'theme_preference';
 
   Box<dynamic>? _box;
   Future<void>? _initialization;
@@ -30,27 +32,41 @@ class CacheService {
     return box;
   }
 
-  Future<void> saveBills(List<Map<String, dynamic>> billsData) async {
-    await _initializedBox.put(
-      _recentBillsKey,
-      billsData.map((bill) => Map<String, dynamic>.from(bill)).toList(),
-    );
+  Future<void> setValue(String key, Object? value) async {
+    await _initializedBox.put(key, value);
   }
 
-  List<Map<String, dynamic>> getCachedBills() {
-    final cachedBills = _initializedBox.get(_recentBillsKey);
-    if (cachedBills is! Iterable) return [];
-
-    return cachedBills.whereType<Map>().map((bill) {
-      final normalizedBill = <String, dynamic>{};
-      for (final entry in bill.entries) {
-        if (entry.key is String) {
-          normalizedBill[entry.key as String] = entry.value;
-        }
-      }
-      return normalizedBill;
-    }).toList();
+  T? getValue<T>(String key) {
+    final value = _initializedBox.get(key);
+    return value is T ? value : null;
   }
+
+  Future<void> remove(String key) async {
+    await _initializedBox.delete(key);
+  }
+
+  Future<void> saveAuthSession(Map<String, dynamic> session) =>
+      setValue(authSessionKey, session);
+
+  Map<String, dynamic>? getAuthSession() =>
+      getValue<Map>(authSessionKey)?.cast<String, dynamic>();
+
+  Future<void> saveCurrentUserProfile(Map<String, dynamic> profile) =>
+      setValue(currentUserProfileKey, profile);
+
+  Map<String, dynamic>? getCurrentUserProfile() =>
+      getValue<Map>(currentUserProfileKey)?.cast<String, dynamic>();
+
+  Future<void> saveAppSettings(Map<String, dynamic> settings) =>
+      setValue(appSettingsKey, settings);
+
+  Map<String, dynamic>? getAppSettings() =>
+      getValue<Map>(appSettingsKey)?.cast<String, dynamic>();
+
+  Future<void> saveThemePreference(String preference) =>
+      setValue(themePreferenceKey, preference);
+
+  String? getThemePreference() => getValue<String>(themePreferenceKey);
 
   Future<void> clearCache() async {
     await _initializedBox.clear();

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 
 import '../database/app_database.dart';
 import '../models/bill_model.dart';
@@ -100,6 +101,7 @@ class BillRepository {
   }
 
   Future<void> cacheSupabaseBills(List<Map<String, dynamic>> rawBills) async {
+    if (kIsWeb) return;
     final companions = <CachedBillsCompanion>[];
     for (final bill in rawBills) {
       final id = bill['id']?.toString() ?? '';
@@ -134,12 +136,25 @@ class BillRepository {
       );
     }
     if (companions.isNotEmpty) {
-      await _database.cacheBills(companions);
+      try {
+        await _database.cacheBills(companions);
+      } catch (error, stackTrace) {
+        // A browser may not have the Drift WASM asset configured. Remote data
+        // must still be returned when the optional local cache is unavailable.
+        debugPrint('Unable to update local bill cache: $error\n$stackTrace');
+      }
     }
   }
 
   Future<List<Map<String, dynamic>>> getCachedBills() async {
-    final rows = await _database.getAllCachedBills();
+    if (kIsWeb) return [];
+    List<CachedBill> rows;
+    try {
+      rows = await _database.getAllCachedBills();
+    } catch (error, stackTrace) {
+      debugPrint('Unable to read local bill cache: $error\n$stackTrace');
+      return [];
+    }
     return rows.map((row) {
       dynamic receipt;
       if (row.receiptJson?.isNotEmpty == true) {

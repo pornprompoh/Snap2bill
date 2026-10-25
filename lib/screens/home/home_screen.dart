@@ -23,6 +23,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final BillRepository _localRepo = BillRepository();
 
   late Future<List<Map<String, dynamic>>> _billsFuture;
+  List<Map<String, dynamic>> _lastKnownBills = const [];
   bool _isCheckingRoom = false;
   String _historyFilter = 'all'; // 'unpaid', 'completed', 'all'
 
@@ -105,13 +106,15 @@ class _HomeScreenState extends State<HomeScreen> {
         return dateB.compareTo(dateA);
       });
 
+      _lastKnownBills = result;
       await _localRepo.cacheSupabaseBills(result);
       return result;
     } catch (e) {
       debugPrint('Error fetching bills from Supabase: $e');
+      if (_lastKnownBills.isNotEmpty) return _lastKnownBills;
       final cached = await _localRepo.getCachedBills();
       if (cached.isNotEmpty) return cached;
-      return [];
+      throw StateError('ไม่สามารถโหลดประวัติบิลได้ในขณะนี้');
     }
   }
 
@@ -245,6 +248,34 @@ class _HomeScreenState extends State<HomeScreen> {
                   key: ValueKey('loading_skeleton'),
                   padding: EdgeInsets.all(16.0),
                   child: _BillsLoadingSkeleton(),
+                ),
+              );
+            }
+
+            if (snapshot.hasError) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.cloud_off_outlined,
+                        size: 48,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'ไม่สามารถโหลดประวัติบิลได้',
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton(
+                        onPressed: _refreshBills,
+                        child: const Text('ลองใหม่'),
+                      ),
+                    ],
+                  ),
                 ),
               );
             }

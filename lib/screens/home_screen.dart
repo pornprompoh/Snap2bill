@@ -220,6 +220,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text('Snap2Bill'),
@@ -237,9 +238,13 @@ class _HomeScreenState extends State<HomeScreen> {
           future: _billsFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: _BillsLoadingSkeleton(),
+              return AnimatedSwitcher(
+                duration: const Duration(milliseconds: 180),
+                child: const Padding(
+                  key: ValueKey('loading_skeleton'),
+                  padding: EdgeInsets.all(16.0),
+                  child: _BillsLoadingSkeleton(),
+                ),
               );
             }
 
@@ -256,11 +261,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 '${now.year}-${now.month.toString().padLeft(2, '0')}';
 
             for (final b in bills) {
-              final amount =
-                  double.tryParse(
-                    (b['total_amount'] ?? b['sub_total'])?.toString() ?? '0',
-                  ) ??
-                  0.0;
+              final amount = BillModel.totalFromJson(b);
               final isSettled = _isBillSettled(b);
               final createdAt = b['created_at']?.toString() ?? '';
 
@@ -283,174 +284,319 @@ class _HomeScreenState extends State<HomeScreen> {
               return true;
             }).toList();
 
-            return SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 1. การ์ดสรุปยอดเงินค้างรับ & ยอดที่ทวงคืนสำเร็จเดือนนี้
-                  Row(
-                    children: [
-                      // ยอดค้างรับ
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Colors.orange.shade50,
-                                Colors.amber.shade50,
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
+            return AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              child: SingleChildScrollView(
+                key: const ValueKey('real_content'),
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 1. การ์ดสรุปยอดเงินค้างรับ & ยอดที่ทวงคืนสำเร็จเดือนนี้
+                    Row(
+                      children: [
+                        // ยอดค้างรับ
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.orange.shade50,
+                                  Colors.amber.shade50,
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(color: Colors.orange.shade200),
                             ),
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: Colors.orange.shade200),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.pending_actions,
-                                    size: 18,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.pending_actions,
+                                      size: 18,
+                                      color: Colors.orange.shade800,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'ยอดค้างรับ',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.orange.shade900,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  AppFormatters.formatCurrency(unpaidTotal),
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.orange.shade900,
+                                  ),
+                                ),
+                                Text(
+                                  'รอเก็บ $unpaidCount บิล',
+                                  style: TextStyle(
+                                    fontSize: 11,
                                     color: Colors.orange.shade800,
                                   ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'ยอดค้างรับ',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.orange.shade900,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                AppFormatters.formatCurrency(unpaidTotal),
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.orange.shade900,
                                 ),
-                              ),
-                              Text(
-                                'รอเก็บ $unpaidCount บิล',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.orange.shade800,
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      // ยอดทวงคืนสำเร็จเดือนนี้
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Colors.green.shade50,
-                                Colors.teal.shade50,
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
+                        const SizedBox(width: 12),
+                        // ยอดทวงคืนสำเร็จเดือนนี้
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.green.shade50,
+                                  Colors.teal.shade50,
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(color: Colors.green.shade200),
                             ),
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: Colors.green.shade200),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.check_circle_outline,
-                                    size: 18,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.check_circle_outline,
+                                      size: 18,
+                                      color: Colors.green.shade800,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'ทวงคืนสำเร็จเดือนนี้',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.green.shade900,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  AppFormatters.formatCurrency(
+                                    recoveredMonthlyTotal,
+                                  ),
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.green.shade900,
+                                  ),
+                                ),
+                                Text(
+                                  'ปิดยอด $recoveredMonthlyCount บิล',
+                                  style: TextStyle(
+                                    fontSize: 11,
                                     color: Colors.green.shade800,
                                   ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'ทวงคืนสำเร็จเดือนนี้',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.green.shade900,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                AppFormatters.formatCurrency(
-                                  recoveredMonthlyTotal,
                                 ),
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.green.shade900,
-                                ),
-                              ),
-                              Text(
-                                'ปิดยอด $recoveredMonthlyCount บิล',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.green.shade800,
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // 2. โดดเด่นด้วยการ์ด "สร้างบิลใหม่ (สแกนใบเสร็จ)" พร้อมสัญลักษณ์ Viewfinder
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [AppColors.primaryDark, AppColors.primary],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(22),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.3),
-                          blurRadius: 18,
-                          offset: const Offset(0, 8),
                         ),
                       ],
                     ),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            // สัญลักษณ์ Viewfinder โดดเด่น
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.35),
-                                  width: 2,
+                    const SizedBox(height: 16),
+
+                    // 2. โดดเด่นด้วยการ์ด "สร้างบิลใหม่ (สแกนใบเสร็จ)" พร้อมสัญลักษณ์ Viewfinder
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [AppColors.primaryDark, AppColors.primary],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(22),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                            blurRadius: 18,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              // สัญลักษณ์ Viewfinder โดดเด่น
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.35),
+                                    width: 2,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.crop_free, // Viewfinder symbol
+                                  size: 36,
+                                  color: Colors.white,
                                 ),
                               ),
-                              child: const Icon(
-                                Icons.crop_free, // Viewfinder symbol
-                                size: 36,
+                              const SizedBox(width: 14),
+                              const Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'สร้างบิลใหม่ (สแกนใบเสร็จ)',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      'AI อ่านข้อมูลถอดเมนูและราคาใน 2-3 วินาที',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.white70,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: () =>
+                                      _pickImageAndScan(ImageSource.camera),
+                                  icon: const Icon(Icons.camera_alt, size: 18),
+                                  label: const Text('เปิดกล้องถ่าย'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.white,
+                                    foregroundColor: AppColors.primaryDark,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: () =>
+                                      _pickImageAndScan(ImageSource.gallery),
+                                  icon: const Icon(
+                                    Icons.photo_library,
+                                    size: 18,
+                                  ),
+                                  label: const Text('เลือกจากอัลบั้ม'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.white,
+                                    side: const BorderSide(
+                                      color: Colors.white70,
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // 3. กล่องคำแนะนำเพื่อให้ AI อ่านแม่นยำที่สุด
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.amber.shade200),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.lightbulb_outline,
+                            size: 20,
+                            color: Colors.amber.shade900,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              '💡 คำแนะนำเพื่อให้ AI สแกนแม่นยำที่สุด: ถ่ายในที่แสงสว่างเพียงพอ วางใบเสร็จให้เรียบแบน และถ่ายให้เห็นยอดรวมชัดเจน',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.brown.shade800,
+                                height: 1.3,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // 4. เข้าร่วมห้องเพื่อนแบบด่วน
+                    InkWell(
+                      onTap: () => _showJoinRoomDialog(context),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.primaryContainer.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
                                 color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                Icons.login,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                             ),
                             const SizedBox(width: 14),
@@ -459,315 +605,183 @@ class _HomeScreenState extends State<HomeScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'สร้างบิลใหม่ (สแกนใบเสร็จ)',
+                                    'มีเพื่อนสร้างห้องไว้แล้ว?',
                                     style: TextStyle(
-                                      fontSize: 18,
+                                      fontSize: 15,
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.white,
                                     ),
                                   ),
-                                  SizedBox(height: 2),
                                   Text(
-                                    'AI อ่านข้อมูลถอดเมนูและราคาใน 2-3 วินาที',
+                                    'กรอกรหัส 6 หลักเพื่อเข้าร่วมตี้',
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.white70,
+                                      color: Colors.grey,
                                     ),
                                   ),
                                 ],
                               ),
                             ),
+                            const Icon(Icons.chevron_right, color: Colors.grey),
                           ],
                         ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: () =>
-                                    _pickImageAndScan(ImageSource.camera),
-                                icon: const Icon(Icons.camera_alt, size: 18),
-                                label: const Text('เปิดกล้องถ่าย'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: AppColors.primaryDark,
-                                  elevation: 0,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: () =>
-                                    _pickImageAndScan(ImageSource.gallery),
-                                icon: const Icon(Icons.photo_library, size: 18),
-                                label: const Text('เลือกจากอัลบั้ม'),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: Colors.white,
-                                  side: const BorderSide(color: Colors.white70),
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 14),
+                    const SizedBox(height: 24),
 
-                  // 3. กล่องคำแนะนำเพื่อให้ AI อ่านแม่นยำที่สุด
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.shade50,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: Colors.amber.shade200),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    // 5. Screen 6: History (หน้าประวัติบิล) พร้อมแยกหมวดชัดเจน
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Icon(
-                          Icons.lightbulb_outline,
-                          size: 20,
-                          color: Colors.amber.shade900,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            '💡 คำแนะนำเพื่อให้ AI สแกนแม่นยำที่สุด: ถ่ายในที่แสงสว่างเพียงพอ วางใบเสร็จให้เรียบแบน และถ่ายให้เห็นยอดรวมชัดเจน',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.brown.shade800,
-                              height: 1.3,
-                            ),
+                        Text('ประวัติการหารบิล', style: AppTextStyles.title),
+                        Text(
+                          'ทั้งหมด ${bills.length} บิล',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 8),
 
-                  // 4. เข้าร่วมห้องเพื่อนแบบด่วน
-                  InkWell(
-                    onTap: () => _showJoinRoomDialog(context),
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
+                    // ตัวเลือกหมวดหมู่แท็บ: "ยังเก็บไม่ครบ" | "เสร็จสมบูรณ์" | "ทั้งหมด"
+                    SizedBox(
                       width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.primaryContainer.withValues(alpha: 0.5),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.primary.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              Icons.login,
-                              color: Theme.of(context).colorScheme.primary,
+                      child: SegmentedButton<String>(
+                        segments: [
+                          ButtonSegment<String>(
+                            value: 'unpaid',
+                            icon: const Icon(Icons.schedule, size: 16),
+                            label: Text(
+                              'ยังไม่ครบ ($unpaidCount)',
+                              style: const TextStyle(fontSize: 12),
                             ),
                           ),
-                          const SizedBox(width: 14),
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'มีเพื่อนสร้างห้องไว้แล้ว?',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Text(
-                                  'กรอกรหัส 6 หลักเพื่อเข้าร่วมตี้',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ],
+                          ButtonSegment<String>(
+                            value: 'completed',
+                            icon: const Icon(
+                              Icons.check_circle_outline,
+                              size: 16,
+                            ),
+                            label: Text(
+                              'เสร็จสิ้น ($recoveredMonthlyCount)',
+                              style: const TextStyle(fontSize: 12),
                             ),
                           ),
-                          const Icon(Icons.chevron_right, color: Colors.grey),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // 5. Screen 6: History (หน้าประวัติบิล) พร้อมแยกหมวดชัดเจน
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('ประวัติการหารบิล', style: AppTextStyles.title),
-                      Text(
-                        'ทั้งหมด ${bills.length} บิล',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-
-                  // ตัวเลือกหมวดหมู่แท็บ: "ยังเก็บไม่ครบ" | "เสร็จสมบูรณ์" | "ทั้งหมด"
-                  SizedBox(
-                    width: double.infinity,
-                    child: SegmentedButton<String>(
-                      segments: [
-                        ButtonSegment<String>(
-                          value: 'unpaid',
-                          icon: const Icon(Icons.schedule, size: 16),
-                          label: Text(
-                            'ยังไม่ครบ ($unpaidCount)',
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                        ),
-                        ButtonSegment<String>(
-                          value: 'completed',
-                          icon: const Icon(
-                            Icons.check_circle_outline,
-                            size: 16,
-                          ),
-                          label: Text(
-                            'เสร็จสิ้น ($recoveredMonthlyCount)',
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                        ),
-                        const ButtonSegment<String>(
-                          value: 'all',
-                          label: Text(
-                            'ทั้งหมด',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                        ),
-                      ],
-                      selected: {_historyFilter},
-                      onSelectionChanged: (selection) {
-                        setState(() => _historyFilter = selection.first);
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // รายการบิล
-                  if (filteredBills.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(vertical: 40),
-                      alignment: Alignment.center,
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.inbox_outlined,
-                            size: 48,
-                            color: Colors.grey.shade400,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _historyFilter == 'unpaid'
-                                ? 'ไม่มีบิลที่ค้างชำระ ยอดเยี่ยมมาก! 🎉'
-                                : _historyFilter == 'completed'
-                                ? 'ยังไม่มีบิลที่ปิดยอดเสร็จสมบูรณ์'
-                                : 'ยังไม่มีประวัติบิล',
-                            style: const TextStyle(color: Colors.grey),
+                          const ButtonSegment<String>(
+                            value: 'all',
+                            label: Text(
+                              'ทั้งหมด',
+                              style: TextStyle(fontSize: 12),
+                            ),
                           ),
                         ],
+                        selected: {_historyFilter},
+                        onSelectionChanged: (selection) {
+                          setState(() => _historyFilter = selection.first);
+                        },
                       ),
-                    )
-                  else
-                    ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: filteredBills.length,
-                      itemBuilder: (context, index) {
-                        final bill = filteredBills[index];
-                        final shopName = bill['shop_name'] ?? 'ไม่ระบุชื่อร้าน';
-                        final totalAmount = BillModel.totalFromJson(bill);
-                        final date =
-                            bill['created_at']?.toString().split('T')[0] ?? '';
-                        final isSettled = _isBillSettled(bill);
+                    ),
+                    const SizedBox(height: 12),
 
-                        return Column(
+                    // รายการบิล
+                    if (filteredBills.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 40),
+                        alignment: Alignment.center,
+                        child: Column(
                           children: [
-                            Hero(
-                              tag: 'bill_${bill['id']}',
-                              child: Material(
-                                type: MaterialType.transparency,
-                                child: BillCard(
-                                  shopName: shopName,
-                                  totalAmount: totalAmount,
-                                  dateText: date,
-                                  status: isSettled ? 'completed' : 'pending',
-                                  onTap: () => Navigator.pushNamed(
-                                    context,
-                                    AppRoutes.detail,
-                                    arguments: bill,
-                                  ),
-                                ),
-                              ),
+                            Icon(
+                              Icons.inbox_outlined,
+                              size: 48,
+                              color: Colors.grey.shade400,
                             ),
-                            // ถ้ายังเป็นบิลค้างรับ มีปุ่มสะกิดเตือนเพื่อน
-                            if (!isSettled)
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                  top: 0,
-                                  bottom: 8,
-                                ),
-                                child: Align(
-                                  alignment: Alignment.centerRight,
-                                  child: OutlinedButton.icon(
-                                    style: OutlinedButton.styleFrom(
-                                      visualDensity: VisualDensity.compact,
-                                      foregroundColor: Colors.orange.shade900,
-                                      side: BorderSide(
-                                        color: Colors.orange.shade300,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                    ),
-                                    onPressed: () => _pokeFriends(bill),
-                                    icon: const Icon(
-                                      Icons.notifications_active_outlined,
-                                      size: 15,
-                                    ),
-                                    label: const Text(
-                                      'สะกิดเตือนเพื่อน 🔔',
-                                      style: TextStyle(fontSize: 12),
+                            const SizedBox(height: 8),
+                            Text(
+                              _historyFilter == 'unpaid'
+                                  ? 'ไม่มีบิลที่ค้างชำระ ยอดเยี่ยมมาก! 🎉'
+                                  : _historyFilter == 'completed'
+                                  ? 'ยังไม่มีบิลที่ปิดยอดเสร็จสมบูรณ์'
+                                  : 'ยังไม่มีประวัติบิล',
+                              style: const TextStyle(color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: filteredBills.length,
+                        itemBuilder: (context, index) {
+                          final bill = filteredBills[index];
+                          final shopName =
+                              bill['shop_name'] ?? 'ไม่ระบุชื่อร้าน';
+                          final totalAmount = BillModel.totalFromJson(bill);
+                          final date =
+                              bill['created_at']?.toString().split('T')[0] ??
+                              '';
+                          final isSettled = _isBillSettled(bill);
+
+                          return Column(
+                            children: [
+                              Hero(
+                                tag: 'bill_${bill['id']}',
+                                child: Material(
+                                  type: MaterialType.transparency,
+                                  child: BillCard(
+                                    shopName: shopName,
+                                    totalAmount: totalAmount,
+                                    dateText: date,
+                                    status: isSettled ? 'completed' : 'pending',
+                                    onTap: () => Navigator.pushNamed(
+                                      context,
+                                      AppRoutes.detail,
+                                      arguments: bill,
                                     ),
                                   ),
                                 ),
                               ),
-                          ],
-                        );
-                      },
-                    ),
-                ],
+                              // ถ้ายังเป็นบิลค้างรับ มีปุ่มสะกิดเตือนเพื่อน
+                              if (!isSettled)
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    top: 0,
+                                    bottom: 8,
+                                  ),
+                                  child: Align(
+                                    alignment: Alignment.centerRight,
+                                    child: OutlinedButton.icon(
+                                      style: OutlinedButton.styleFrom(
+                                        visualDensity: VisualDensity.compact,
+                                        foregroundColor: Colors.orange.shade900,
+                                        side: BorderSide(
+                                          color: Colors.orange.shade300,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                        ),
+                                      ),
+                                      onPressed: () => _pokeFriends(bill),
+                                      icon: const Icon(
+                                        Icons.notifications_active_outlined,
+                                        size: 15,
+                                      ),
+                                      label: const Text(
+                                        'สะกิดเตือนเพื่อน 🔔',
+                                        style: TextStyle(fontSize: 12),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          );
+                        },
+                      ),
+                  ],
+                ),
               ),
             );
           },
@@ -819,62 +833,65 @@ class _BillsLoadingSkeletonState extends State<_BillsLoadingSkeleton>
           padding: const EdgeInsets.only(top: 4, bottom: 12),
           itemCount: 4,
           separatorBuilder: (context, index) => const SizedBox(height: 10),
-          itemBuilder: (context, index) => Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Row(
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: pulseColor,
-                    borderRadius: BorderRadius.circular(14),
+          itemBuilder: (context, index) => SizedBox(
+            height: 106,
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: pulseColor,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        width: index.isEven ? 148 : 118,
-                        height: 14,
-                        decoration: BoxDecoration(
-                          color: pulseColor,
-                          borderRadius: BorderRadius.circular(8),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          width: index.isEven ? 148 : 118,
+                          height: 14,
+                          decoration: BoxDecoration(
+                            color: pulseColor,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 9),
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        width: 84,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: pulseColor,
-                          borderRadius: BorderRadius.circular(8),
+                        const SizedBox(height: 9),
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          width: 84,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: pulseColor,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  width: 68,
-                  height: 15,
-                  decoration: BoxDecoration(
-                    color: pulseColor,
-                    borderRadius: BorderRadius.circular(8),
+                  const SizedBox(width: 12),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    width: 68,
+                    height: 15,
+                    decoration: BoxDecoration(
+                      color: pulseColor,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );

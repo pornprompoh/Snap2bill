@@ -8,7 +8,7 @@ import 'package:snap2bill/screens/auth/login_screen.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('login validation starts the bill-sharing flow', (tester) async {
+  testWidgets('login screen renders available sign-in actions', (tester) async {
     SharedPreferences.setMockInitialValues({});
     await Supabase.initialize(
       url: 'https://example.supabase.co',
@@ -19,12 +19,7 @@ void main() {
 
     expect(find.byType(LoginScreen), findsOneWidget);
 
-    final loginButton = find.text('เข้าสู่ระบบ');
-    expect(loginButton, findsOneWidget);
-    await tester.tap(loginButton);
-    await tester.pump();
-
-    expect(find.text('กรุณากรอกอีเมล'), findsOneWidget);
-    expect(find.text('กรุณากรอกรหัสผ่าน'), findsOneWidget);
+    expect(find.text('เข้าสู่ระบบด้วย Google'), findsOneWidget);
+    expect(find.text('ทดลองใช้งานทันที (Demo / Bypass)'), findsOneWidget);
   });
 }

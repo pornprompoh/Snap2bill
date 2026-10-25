@@ -34,6 +34,13 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Create dummy .env file
+        run: |
+          touch .env
+          echo "SUPABASE_URL=https://dummy.supabase.co" >> .env
+          echo "SUPABASE_ANON_KEY=dummy_key" >> .env
+          echo "GEMINI_API_KEY=dummy_key" >> .env
+
       - name: Analyze
         run: flutter analyze
 

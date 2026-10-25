@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../providers/bill_provider.dart';
 import '../routes/app_routes.dart';
+import '../services/cache_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/bill_card.dart';
@@ -29,6 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<List<Map<String, dynamic>>> _fetchMyBills() async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return [];
+    final billProvider = context.read<BillProvider>();
 
     try {
       // 1. ดึงบิลที่ฉันเป็นเจ้าของ (Host)
@@ -70,10 +74,16 @@ class _HomeScreenState extends State<HomeScreen> {
         return dateB.compareTo(dateA);
       });
 
+      billProvider.setOffline(false);
+      await CacheService.instance.saveBills(result);
       return result;
-    } catch (e) {
-      debugPrint('Error fetching bills: $e');
-      return [];
+    } catch (error, stackTrace) {
+      if (BillProvider.isNetworkError(error)) {
+        billProvider.setOffline(true);
+        return CacheService.instance.getCachedBills();
+      }
+      debugPrint('Error fetching bills: $error\n$stackTrace');
+      rethrow;
     }
   }
 
@@ -197,6 +207,29 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Consumer<BillProvider>(
+                builder: (context, billProvider, _) {
+                  if (!billProvider.isOffline) {
+                    return const SizedBox.shrink();
+                  }
+                  return Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary.withValues(alpha: 0.45),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Text(
+                      'กำลังแสดงข้อมูลออฟไลน์จากแคช',
+                      style: TextStyle(color: AppColors.textPrimary),
+                    ),
+                  );
+                },
+              ),
               InkWell(
                 onTap: () => _showJoinRoomDialog(context),
                 child: Container(

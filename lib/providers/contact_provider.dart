@@ -14,9 +14,6 @@ class ContactProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  static bool isSameContactName(String first, String second) =>
-      first.trim().toLowerCase() == second.trim().toLowerCase();
-
   Future<void> loadContacts() async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) {
@@ -58,8 +55,9 @@ class ContactProvider extends ChangeNotifier {
         .from('saved_contacts')
         .select('id, name, user_id, note, created_at')
         .eq('user_id', userId);
+    final normalizedName = trimmedName.toLowerCase();
     if (existingRows.any(
-      (row) => isSameContactName(row['name']?.toString() ?? '', trimmedName),
+      (row) => row['name']?.toString().trim().toLowerCase() == normalizedName,
     )) {
       return;
     }
@@ -91,4 +89,5 @@ class ContactProvider extends ChangeNotifier {
     _contacts = _contacts.where((contact) => contact.id != id).toList();
     notifyListeners();
   }
+
 }

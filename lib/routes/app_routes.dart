@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'dart:typed_data';
 
 import '../screens/auth/login_screen.dart';
-import '../screens/scan_screen.dart';
+import '../screens/bill/scan_screen.dart';
 import '../screens/loading_screen.dart';
-import '../screens/review_screen.dart';
-import '../screens/lobby_screen.dart';
-import '../screens/claim_screen.dart';
-import '../screens/summary_screen.dart';
+import '../screens/bill/review_screen.dart';
+import '../screens/bill/lobby_screen.dart';
+import '../screens/bill/claim_screen.dart';
+import '../screens/bill/summary_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/friends/friend_list_screen.dart';
 import '../screens/detail_screen.dart';
@@ -43,7 +43,10 @@ class AppRoutes {
       case profile:
         return MaterialPageRoute(builder: (_) => const ProfileScreen());
       case friends:
-        return MaterialPageRoute(builder: (_) => const FriendListScreen());
+        final selectionMode = settings.arguments == true;
+        return MaterialPageRoute(
+          builder: (_) => FriendListScreen(selectionMode: selectionMode),
+        );
 
       case detail:
         final billData = settings.arguments as Map<String, dynamic>? ?? {};
@@ -114,6 +117,10 @@ class AppRoutes {
             lobbyId: args['lobbyId']?.toString() ?? '',
             receiptData: args['receiptData'] ?? {},
             itemSharers: args['itemSharers'] ?? {},
+            roomParticipants: (args['roomParticipants'] as List<dynamic>? ?? [])
+                .whereType<Map>()
+                .map((participant) => Map<String, dynamic>.from(participant))
+                .toList(),
             receiptImageBytes: args['receiptImageBytes'] as Uint8List?,
             isHost: args['isHost'] ?? true, // 🚀 เพิ่มรับค่า isHost
           ),

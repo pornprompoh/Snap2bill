@@ -160,4 +160,34 @@ void main() {
     expect(bill.toJson()['final_total'], 125);
     expect(bill.toJson()['split_type'], 'equal');
   });
+
+  test('parses total aliases and numeric strings safely', () {
+    final bill = BillModel.fromJson({
+      'id': 'bill-2',
+      'owner_id': 'user-1',
+      'total': '795.00',
+    });
+
+    expect(bill.totalAmount, 795);
+    expect(bill.finalTotal, 795);
+    expect(BillModel.totalFromJson({'net_amount': '฿795.00'}), 795);
+  });
+
+  test('falls back to receipt JSON and item totals', () {
+    expect(
+      BillModel.totalFromJson({
+        'receipt_json': {'final_total': 795},
+      }),
+      795,
+    );
+    expect(
+      BillModel.totalFromJson({
+        'items': [
+          {'unit_price': 250, 'qty': 3},
+          {'price': '45.00', 'quantity': 1},
+        ],
+      }),
+      795,
+    );
+  });
 }

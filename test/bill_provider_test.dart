@@ -32,6 +32,18 @@ void main() {
         BillProvider.calculateVat(subtotal: 200, rate: 7),
         closeTo(14, 0.001),
       );
+      expect(BillProvider.calculateCharge(subtotal: 200, rate: 0), 0);
+      expect(
+        () => BillProvider.calculateVat(subtotal: 200, rate: -1),
+        throwsArgumentError,
+      );
+      expect(
+        () => BillProvider.calculateServiceCharge(
+          subtotal: 200,
+          rate: double.nan,
+        ),
+        throwsArgumentError,
+      );
       expect(
         BillProvider.calculateServiceCharge(subtotal: 200, rate: 10),
         closeTo(20, 0.001),

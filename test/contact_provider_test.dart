@@ -44,5 +44,28 @@ void main() {
         throwsStateError,
       );
     });
+
+    test(
+      'rejects deleting and updating a contact without authentication',
+      () async {
+        final provider = ContactProvider();
+        await expectLater(
+          provider.deleteContact('contact-1'),
+          throwsStateError,
+        );
+        await expectLater(
+          provider.updateContact(id: 'contact-1', name: 'Bob'),
+          throwsStateError,
+        );
+      },
+    );
+
+    test('rejects invalid contact updates', () async {
+      final provider = ContactProvider();
+      await expectLater(
+        provider.updateContact(id: 'contact-1', name: ''),
+        throwsStateError,
+      );
+    });
   });
 }

@@ -40,7 +40,8 @@ class UserModel {
     );
   }
 
-  factory UserModel.fromJson(Map<String, dynamic> json) => UserModel.fromMap(json);
+  factory UserModel.fromJson(Map<String, dynamic> json) =>
+      UserModel.fromMap(json);
 
   static Map<String, dynamic>? _parsePaymentInfo(dynamic value) {
     if (value is Map) return Map<String, dynamic>.from(value);

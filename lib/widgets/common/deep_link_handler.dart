@@ -5,8 +5,8 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../routes/app_routes.dart';
-import '../services/supabase_auth_service.dart';
+import 'package:snap2bill/routes/app_routes.dart';
+import 'package:snap2bill/services/supabase_auth_service.dart';
 
 class DeepLinkHandler extends StatefulWidget {
   final Widget child;
@@ -71,10 +71,6 @@ class _DeepLinkHandlerState extends State<DeepLinkHandler> {
   }
 
   void _handleIncomingLink(Uri uri) {
-    if (uri.scheme == 'io.supabase.snap2bill' && uri.host == 'login-callback') {
-      return;
-    }
-
     final roomCode = _roomCodeFromUri(uri);
     if (roomCode == null || !RegExp(r'^\d{6}$').hasMatch(roomCode)) {
       _showLinkMessage('ลิงก์เข้าห้องไม่ถูกต้อง');

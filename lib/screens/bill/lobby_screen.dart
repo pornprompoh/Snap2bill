@@ -12,9 +12,8 @@ import '../../../providers/bill_provider.dart';
 import '../../../routes/app_routes.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
-import '../../../widgets/custom_button.dart';
+import '../../widgets/common/custom_button.dart';
 import '../../../widgets/bill/guest_dialog.dart';
-import '../../../widgets/friend_item.dart';
 
 class LobbyScreen extends StatefulWidget {
   final String? lobbyId;
@@ -342,11 +341,28 @@ class _LobbyScreenState extends State<LobbyScreen> {
     ).showSnackBar(const SnackBar(content: Text('คัดลอกลิงก์เข้าห้องแล้ว')));
   }
 
+  Future<void> _shareToLine() async {
+    final shop = widget.receiptData?['shop_name'] ?? 'โต๊ะนี้';
+    final message =
+        '🍲 เข้าตี้หารบิลร้าน $shop กัน!\n'
+        '📲 แตะลิงก์เพื่อเข้าห้องทันที: $_joinLink\n'
+        '🔢 หรือใส่รหัส 6 หลัก: $_roomId\n'
+        '✨ ไม่ต้องโหลดแอป เปิดผ่านเบราว์เซอร์แล้วจิ้มอาหารได้เลย!';
+    await SharePlus.instance.share(
+      ShareParams(title: 'แชร์เข้ากลุ่ม LINE', text: message),
+    );
+  }
+
   Future<void> _shareJoinLink() async {
+    final shop = widget.receiptData?['shop_name'] ?? 'โต๊ะนี้';
     await SharePlus.instance.share(
       ShareParams(
         title: 'เข้าร่วมห้อง Snap2Bill',
-        text: 'สแกนหรือเปิดลิงก์เพื่อเข้าร่วมห้อง $_roomId\n$_joinLink',
+        text:
+            '🍲 มาหารบิล $shop กัน!\n'
+            '📲 แตะลิงก์เข้าร่วมห้อง: $_joinLink\n'
+            '🔢 หรือกรอกรหัสห้อง: $_roomId\n'
+            '(เปิดเว็บเข้าหารได้ทันที ไม่ต้องโหลดแอป)',
       ),
     );
   }
@@ -361,21 +377,22 @@ class _LobbyScreenState extends State<LobbyScreen> {
         .firstOrNull;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('รอเพื่อนเข้าห้อง (Lobby)')),
+      appBar: AppBar(title: const Text('Lobby (ชวนเพื่อนเข้าห้อง)')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
+            // การ์ด QR Code ขนาดใหญ่ พร้อมรหัสห้อง
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
               decoration: BoxDecoration(
                 color: AppColors.surface,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: AppColors.border),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primaryDark.withValues(alpha: 0.06),
+                    color: AppColors.primaryDark.withValues(alpha: 0.07),
                     blurRadius: 22,
                     offset: const Offset(0, 8),
                   ),
@@ -383,24 +400,36 @@ class _LobbyScreenState extends State<LobbyScreen> {
               ),
               child: Column(
                 children: [
-                  Text('สแกนเพื่อเข้าร่วมห้อง', style: AppTextStyles.title),
+                  Text('สแกน QR เพื่อเข้าร่วมโต๊ะ', style: AppTextStyles.title),
                   const SizedBox(height: 4),
                   Text(
-                    'แชร์ลิงก์หรือให้เพื่อนกรอกรหัสห้อง',
-                    style: AppTextStyles.caption,
+                    'เพื่อนเปิดกล้องสแกนเข้าร่วมได้ทันทีโดยไม่ต้องติดตั้งแอป',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.border),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: AppColors.border.withValues(alpha: 0.8),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: QrImageView(
                       data: _joinLink,
                       version: QrVersions.auto,
-                      size: 188,
+                      size: 210,
                       eyeStyle: const QrEyeStyle(
                         eyeShape: QrEyeShape.square,
                         color: AppColors.primaryDark,
@@ -412,23 +441,26 @@ class _LobbyScreenState extends State<LobbyScreen> {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  Text('รหัสห้อง', style: AppTextStyles.caption),
-                  const SizedBox(height: 3),
+                  Text('รหัสห้อง 6 หลัก', style: AppTextStyles.caption),
+                  const SizedBox(height: 4),
                   SelectableText(
                     _roomId,
                     style: AppTextStyles.headline.copyWith(
                       color: AppColors.primaryDark,
-                      fontSize: 32,
-                      letterSpacing: 4,
+                      fontSize: 34,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 6,
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
+
+                  // 3 ปุ่มหลัก: คัดลอกลิงก์ | แชร์เข้ากลุ่ม LINE | แชร์อื่นๆ
                   Row(
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: _copyJoinLink,
-                          icon: const Icon(Icons.copy_outlined),
+                          icon: const Icon(Icons.copy_outlined, size: 18),
                           label: const Text('คัดลอกลิงก์'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppColors.primary,
@@ -440,15 +472,17 @@ class _LobbyScreenState extends State<LobbyScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: FilledButton.icon(
-                          onPressed: _shareJoinLink,
-                          icon: const Icon(Icons.share_outlined),
-                          label: const Text('แชร์ห้อง'),
+                          onPressed: _shareToLine,
+                          icon: const Icon(Icons.share, size: 18),
+                          label: const Text('แชร์เข้า LINE'),
                           style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: AppColors.surface,
+                            backgroundColor: const Color(
+                              0xFF06C755,
+                            ), // LINE Green
+                            foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -456,23 +490,64 @@ class _LobbyScreenState extends State<LobbyScreen> {
                           ),
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      IconButton.outlined(
+                        onPressed: _shareJoinLink,
+                        tooltip: 'แชร์ผ่านแอปอื่น',
+                        icon: const Icon(Icons.more_horiz),
+                      ),
                     ],
                   ),
+                  if (_isHost) ...[
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton.icon(
+                            onPressed: _addGuestMember,
+                            icon: const Icon(Icons.person_add_alt_1, size: 18),
+                            label: const Text('พิมพ์ชื่อเพื่อนเอง'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppColors.primary,
+                              backgroundColor: AppColors.secondary.withValues(
+                                alpha: 0.3,
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton.filledTonal(
+                          onPressed: _selectPastParticipants,
+                          tooltip: 'เลือกจากประวัติเพื่อนเก่า',
+                          icon: const Icon(Icons.contacts_outlined, size: 18),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
             const SizedBox(height: 20),
+
+            // ส่วนแสดงรายชื่อผู้เข้าร่วมและสถานะแบบ Real-time
             Row(
               children: [
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('สมาชิกในห้อง', style: AppTextStyles.title),
+                      Text(
+                        'ผู้เข้าร่วมในห้อง (Real-time)',
+                        style: AppTextStyles.title,
+                      ),
                       Text(
                         hostName == null
-                            ? '${roomParticipants.length} คนกำลังเข้าร่วม'
-                            : 'หัวหน้าห้อง: $hostName',
+                            ? '${roomParticipants.length} คนอยู่ในห้อง'
+                            : 'เจ้ามือ: $hostName',
                         style: AppTextStyles.caption,
                       ),
                     ],
@@ -480,80 +555,194 @@ class _LobbyScreenState extends State<LobbyScreen> {
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 11,
-                    vertical: 7,
+                    horizontal: 12,
+                    vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.secondary.withValues(alpha: 0.55),
+                    color: Colors.green.shade50,
                     borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.green.shade200),
                   ),
-                  child: Text(
-                    '${roomParticipants.length} คน',
-                    style: const TextStyle(
-                      color: AppColors.primaryDark,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${roomParticipants.length} คน',
+                        style: const TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                if (_isHost)
-                  IconButton(
-                    tooltip: 'ดึงเพื่อนเก่าเข้าห้อง',
-                    onPressed: _selectPastParticipants,
-                    color: AppColors.primary,
-                    icon: const Icon(Icons.person_add_alt_1),
-                  ),
               ],
             ),
-            if (_isHost)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: OutlinedButton.icon(
-                  onPressed: _addGuestMember,
-                  icon: const Icon(Icons.person_add_alt),
-                  label: const Text('+ เพิ่มเพื่อนที่ไม่มีแอป'),
-                ),
-              ),
-            const SizedBox(height: 10),
-            SizedBox(
-              height: 82,
-              child: Align(
-                alignment: Alignment.topLeft,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: roomParticipants.map((user) {
-                      final userId = user['user_id']?.toString();
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: FriendAvatar(
-                          name:
-                              '${user['user_name']?.toString() ?? 'เพื่อน'}'
-                              '${user['is_guest'] == true ? ' (Guest)' : ''}',
-                          isHost: user['is_host'] == true,
-                          isCurrentUser: userId == _currentUserId,
-                          isInvited: user['is_invited'] == true,
-                        ),
-                      );
-                    }).toList(),
+            const SizedBox(height: 12),
+
+            // รายชื่อเพื่อนแบบ Real-time Card พร้อมสถานะ
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: roomParticipants.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final user = roomParticipants[index];
+                final userId = user['user_id']?.toString();
+                final userName = user['user_name']?.toString() ?? 'เพื่อน';
+                final isHostUser = user['is_host'] == true;
+                final isGuestUser = user['is_guest'] == true;
+                final isSelf = userId == _currentUserId;
+
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
                   ),
-                ),
-              ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isSelf
+                          ? AppColors.primary.withValues(alpha: 0.5)
+                          : AppColors.border,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundColor: isHostUser
+                            ? Colors.amber.shade100
+                            : AppColors.secondary.withValues(alpha: 0.8),
+                        child: Text(
+                          userName.isNotEmpty ? userName[0].toUpperCase() : '?',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: isHostUser
+                                ? Colors.amber.shade900
+                                : AppColors.primaryDark,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  userName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                if (isSelf)
+                                  const Text(
+                                    ' (คุณ)',
+                                    style: TextStyle(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            Text(
+                              isHostUser
+                                  ? '👑 เจ้าของห้อง (กำลังคุมตี้)'
+                                  : isGuestUser
+                                  ? '👤 ไม่มีแอป (เจ้ามือช่วยจิ้ม)'
+                                  : '🟢 กำลังเตรียมเลือกอาหาร',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isHostUser
+                                    ? Colors.amber.shade800
+                                    : isGuestUser
+                                    ? Colors.grey.shade600
+                                    : Colors.green.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isHostUser
+                              ? Colors.amber.shade50
+                              : Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isHostUser
+                                ? Colors.amber.shade200
+                                : Colors.green.shade200,
+                          ),
+                        ),
+                        child: Text(
+                          isHostUser ? 'เจ้ามือ' : 'พร้อมจิ้ม ✨',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: isHostUser
+                                ? Colors.amber.shade900
+                                : Colors.green.shade800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
+
+            const SizedBox(height: 16),
             if (_isHost)
-              Padding(
-                padding: const EdgeInsets.only(top: 12, bottom: 8),
-                child: CustomButton(
-                  text: 'เพื่อนครบแล้ว เริ่มแย่งเมนูเลย!',
-                  onPressed: _startClaiming,
-                ),
+              CustomButton(
+                text: 'เพื่อนครบแล้ว เริ่มจิ้มอาหารเลย! ✨',
+                onPressed: _startClaiming,
               )
             else
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16.0),
-                child: Text(
-                  'กำลังรอหัวหน้าห้องกดเริ่ม...',
-                  style: TextStyle(color: Colors.grey, fontSize: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 12),
+                    Text(
+                      'รอเจ้ามือกดเริ่มจิ้มอาหาร...',
+                      style: TextStyle(
+                        color: Colors.blue,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
           ],

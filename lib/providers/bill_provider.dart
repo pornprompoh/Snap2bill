@@ -3,13 +3,14 @@ import 'package:flutter/material.dart';
 
 import '../models/bill_model.dart';
 import '../models/user_model.dart';
-import '../services/cache_service.dart';
 import 'contact_provider.dart';
 import '../services/supabase_db_service.dart';
 import '../utils/validation.dart';
+import '../repositories/bill_repository.dart';
 
 class BillProvider with ChangeNotifier {
   final SupabaseDbService _dbService = SupabaseDbService();
+  final BillRepository _billRepository = BillRepository();
   ContactProvider? _contactProvider;
 
   void setContactProvider(ContactProvider contactProvider) {
@@ -21,7 +22,6 @@ class BillProvider with ChangeNotifier {
   final List<UserModel> _roomParticipants = [];
   final List<RoomMember> _roomMembers = [];
   bool _isLoading = false;
-  bool _isOffline = false;
   bool _isCreatingBill = false;
   String _splitType = 'proportional';
   String? _currentClaimingUserId;
@@ -32,14 +32,7 @@ class BillProvider with ChangeNotifier {
   String get currentClaimingUserId =>
       _currentClaimingUserId ?? _dbService.currentUserId ?? '';
   bool get isLoading => _isLoading;
-  bool get isOffline => _isOffline;
   String get splitType => _splitType;
-
-  void setOffline(bool value) {
-    if (_isOffline == value) return;
-    _isOffline = value;
-    notifyListeners();
-  }
 
   static bool isNetworkError(Object error) {
     final errorType = error.runtimeType.toString().toLowerCase();
@@ -267,30 +260,23 @@ class BillProvider with ChangeNotifier {
   // ดึงประวัติบิลของเรามาแสดง
   Future<void> loadMyBills() async {
     _isLoading = true;
+    notifyListeners();
+
+    _bills = await _billRepository.getBills();
+    notifyListeners();
+
     try {
-      _bills = CacheService.instance
-          .getCachedBills()
-          .map(BillModel.fromJson)
-          .toList();
-      notifyListeners();
-
-      try {
-        final freshBills = await _dbService.getMyBills();
-        setOffline(false);
-        _bills = freshBills;
-        notifyListeners();
-
-        await CacheService.instance.saveBills(
-          freshBills.map((bill) => bill.toJson()).toList(),
-        );
-      } catch (error) {
-        if (!isNetworkError(error)) rethrow;
-        setOffline(true);
-      }
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+      await _billRepository.syncWithSupabase();
+      _bills = await _billRepository.getBills();
+    } catch (error) {
+      if (!isNetworkError(error)) rethrow;
+      debugPrint(
+        'โหลดบิลล่าสุดจากเซิร์ฟเวอร์ไม่สำเร็จ ใช้ข้อมูลออฟไลน์: $error',
+      );
     }
+
+    _isLoading = false;
+    notifyListeners();
   }
 
   // สร้างบิลใหม่ แล้วยัดใส่บนสุดของลิสต์ให้ผู้ใช้เห็นทันที
@@ -302,6 +288,7 @@ class BillProvider with ChangeNotifier {
     _isCreatingBill = true;
     try {
       final newBill = await _dbService.createBill(shopName, totalAmount);
+      await _billRepository.saveOrUpdateBill(newBill);
       _bills.insert(0, newBill);
       notifyListeners();
       return newBill;

@@ -765,7 +765,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               PageRouteBuilder<void>(
                                 pageBuilder:
                                     (context, animation, secondaryAnimation) =>
-                                        DetailScreen(billData: bill),
+                                        BillDetailScreen(billData: bill),
                                 transitionDuration: Duration.zero,
                                 reverseTransitionDuration: Duration.zero,
                               ),

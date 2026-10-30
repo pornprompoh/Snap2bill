@@ -112,16 +112,17 @@ class BillProvider with ChangeNotifier {
     }
 
     final extraAmount = finalTotal - totalMenuValue;
-    final equalShareCount = itemTotalsByUser.length;
+    final participantCount = itemTotalsByUser.length;
+
     return {
       for (final entry in itemTotalsByUser.entries)
         entry.key:
             entry.value +
             (splitType == 'equal'
-                ? (equalShareCount > 0 ? extraAmount / equalShareCount : 0)
+                ? (participantCount > 0 ? extraAmount / participantCount : 0.0)
                 : (totalMenuValue > 0
                       ? extraAmount * entry.value / totalMenuValue
-                      : 0)),
+                      : 0.0)),
     };
   }
 

@@ -6,43 +6,65 @@ class CacheService {
   static final CacheService instance = CacheService._();
 
   static const String _boxName = 'bills_cache';
+  static const String _billsKey = 'cached_bills';
   static const String authSessionKey = 'auth_session';
   static const String currentUserProfileKey = 'current_user_profile';
   static const String appSettingsKey = 'app_settings';
   static const String themePreferenceKey = 'theme_preference';
 
+  final List<Map<String, dynamic>> _cachedBills = [];
   Box<dynamic>? _box;
-  Future<void>? _initialization;
 
-  Future<void> init() {
-    return _initialization ??= _initialize();
-  }
+  Future<void> init() async {
+    if (_box?.isOpen == true) return;
+    _box = Hive.isBoxOpen(_boxName)
+        ? Hive.box<dynamic>(_boxName)
+        : await Hive.openBox<dynamic>(_boxName);
 
-  Future<void> _initialize() async {
-    _box = await Hive.openBox<dynamic>(_boxName);
-  }
-
-  Box<dynamic> get _initializedBox {
-    final box = _box;
-    if (box == null || !box.isOpen) {
-      throw StateError(
-        'CacheService.init() must be called before using the cache.',
-      );
+    final storedBills = _box!.get(_billsKey);
+    if (storedBills is List) {
+      _cachedBills
+        ..clear()
+        ..addAll(
+          storedBills.whereType<Map>().map(
+            (bill) => Map<String, dynamic>.from(bill),
+          ),
+        );
     }
-    return box;
   }
 
   Future<void> setValue(String key, Object? value) async {
-    await _initializedBox.put(key, value);
+    await init();
+    await _box!.put(key, value);
   }
 
   T? getValue<T>(String key) {
-    final value = _initializedBox.get(key);
+    final value = _box?.get(key);
     return value is T ? value : null;
   }
 
+  Future<void> saveBills(List<Map<String, dynamic>> billsData) async {
+    _cachedBills
+      ..clear()
+      ..addAll(billsData.map((bill) => Map<String, dynamic>.from(bill)));
+    await setValue(_billsKey, _cachedBills);
+  }
+
+  List<Map<String, dynamic>> getCachedBills() {
+    final storedBills = _box?.get(_billsKey);
+    if (storedBills is List && _cachedBills.isEmpty) {
+      _cachedBills.addAll(
+        storedBills.whereType<Map>().map(
+          (bill) => Map<String, dynamic>.from(bill),
+        ),
+      );
+    }
+    return List.unmodifiable(_cachedBills);
+  }
+
   Future<void> remove(String key) async {
-    await _initializedBox.delete(key);
+    await init();
+    await _box!.delete(key);
   }
 
   Future<void> saveAuthSession(Map<String, dynamic> session) =>
@@ -69,6 +91,8 @@ class CacheService {
   String? getThemePreference() => getValue<String>(themePreferenceKey);
 
   Future<void> clearCache() async {
-    await _initializedBox.clear();
+    _cachedBills.clear();
+    await init();
+    await _box!.clear();
   }
 }

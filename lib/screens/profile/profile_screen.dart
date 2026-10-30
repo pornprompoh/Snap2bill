@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/user_model.dart';
+import '../../providers/theme_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/app_colors.dart';
@@ -17,10 +18,26 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  static const List<String> thaiBanks = [
+    'ธนาคารกสิกรไทย (KBANK)',
+    'ธนาคารไทยพาณิชย์ (SCB)',
+    'ธนาคารกรุงไทย (KTB)',
+    'ธนาคารกรุงเทพ (BBL)',
+    'ธนาคารกรุงศรีอยุธยา (BAY)',
+    'ธนาคารทหารไทยธนชาต (TTB)',
+    'ธนาคารออมสิน (GSB)',
+    'ธนาคารเพื่อการเกษตรและสหกรณ์การเกษตร (ธ.ก.ส.)',
+    'ธนาคารยูโอบี (UOB)',
+    'ธนาคารเกียรตินาคินภัทร (KKP)',
+  ];
+
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _promptPayController = TextEditingController();
+  final _bankAccountController = TextEditingController();
+  final _bankAccountNameController = TextEditingController();
   String _promptPayType = 'phone';
+  String? _selectedBank;
   bool _isEditing = false;
 
   @override
@@ -33,6 +50,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void dispose() {
     _nameController.dispose();
     _promptPayController.dispose();
+    _bankAccountController.dispose();
+    _bankAccountNameController.dispose();
     super.dispose();
   }
 
@@ -50,6 +69,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _nameController.text = profile?.displayName ?? '';
     _promptPayController.text = profile?.promptPayNumber ?? '';
     _promptPayType = profile?.promptPayType == 'id_card' ? 'id_card' : 'phone';
+    _selectedBank = profile?.bankName;
+    if (_selectedBank != null && !thaiBanks.contains(_selectedBank)) {
+      _selectedBank = thaiBanks.first;
+    }
+    _bankAccountController.text = profile?.bankAccountNumber ?? '';
+    _bankAccountNameController.text =
+        profile?.bankAccountName ?? (profile?.displayName ?? '');
   }
 
   void _beginEditing(UserModel? profile) {
@@ -84,10 +110,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final promptPayNumber = _promptPayController.text.trim();
+    final bankAccountNumber = _bankAccountController.text.trim();
+    final bankAccountName = _bankAccountNameController.text.trim();
+
     final succeeded = await context.read<UserProvider>().saveProfile(
       name: _nameController.text.trim(),
       promptPayNumber: promptPayNumber.isEmpty ? null : promptPayNumber,
       promptPayType: promptPayNumber.isEmpty ? null : _promptPayType,
+      bankName: bankAccountNumber.isEmpty ? null : (_selectedBank ?? thaiBanks.first),
+      bankAccountNumber: bankAccountNumber.isEmpty ? null : bankAccountNumber,
+      bankAccountName: bankAccountNumber.isEmpty
+          ? null
+          : (bankAccountName.isEmpty ? _nameController.text.trim() : bankAccountName),
     );
 
     if (!mounted) return;
@@ -187,7 +221,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ],
                       ),
                       const SizedBox(height: AppConstants.paddingL),
-                      if (_isEditing)
+                      if (_isEditing) ...[
                         Form(
                           key: _formKey,
                           child: Column(
@@ -254,7 +288,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               TextFormField(
                                 controller: _promptPayController,
                                 keyboardType: TextInputType.number,
-                                textInputAction: TextInputAction.done,
+                                textInputAction: TextInputAction.next,
                                 inputFormatters: [
                                   FilteringTextInputFormatter.digitsOnly,
                                   LengthLimitingTextInputFormatter(
@@ -288,6 +322,71 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 },
                               ),
                               const SizedBox(height: AppConstants.paddingL),
+                              Text(
+                                'ข้อมูลบัญชีธนาคาร (ทางเลือกเพิ่มเติม)',
+                                style: Theme.of(context).textTheme.titleSmall
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'ระบุเพื่อให้เพื่อนสามารถโอนผ่านเลขบัญชีธนาคารได้',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                              ),
+                              const SizedBox(height: AppConstants.paddingS),
+                              DropdownButtonFormField<String>(
+                                initialValue: _selectedBank ?? thaiBanks.first,
+                                decoration: const InputDecoration(
+                                  labelText: 'ธนาคาร',
+                                  prefixIcon: Icon(Icons.account_balance_outlined),
+                                ),
+                                isExpanded: true,
+                                items: thaiBanks.map((bank) {
+                                  return DropdownMenuItem<String>(
+                                    value: bank,
+                                    child: Text(
+                                      bank,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (val) {
+                                  setState(() {
+                                    _selectedBank = val;
+                                  });
+                                },
+                              ),
+                              const SizedBox(height: AppConstants.paddingS),
+                              TextFormField(
+                                controller: _bankAccountController,
+                                keyboardType: TextInputType.number,
+                                textInputAction: TextInputAction.next,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(15),
+                                ],
+                                decoration: const InputDecoration(
+                                  labelText: 'เลขที่บัญชีธนาคาร',
+                                  prefixIcon: Icon(Icons.numbers_outlined),
+                                  helperText: 'ระบุเลขที่บัญชี 10-15 หลัก (ไม่บังคับ)',
+                                ),
+                              ),
+                              const SizedBox(height: AppConstants.paddingS),
+                              TextFormField(
+                                controller: _bankAccountNameController,
+                                textCapitalization: TextCapitalization.words,
+                                textInputAction: TextInputAction.done,
+                                decoration: const InputDecoration(
+                                  labelText: 'ชื่อบัญชีธนาคาร',
+                                  prefixIcon: Icon(Icons.person_pin_outlined),
+                                  helperText: 'ชื่อ-นามสกุล เจ้าของบัญชี',
+                                ),
+                              ),
+                              const SizedBox(height: AppConstants.paddingL),
                               CustomButton(
                                 text: 'บันทึกข้อมูล',
                                 onPressed: _saveProfile,
@@ -312,14 +411,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                             ],
                           ),
-                        )
-                      else
+                        ),
+                      ] else ...[
                         Container(
                           padding: const EdgeInsets.all(AppConstants.paddingM),
                           decoration: BoxDecoration(
-                            color: AppColors.surface,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppColors.border),
+                            color: Theme.of(context).colorScheme.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
+                            ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -340,7 +441,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     : 'ยังไม่ได้ตั้งชื่อ',
                                 style: Theme.of(context).textTheme.titleMedium
                                     ?.copyWith(
-                                      color: AppColors.textPrimary,
                                       fontWeight: FontWeight.w700,
                                     ),
                               ),
@@ -363,7 +463,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           .textTheme
                                           .titleMedium
                                           ?.copyWith(
-                                            color: AppColors.textPrimary,
                                             fontWeight: FontWeight.w600,
                                           ),
                                     ),
@@ -405,20 +504,172 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ],
                           ),
                         ),
-                      const SizedBox(height: AppConstants.paddingL),
-                      if (!_isEditing)
+                        const SizedBox(height: AppConstants.paddingM),
+                        Container(
+                          padding: const EdgeInsets.all(AppConstants.paddingM),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.account_balance_outlined,
+                                    color: AppColors.primary,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'โอนด้วยเลขบัญชีธนาคาร',
+                                    style: Theme.of(context).textTheme.titleSmall
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                              const Divider(height: 20),
+                              if (userProvider.currentUser?.hasBankTransfer == true) ...[
+                                Text(
+                                  'ธนาคาร',
+                                  style: Theme.of(context).textTheme.labelMedium
+                                      ?.copyWith(color: AppColors.textSecondary),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  userProvider.currentUser!.bankName ?? '-',
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(fontWeight: FontWeight.w600),
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  'เลขที่บัญชี',
+                                  style: Theme.of(context).textTheme.labelMedium
+                                      ?.copyWith(color: AppColors.textSecondary),
+                                ),
+                                const SizedBox(height: 2),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        userProvider.currentUser!.bankAccountNumber ?? '-',
+                                        style: Theme.of(context).textTheme.titleMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w700,
+                                              letterSpacing: 0.5,
+                                            ),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.copy_rounded, size: 18),
+                                      tooltip: 'คัดลอกเลขบัญชี',
+                                      onPressed: () {
+                                        final num = userProvider.currentUser!.bankAccountNumber;
+                                        if (num != null && num.isNotEmpty) {
+                                          Clipboard.setData(ClipboardData(text: num));
+                                          _showMessage('คัดลอกเลขบัญชีแล้ว', AppColors.success);
+                                        }
+                                      },
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'ชื่อบัญชี',
+                                  style: Theme.of(context).textTheme.labelMedium
+                                      ?.copyWith(color: AppColors.textSecondary),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  userProvider.currentUser!.bankAccountName ?? '-',
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(fontWeight: FontWeight.w500),
+                                ),
+                              ] else ...[
+                                Text(
+                                  'ยังไม่ได้ตั้งค่าเลขบัญชีธนาคาร',
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(color: AppColors.textSecondary),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'กด "แก้ไขโปรไฟล์" ด้านล่างเพื่อเพิ่มทางเลือกโอนด้วยเลขบัญชีธนาคาร',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: AppColors.textSecondary.withValues(alpha: 0.8),
+                                      ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: AppConstants.paddingM),
+                        Consumer<ThemeProvider>(
+                          builder: (context, themeProvider, _) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.surface,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
+                                ),
+                              ),
+                              child: SwitchListTile.adaptive(
+                                contentPadding: EdgeInsets.zero,
+                                secondary: Icon(
+                                  themeProvider.isDarkMode
+                                      ? Icons.dark_mode_rounded
+                                      : Icons.light_mode_rounded,
+                                  color: themeProvider.isDarkMode
+                                      ? Colors.amber
+                                      : AppColors.primary,
+                                ),
+                                title: Text(
+                                  'โหมดมืด (Dark Mode)',
+                                  style: Theme.of(context).textTheme.titleSmall
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                ),
+                                subtitle: Text(
+                                  themeProvider.isDarkMode
+                                      ? 'เปิดใช้งานธีมมืด สบายตา'
+                                      : 'เปิดใช้งานธีมสว่าง คมชัด',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(color: AppColors.textSecondary),
+                                ),
+                                value: themeProvider.isDarkMode,
+                                activeTrackColor: AppColors.primary.withValues(alpha: 0.5),
+                                activeThumbColor: AppColors.primary,
+                                onChanged: (_) => themeProvider.toggleTheme(),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: AppConstants.paddingL),
                         CustomButton(
                           text: 'แก้ไขโปรไฟล์',
                           onPressed: userProvider.isLoading
                               ? null
                               : () => _beginEditing(userProvider.currentUser),
                         ),
-                      const SizedBox(height: AppConstants.paddingS),
-                      CustomButton(
-                        text: 'ออกจากระบบ',
-                        backgroundColor: AppColors.error,
-                        onPressed: () => _logout(context),
-                      ),
+                        const SizedBox(height: AppConstants.paddingS),
+                        CustomButton(
+                          text: 'ออกจากระบบ',
+                          backgroundColor: AppColors.error,
+                          onPressed: () => _logout(context),
+                        ),
+                      ],
                     ],
                   ),
                 ),

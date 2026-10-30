@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:snap2bill/screens/bill/scan_screen.dart';
 import 'package:snap2bill/screens/friends/friend_list_screen.dart';
-import 'package:snap2bill/screens/home_screen.dart';
+import 'package:snap2bill/screens/home/home_screen.dart';
 import 'package:snap2bill/screens/profile/profile_screen.dart';
 import 'package:snap2bill/theme/app_colors.dart';
 

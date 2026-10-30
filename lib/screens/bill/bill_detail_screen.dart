@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -868,12 +871,93 @@ class _BillDetailScreenState extends State<BillDetailScreen> {
     );
   }
 
+  Widget _buildReceiptImage({
+    required String? imageUrl,
+    required String? localImagePath,
+  }) {
+    Widget imagePlaceholder(IconData icon, String message) {
+      return Container(
+        height: 220,
+        width: double.infinity,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 36, color: Colors.grey),
+            const SizedBox(height: 8),
+            Text(message, style: const TextStyle(color: Colors.grey)),
+          ],
+        ),
+      );
+    }
+
+    Widget networkImage() {
+      if (imageUrl == null || imageUrl.isEmpty) {
+        return imagePlaceholder(Icons.receipt_long, 'ไม่มีรูปใบเสร็จ');
+      }
+
+      return Image.network(
+        imageUrl,
+        height: 300,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return SizedBox(
+            height: 220,
+            child: Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes == null
+                    ? null
+                    : loadingProgress.cumulativeBytesLoaded /
+                          loadingProgress.expectedTotalBytes!,
+              ),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) => imagePlaceholder(
+          Icons.broken_image_outlined,
+          'ไม่สามารถโหลดรูปใบเสร็จได้',
+        ),
+      );
+    }
+
+    Widget image = networkImage();
+    if (!kIsWeb && localImagePath != null && localImagePath.isNotEmpty) {
+      final localFile = File(localImagePath);
+      if (localFile.existsSync()) {
+        image = Image.file(
+          localFile,
+          height: 300,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => networkImage(),
+        );
+      }
+    }
+
+    return Center(
+      child: ClipRRect(borderRadius: BorderRadius.circular(12), child: image),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final shopName = widget.billData['shop_name'] ?? 'ไม่ระบุชื่อร้าน';
     final createdAt =
         widget.billData['created_at']?.toString().split('T')[0] ?? '';
-    final imageUrl = widget.billData['image_url'];
+    final imageUrl =
+        (widget.billData['receipt_image_url'] ?? widget.billData['image_url'])
+            ?.toString();
+    final localImagePath =
+        (widget.billData['local_image_path'] ??
+                widget.billData['localImagePath'] ??
+                widget.billData['receipt_image_local_path'])
+            ?.toString();
     final receiptJson = _asMap(widget.billData['receipt_json']);
     final items = receiptJson['items'] as List<dynamic>? ?? [];
     final sharersJson = _asMap(widget.billData['sharers_json']);
@@ -923,16 +1007,11 @@ class _BillDetailScreenState extends State<BillDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (imageUrl != null && imageUrl.toString().isNotEmpty)
-                  Center(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        imageUrl,
-                        height: 300,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
+                if ((imageUrl != null && imageUrl.isNotEmpty) ||
+                    (localImagePath != null && localImagePath.isNotEmpty))
+                  _buildReceiptImage(
+                    imageUrl: imageUrl,
+                    localImagePath: localImagePath,
                   ),
                 const SizedBox(height: 16),
                 Hero(

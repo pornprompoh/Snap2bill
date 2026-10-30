@@ -37,14 +37,12 @@ bool _isGeneratedOrUi(String path) {
     'lib/widgets/',
     'lib/main.dart',
     'lib/routes/',
+    'lib/theme/',
     'lib/database/',
-    // Supabase-backed adapter; its contract is covered separately without
-    // counting network plumbing in the deterministic core-logic percentage.
-    'lib/providers/contact_provider.dart',
-    'lib/services/ocr_service.dart',
-    'lib/services/qr_image_saver',
-    'lib/services/receipt_share_service.dart',
-    'lib/services/supabase_',
+    'lib/providers/theme_provider.dart',
+    // Supabase query orchestration is an external adapter, not deterministic
+    // core logic; repository/provider behavior remains in the report.
+    'lib/services/supabase_db_service.dart',
   ];
   return path.endsWith('.g.dart') ||
       excludedPrefixes.any(

@@ -9,8 +9,8 @@ import '../../models/user_model.dart';
 import '../../providers/contact_provider.dart';
 import '../../services/supabase_db_service.dart';
 import '../../utils/constants.dart';
-import '../../widgets/custom_button.dart';
-import '../../widgets/friend_item.dart';
+import '../../widgets/common/custom_button.dart';
+import '../../widgets/friends/friend_item.dart';
 
 class FriendListScreen extends StatefulWidget {
   final bool selectionMode;
@@ -152,9 +152,7 @@ class _FriendListScreenState extends State<FriendListScreen> {
             ),
             child: Card(
               child: ListTile(
-                leading: const CircleAvatar(
-                  child: Icon(Icons.person_outline),
-                ),
+                leading: const CircleAvatar(child: Icon(Icons.person_outline)),
                 title: Text(
                   contact.name,
                   style: const TextStyle(fontWeight: FontWeight.bold),
@@ -257,7 +255,9 @@ class _FriendListScreenState extends State<FriendListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.selectionMode ? 'เลือกเพื่อนจากบิลก่อนหน้า' : 'เพื่อนที่เคยหารบิล',
+          widget.selectionMode
+              ? 'เลือกเพื่อนจากบิลก่อนหน้า'
+              : 'เพื่อนที่เคยหารบิล',
         ),
       ),
       body: widget.selectionMode

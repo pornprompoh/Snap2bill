@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
-import 'home_screen.dart';
-import 'bill/scan_screen.dart'; // 🚀 Import หน้าสแกน
-import 'profile/profile_screen.dart'; // 🚀 Import หน้าโปรไฟล์
+import 'package:snap2bill/screens/bill/scan_screen.dart';
+import 'package:snap2bill/screens/home/home_screen.dart';
+import 'package:snap2bill/screens/profile/profile_screen.dart';
+import 'package:snap2bill/theme/app_colors.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});

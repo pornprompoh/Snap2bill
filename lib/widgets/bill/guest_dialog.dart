@@ -96,8 +96,9 @@ class _GuestDialogState extends State<GuestDialog> {
           child: const Text('ยกเลิก'),
         ),
         FilledButton(
-          onPressed:
-              widget.controller.text.trim().isEmpty ? null : _returnManualEntry,
+          onPressed: widget.controller.text.trim().isEmpty
+              ? null
+              : _returnManualEntry,
           child: const Text('เพิ่มชื่อที่พิมพ์'),
         ),
       ],

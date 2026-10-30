@@ -12,7 +12,7 @@ import '../../../providers/bill_provider.dart';
 import '../../../routes/app_routes.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
-import '../../../widgets/custom_button.dart';
+import '../../widgets/common/custom_button.dart';
 import '../../../widgets/bill/guest_dialog.dart';
 
 class LobbyScreen extends StatefulWidget {
@@ -343,15 +343,13 @@ class _LobbyScreenState extends State<LobbyScreen> {
 
   Future<void> _shareToLine() async {
     final shop = widget.receiptData?['shop_name'] ?? 'โต๊ะนี้';
-    final message = '🍲 เข้าตี้หารบิลร้าน $shop กัน!\n'
+    final message =
+        '🍲 เข้าตี้หารบิลร้าน $shop กัน!\n'
         '📲 แตะลิงก์เพื่อเข้าห้องทันที: $_joinLink\n'
         '🔢 หรือใส่รหัส 6 หลัก: $_roomId\n'
         '✨ ไม่ต้องโหลดแอป เปิดผ่านเบราว์เซอร์แล้วจิ้มอาหารได้เลย!';
     await SharePlus.instance.share(
-      ShareParams(
-        title: 'แชร์เข้ากลุ่ม LINE',
-        text: message,
-      ),
+      ShareParams(title: 'แชร์เข้ากลุ่ม LINE', text: message),
     );
   }
 
@@ -360,7 +358,8 @@ class _LobbyScreenState extends State<LobbyScreen> {
     await SharePlus.instance.share(
       ShareParams(
         title: 'เข้าร่วมห้อง Snap2Bill',
-        text: '🍲 มาหารบิล $shop กัน!\n'
+        text:
+            '🍲 มาหารบิล $shop กัน!\n'
             '📲 แตะลิงก์เข้าร่วมห้อง: $_joinLink\n'
             '🔢 หรือกรอกรหัสห้อง: $_roomId\n'
             '(เปิดเว็บเข้าหารได้ทันที ไม่ต้องโหลดแอป)',
@@ -405,7 +404,9 @@ class _LobbyScreenState extends State<LobbyScreen> {
                   const SizedBox(height: 4),
                   Text(
                     'เพื่อนเปิดกล้องสแกนเข้าร่วมได้ทันทีโดยไม่ต้องติดตั้งแอป',
-                    style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),
@@ -414,7 +415,9 @@ class _LobbyScreenState extends State<LobbyScreen> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.border.withValues(alpha: 0.8)),
+                      border: Border.all(
+                        color: AppColors.border.withValues(alpha: 0.8),
+                      ),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.04),
@@ -476,7 +479,9 @@ class _LobbyScreenState extends State<LobbyScreen> {
                           icon: const Icon(Icons.share, size: 18),
                           label: const Text('แชร์เข้า LINE'),
                           style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF06C755), // LINE Green
+                            backgroundColor: const Color(
+                              0xFF06C755,
+                            ), // LINE Green
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(
@@ -504,7 +509,9 @@ class _LobbyScreenState extends State<LobbyScreen> {
                             label: const Text('พิมพ์ชื่อเพื่อนเอง'),
                             style: TextButton.styleFrom(
                               foregroundColor: AppColors.primary,
-                              backgroundColor: AppColors.secondary.withValues(alpha: 0.3),
+                              backgroundColor: AppColors.secondary.withValues(
+                                alpha: 0.3,
+                              ),
                               padding: const EdgeInsets.symmetric(vertical: 10),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -533,7 +540,10 @@ class _LobbyScreenState extends State<LobbyScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('ผู้เข้าร่วมในห้อง (Real-time)', style: AppTextStyles.title),
+                      Text(
+                        'ผู้เข้าร่วมในห้อง (Real-time)',
+                        style: AppTextStyles.title,
+                      ),
                       Text(
                         hostName == null
                             ? '${roomParticipants.length} คนอยู่ในห้อง'
@@ -594,7 +604,10 @@ class _LobbyScreenState extends State<LobbyScreen> {
                 final isSelf = userId == _currentUserId;
 
                 return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(14),
@@ -665,7 +678,10 @@ class _LobbyScreenState extends State<LobbyScreen> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: isHostUser
                               ? Colors.amber.shade50

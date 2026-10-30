@@ -6,7 +6,7 @@ import '../models/user_model.dart';
 import 'contact_provider.dart';
 import '../services/supabase_db_service.dart';
 import '../utils/validation.dart';
-import '../database/bill_repository.dart';
+import '../repositories/bill_repository.dart';
 
 class BillProvider with ChangeNotifier {
   final SupabaseDbService _dbService = SupabaseDbService();

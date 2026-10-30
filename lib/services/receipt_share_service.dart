@@ -8,13 +8,15 @@ import 'package:share_plus/share_plus.dart';
 class ReceiptShareService {
   static Future<Uint8List?> captureWidget(GlobalKey boundaryKey) async {
     try {
-      final boundary = boundaryKey.currentContext?.findRenderObject()
-          as RenderRepaintBoundary?;
+      final boundary =
+          boundaryKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
       if (boundary == null) return null;
 
       final ui.Image image = await boundary.toImage(pixelRatio: 2.5);
-      final ByteData? byteData =
-          await image.toByteData(format: ui.ImageByteFormat.png);
+      final ByteData? byteData = await image.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
       return byteData?.buffer.asUint8List();
     } catch (e) {
       debugPrint('Error capturing receipt widget: $e');
@@ -29,20 +31,18 @@ class ReceiptShareService {
     String? message,
   }) async {
     final imageBytes = await captureWidget(boundaryKey);
-    final shareText = message ??
+    final shareText =
+        message ??
         'สรุปยอดบิล: $shopName\nยอดรวม: ${totalAmount.toStringAsFixed(2)} บาท\nแชร์จาก Snap2Bill';
 
     if (imageBytes != null) {
-      await Share.shareXFiles(
-        [
-          XFile.fromData(
-            imageBytes,
-            mimeType: 'image/png',
-            name: 'receipt_${DateTime.now().millisecondsSinceEpoch}.png',
-          ),
-        ],
-        text: shareText,
-      );
+      await Share.shareXFiles([
+        XFile.fromData(
+          imageBytes,
+          mimeType: 'image/png',
+          name: 'receipt_${DateTime.now().millisecondsSinceEpoch}.png',
+        ),
+      ], text: shareText);
     } else {
       await Share.share(shareText);
     }

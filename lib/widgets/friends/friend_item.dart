@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
-import '../utils/constants.dart';
+import 'package:snap2bill/theme/app_colors.dart';
+import 'package:snap2bill/utils/constants.dart';
 
 class FriendItem extends StatelessWidget {
   final String name;

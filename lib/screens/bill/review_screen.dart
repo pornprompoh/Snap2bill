@@ -6,7 +6,7 @@ import '../../routes/app_routes.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../utils/formatters.dart';
-import '../../widgets/custom_button.dart';
+import '../../widgets/common/custom_button.dart';
 
 class ReviewScreen extends StatefulWidget {
   final Map<String, dynamic> receiptData;
@@ -45,9 +45,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
     _vat = _isVatIncluded
         ? 0
         : double.tryParse(
-              widget.receiptData['vat_amount']?.toString() ?? '0',
-            ) ??
-            0.0;
+                widget.receiptData['vat_amount']?.toString() ?? '0',
+              ) ??
+              0.0;
     _sc =
         double.tryParse(
           widget.receiptData['service_charge']?.toString() ?? '0',
@@ -59,8 +59,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
     _finalTotal =
         double.tryParse(
           (widget.receiptData['final_total'] ??
-                  widget.receiptData['total_amount'])
-              ?.toString() ??
+                      widget.receiptData['total_amount'])
+                  ?.toString() ??
               '',
         ) ??
         0.0;
@@ -178,7 +178,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
           ElevatedButton(
             onPressed: () {
               setState(() {
-                _shopName = shopCtrl.text.trim().isEmpty ? 'ไม่ระบุชื่อร้าน' : shopCtrl.text.trim();
+                _shopName = shopCtrl.text.trim().isEmpty
+                    ? 'ไม่ระบุชื่อร้าน'
+                    : shopCtrl.text.trim();
                 _discount = double.tryParse(discCtrl.text) ?? 0.0;
                 _hasEditedReceipt = true;
               });
@@ -226,15 +228,21 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     child: TextField(
                       controller: qtyCtrl,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'จำนวน (ชิ้น/จาน)'),
+                      decoration: const InputDecoration(
+                        labelText: 'จำนวน (ชิ้น/จาน)',
+                      ),
                     ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: TextField(
                       controller: priceCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: const InputDecoration(labelText: 'ราคาต่อหน่วย (฿)'),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'ราคาต่อหน่วย (฿)',
+                      ),
                     ),
                   ),
                 ],
@@ -267,10 +275,14 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 }
                 _hasEditedReceipt = true;
                 if (_enableVat) {
-                  _vat = double.parse((_calculateSubtotal() * 0.07).toStringAsFixed(2));
+                  _vat = double.parse(
+                    (_calculateSubtotal() * 0.07).toStringAsFixed(2),
+                  );
                 }
                 if (_enableSc) {
-                  _sc = double.parse((_calculateSubtotal() * 0.10).toStringAsFixed(2));
+                  _sc = double.parse(
+                    (_calculateSubtotal() * 0.10).toStringAsFixed(2),
+                  );
                 }
               });
               Navigator.pop(context);
@@ -383,7 +395,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
                       children: [
                         Row(
                           children: [
-                            const Icon(Icons.storefront, size: 20, color: AppColors.primary),
+                            const Icon(
+                              Icons.storefront,
+                              size: 20,
+                              color: AppColors.primary,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -414,7 +430,14 @@ class _ReviewScreenState extends State<ReviewScreen> {
                   const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('แก้ไข', style: TextStyle(color: Colors.blue, fontSize: 13, fontWeight: FontWeight.bold)),
+                      Text(
+                        'แก้ไข',
+                        style: TextStyle(
+                          color: Colors.blue,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       SizedBox(width: 4),
                       Icon(Icons.edit_outlined, color: Colors.blue, size: 16),
                     ],
@@ -434,7 +457,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
                   flex: 5,
                   child: Text(
                     'ชื่อเมนู',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey,
+                    ),
                   ),
                 ),
                 Expanded(
@@ -442,7 +469,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
                   child: Text(
                     'จำนวน',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey,
+                    ),
                   ),
                 ),
                 Expanded(
@@ -450,7 +481,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
                   child: Text(
                     'ราคา/หน่วย',
                     textAlign: TextAlign.right,
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey,
+                    ),
                   ),
                 ),
                 Expanded(
@@ -458,7 +493,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
                   child: Text(
                     'ราคารวม',
                     textAlign: TextAlign.right,
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey,
+                    ),
                   ),
                 ),
                 SizedBox(width: 48), // สำหรับช่องไอคอนดินสอ & ลบ
@@ -473,7 +512,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.receipt_long_outlined, size: 48, color: Colors.grey),
+                        const Icon(
+                          Icons.receipt_long_outlined,
+                          size: 48,
+                          color: Colors.grey,
+                        ),
                         const SizedBox(height: 8),
                         const Text('ไม่มีรายการอาหาร กรุณากดปุ่มเพิ่มรายการ'),
                         const SizedBox(height: 12),
@@ -503,7 +546,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
                           child: Row(
                             children: [
                               // ชื่อเมนู
@@ -511,7 +557,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
                                 flex: 5,
                                 child: Text(
                                   item['item_name'].toString(),
-                                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -523,7 +572,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
                                   alignment: Alignment.center,
                                   child: Text(
                                     '$qty',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -533,7 +585,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
                                 child: Text(
                                   AppFormatters.formatCurrency(unitPrice),
                                   textAlign: TextAlign.right,
-                                  style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                                  style: TextStyle(
+                                    color: Colors.grey.shade700,
+                                    fontSize: 13,
+                                  ),
                                 ),
                               ),
                               // ราคารวม
@@ -554,19 +609,33 @@ class _ReviewScreenState extends State<ReviewScreen> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   IconButton(
-                                    icon: const Icon(Icons.edit, color: Colors.blue, size: 18),
+                                    icon: const Icon(
+                                      Icons.edit,
+                                      color: Colors.blue,
+                                      size: 18,
+                                    ),
                                     tooltip: 'แก้ไข',
                                     visualDensity: VisualDensity.compact,
                                     padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+                                    constraints: const BoxConstraints.tightFor(
+                                      width: 28,
+                                      height: 28,
+                                    ),
                                     onPressed: () => _showEditItemDialog(index),
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.close, color: Colors.red, size: 18),
+                                    icon: const Icon(
+                                      Icons.close,
+                                      color: Colors.red,
+                                      size: 18,
+                                    ),
                                     tooltip: 'ลบ',
                                     visualDensity: VisualDensity.compact,
                                     padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+                                    constraints: const BoxConstraints.tightFor(
+                                      width: 28,
+                                      height: 28,
+                                    ),
                                     onPressed: () => setState(() {
                                       _items.removeAt(index);
                                       _hasEditedReceipt = true;
@@ -603,12 +672,19 @@ class _ReviewScreenState extends State<ReviewScreen> {
                   children: [
                     Expanded(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
-                          color: _enableVat ? Colors.blue.shade50 : Colors.grey.shade100,
+                          color: _enableVat
+                              ? Colors.blue.shade50
+                              : Colors.grey.shade100,
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                            color: _enableVat ? Colors.blue.shade300 : Colors.grey.shade300,
+                            color: _enableVat
+                                ? Colors.blue.shade300
+                                : Colors.grey.shade300,
                           ),
                         ),
                         child: Row(
@@ -617,12 +693,22 @@ class _ReviewScreenState extends State<ReviewScreen> {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('VAT 7%', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                const Text(
+                                  'VAT 7%',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
                                 Text(
-                                  _enableVat ? '฿${_vat.toStringAsFixed(2)}' : 'ปิดอยู่',
+                                  _enableVat
+                                      ? '฿${_vat.toStringAsFixed(2)}'
+                                      : 'ปิดอยู่',
                                   style: TextStyle(
                                     fontSize: 11,
-                                    color: _enableVat ? Colors.blue.shade800 : Colors.grey,
+                                    color: _enableVat
+                                        ? Colors.blue.shade800
+                                        : Colors.grey,
                                   ),
                                 ),
                               ],
@@ -630,7 +716,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
                             Switch(
                               value: _enableVat,
                               activeTrackColor: AppColors.primary,
-                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
                               onChanged: _onToggleVat,
                             ),
                           ],
@@ -640,12 +727,19 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
-                          color: _enableSc ? Colors.orange.shade50 : Colors.grey.shade100,
+                          color: _enableSc
+                              ? Colors.orange.shade50
+                              : Colors.grey.shade100,
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                            color: _enableSc ? Colors.orange.shade300 : Colors.grey.shade300,
+                            color: _enableSc
+                                ? Colors.orange.shade300
+                                : Colors.grey.shade300,
                           ),
                         ),
                         child: Row(
@@ -654,12 +748,22 @@ class _ReviewScreenState extends State<ReviewScreen> {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Service 10%', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                const Text(
+                                  'Service 10%',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
                                 Text(
-                                  _enableSc ? '฿${_sc.toStringAsFixed(2)}' : 'ปิดอยู่',
+                                  _enableSc
+                                      ? '฿${_sc.toStringAsFixed(2)}'
+                                      : 'ปิดอยู่',
                                   style: TextStyle(
                                     fontSize: 11,
-                                    color: _enableSc ? Colors.orange.shade800 : Colors.grey,
+                                    color: _enableSc
+                                        ? Colors.orange.shade800
+                                        : Colors.grey,
                                   ),
                                 ),
                               ],
@@ -667,7 +771,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
                             Switch(
                               value: _enableSc,
                               activeTrackColor: Colors.deepOrange,
-                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
                               onChanged: _onToggleSc,
                             ),
                           ],
@@ -682,7 +787,14 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('โมเดลการหารบิล:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+                    const Text(
+                      'โมเดลการหารบิล:',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                      ),
+                    ),
                     const SizedBox(height: 6),
                     SizedBox(
                       width: double.infinity,
@@ -691,12 +803,18 @@ class _ReviewScreenState extends State<ReviewScreen> {
                           ButtonSegment<String>(
                             value: 'proportional',
                             icon: Icon(Icons.pie_chart_outline, size: 16),
-                            label: Text('หารตามที่กินจริง', style: TextStyle(fontSize: 12)),
+                            label: Text(
+                              'หารตามที่กินจริง',
+                              style: TextStyle(fontSize: 12),
+                            ),
                           ),
                           ButtonSegment<String>(
                             value: 'equal',
                             icon: Icon(Icons.people_outline, size: 16),
-                            label: Text('หารเท่าทุกคน', style: TextStyle(fontSize: 12)),
+                            label: Text(
+                              'หารเท่าทุกคน',
+                              style: TextStyle(fontSize: 12),
+                            ),
                           ),
                         ],
                         selected: {_splitModel},
@@ -723,7 +841,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     const Expanded(
                       child: Text(
                         'ยอดสุทธิทั้งสิ้น',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                     Text(
@@ -744,7 +865,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
                       icon: const Icon(Icons.add, size: 18),
                       label: const Text('เพิ่มเมนู'),
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -758,10 +882,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 ),
               ],
             ),
-          )
+          ),
         ],
       ),
     );
   }
 }
-

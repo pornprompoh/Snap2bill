@@ -28,20 +28,63 @@ class BillModel {
   });
 
   factory BillModel.fromJson(Map<String, dynamic> json) {
+    final total = totalFromJson(json);
     return BillModel(
-      id: json['id'] as String,
-      ownerId: json['owner_id'] as String,
+      id: json['id']?.toString() ?? '',
+      ownerId: (json['owner_id'] ?? json['host_id'] ?? '').toString(),
       shopName: json['shop_name'] as String?,
       receiptDate: json['receipt_date'] as String?,
-      subTotal: _asDouble(json['sub_total']),
+      subTotal: _asDouble(
+        json['sub_total'] ?? json['subtotal'] ?? json['subtotal_amount'],
+      ),
       vatAmount: _asDouble(json['vat_amount']),
       serviceCharge: _asDouble(json['service_charge']),
-      totalAmount: _asDouble(json['total_amount'] ?? json['final_total']),
-      finalTotal: _asDouble(json['final_total'] ?? json['total_amount']),
+      totalAmount: total,
+      finalTotal: _asDouble(
+        json['final_total'] ??
+            json['total_amount'] ??
+            json['total'] ??
+            json['net_amount'] ??
+            total,
+      ),
       splitType: json['split_type'] == 'equal' ? 'equal' : 'proportional',
       receiptImageUrl: json['receipt_image_url'] as String?,
       status: json['status'] as String? ?? 'draft',
     );
+  }
+
+  static double totalFromJson(Map<String, dynamic> json) {
+    final directValue = _firstNumeric(json, const [
+      'total_amount',
+      'final_total',
+      'total',
+      'net_amount',
+      'grand_total',
+      'net_total',
+      'subtotal',
+      'sub_total',
+    ]);
+    if (directValue != null && directValue != 0) return directValue;
+
+    final receipt = json['receipt_json'];
+    if (receipt is Map) {
+      final receiptValue = totalFromJson(Map<String, dynamic>.from(receipt));
+      if (receiptValue != 0) return receiptValue;
+    }
+
+    final items = json['items'];
+    if (items is Iterable) {
+      final itemTotal = items.fold<double>(0, (sum, rawItem) {
+        if (rawItem is! Map) return sum;
+        final item = Map<String, dynamic>.from(rawItem);
+        final price =
+            _firstNumeric(item, const ['unit_price', 'price', 'amount']) ?? 0;
+        final quantity = _firstNumeric(item, const ['quantity', 'qty']) ?? 1;
+        return sum + price * quantity;
+      });
+      if (itemTotal != 0) return itemTotal;
+    }
+    return directValue ?? 0;
   }
 
   Map<String, dynamic> toJson() {
@@ -65,8 +108,24 @@ class BillModel {
   }
 }
 
-double _asDouble(Object? value) =>
-    value == null ? 0 : double.tryParse(value.toString()) ?? 0;
+double _asDouble(Object? value) {
+  if (value is num) return value.toDouble();
+  if (value == null) return 0;
+  final normalized = value
+      .toString()
+      .replaceAll(',', '')
+      .replaceAll(RegExp(r'[^0-9.-]'), '');
+  return double.tryParse(normalized) ?? 0;
+}
+
+double? _firstNumeric(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    if (!json.containsKey(key) || json[key] == null) continue;
+    final value = _asDouble(json[key]);
+    if (value != 0) return value;
+  }
+  return null;
+}
 
 class RoomMember {
   final String id;
@@ -84,9 +143,8 @@ class RoomMember {
   factory RoomMember.fromMap(Map<String, dynamic> map) {
     return RoomMember(
       id: (map['id'] ?? map['user_id'] ?? '').toString(),
-      name:
-          (map['name'] ?? map['user_name'] ?? map['display_name'] ?? 'เพื่อน')
-              .toString(),
+      name: (map['name'] ?? map['user_name'] ?? map['display_name'] ?? 'เพื่อน')
+          .toString(),
       avatarUrl: (map['avatar_url'] ?? map['avatarUrl'])?.toString(),
       isGuest: map['is_guest'] == true || map['isGuest'] == true,
     );
@@ -133,7 +191,8 @@ class BillItemModel {
       _ => <String>[],
     };
     final userQuantities = <String, int>{};
-    final rawClaims = claimsData ?? (claimedByData is Map ? claimedByData : null);
+    final rawClaims =
+        claimsData ?? (claimedByData is Map ? claimedByData : null);
     if (rawClaims is Map) {
       rawClaims.forEach((userId, count) {
         final quantity = int.tryParse(count.toString()) ?? 0;
@@ -164,10 +223,8 @@ class BillItemModel {
       billId: json['bill_id'] as String,
       itemName: json['item_name'] as String,
       price: (json['price'] ?? 0).toDouble(),
-      quantity: int.tryParse(
-            (json['quantity'] ?? json['qty'] ?? 1).toString(),
-          ) ??
-          1,
+      quantity:
+          int.tryParse((json['quantity'] ?? json['qty'] ?? 1).toString()) ?? 1,
       totalPrice: json['total_price'] != null
           ? _asDouble(json['total_price'])
           : null,
@@ -180,11 +237,7 @@ class BillItemModel {
   }
 
   Map<String, dynamic> toJson() {
-    final allClaimants = {
-      ...userQuantities.keys,
-      ...sharedUsers,
-      ...claimedBy,
-    };
+    final allClaimants = {...userQuantities.keys, ...sharedUsers, ...claimedBy};
     return {
       'id': id,
       'bill_id': billId,

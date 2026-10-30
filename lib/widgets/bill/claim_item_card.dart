@@ -98,8 +98,10 @@ class ClaimItemCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Text('ทั้งหมด $itemQuantity ชิ้น',
-                          style: AppTextStyles.caption),
+                      Text(
+                        'ทั้งหมด $itemQuantity ชิ้น',
+                        style: AppTextStyles.caption,
+                      ),
                     ],
                   ),
                 ),
@@ -240,15 +242,9 @@ class _FriendClaimBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = isShared
-        ? Colors.blue.shade50
-        : Colors.amber.shade50;
-    final borderColor = isShared
-        ? Colors.blue.shade200
-        : Colors.amber.shade300;
-    final textColor = isShared
-        ? Colors.blue.shade900
-        : Colors.brown.shade800;
+    final bgColor = isShared ? Colors.blue.shade50 : Colors.amber.shade50;
+    final borderColor = isShared ? Colors.blue.shade200 : Colors.amber.shade300;
+    final textColor = isShared ? Colors.blue.shade900 : Colors.brown.shade800;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(4, 3, 8, 3),
@@ -262,7 +258,9 @@ class _FriendClaimBadge extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 10,
-            backgroundColor: isShared ? Colors.blue.shade200 : Colors.amber.shade200,
+            backgroundColor: isShared
+                ? Colors.blue.shade200
+                : Colors.amber.shade200,
             child: Text(
               userName.isNotEmpty ? userName[0].toUpperCase() : '?',
               style: TextStyle(

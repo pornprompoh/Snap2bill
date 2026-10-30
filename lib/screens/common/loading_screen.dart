@@ -5,7 +5,7 @@ import 'package:snap2bill/services/ocr_service.dart';
 
 import 'package:snap2bill/theme/app_colors.dart';
 import 'package:snap2bill/theme/app_text_styles.dart';
-import 'package:snap2bill/widgets/shimmer_loading.dart';
+import 'package:snap2bill/widgets/common/shimmer_loading.dart';
 
 class LoadingScreen extends StatefulWidget {
   final Uint8List imageBytes;

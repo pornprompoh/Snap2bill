@@ -31,17 +31,34 @@ class BillCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBackground = isDark
+        ? AppColors.darkCardBackground
+        : AppColors.cardBackground;
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.border;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.textSecondary;
+    final mutedColor = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.textMuted;
     final statusColor = _isSettled ? AppColors.success : AppColors.warning;
     final statusLabel = _isSettled ? 'เคลียร์แล้ว' : 'รอเพื่อนโอน';
+    final statusBackground = isDark
+        ? AppColors.darkSurface
+        : AppColors.secondary.withValues(alpha: 0.1);
 
     return Card(
-      color: AppColors.cardBackground,
+      color: cardBackground,
       elevation: 1,
-      shadowColor: AppColors.primaryDark.withValues(alpha: 0.08),
+      shadowColor: Colors.black.withValues(alpha: isDark ? 0.2 : 0.08),
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: AppColors.border),
+        side: BorderSide(color: borderColor),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -58,7 +75,9 @@ class BillCard extends StatelessWidget {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: AppColors.secondary.withValues(alpha: 0.55),
+                      color: isDark
+                          ? AppColors.darkSurface
+                          : AppColors.secondary.withValues(alpha: 0.55),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: const Icon(
@@ -76,7 +95,7 @@ class BillCard extends StatelessWidget {
                           shopName,
                           style: Theme.of(context).textTheme.titleSmall
                               ?.copyWith(
-                                color: AppColors.textPrimary,
+                                color: textPrimary,
                                 fontWeight: FontWeight.w700,
                               ),
                           maxLines: 1,
@@ -89,7 +108,7 @@ class BillCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: AppColors.textSecondary),
+                                ?.copyWith(color: textSecondary),
                           ),
                         ],
                         const SizedBox(height: 8),
@@ -99,7 +118,7 @@ class BillCard extends StatelessWidget {
                             vertical: 5,
                           ),
                           decoration: BoxDecoration(
-                            color: statusColor.withValues(alpha: 0.1),
+                            color: statusBackground,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -128,16 +147,12 @@ class BillCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.titleSmall
                               ?.copyWith(
-                                color: AppColors.textPrimary,
+                                color: textPrimary,
                                 fontWeight: FontWeight.w700,
                               ),
                         ),
                         const SizedBox(height: 4),
-                        const Icon(
-                          Icons.chevron_right,
-                          color: AppColors.textMuted,
-                          size: 20,
-                        ),
+                        Icon(Icons.chevron_right, color: mutedColor, size: 20),
                       ],
                     ),
                   ),
@@ -150,8 +165,14 @@ class BillCard extends StatelessWidget {
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
                       visualDensity: VisualDensity.compact,
-                      foregroundColor: Colors.orange.shade900,
-                      side: BorderSide(color: Colors.orange.shade300),
+                      foregroundColor: isDark
+                          ? AppColors.warning
+                          : Colors.orange.shade900,
+                      side: BorderSide(
+                        color: isDark
+                            ? AppColors.warning.withValues(alpha: 0.6)
+                            : Colors.orange.shade300,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),

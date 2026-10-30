@@ -14,6 +14,9 @@ class ContactProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
+  static bool isSameContactName(String first, String second) =>
+      first.trim().toLowerCase() == second.trim().toLowerCase();
+
   Future<void> loadContacts() async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) {
@@ -55,9 +58,8 @@ class ContactProvider extends ChangeNotifier {
         .from('saved_contacts')
         .select('id, name, user_id, note, created_at')
         .eq('user_id', userId);
-    final normalizedName = trimmedName.toLowerCase();
     if (existingRows.any(
-      (row) => row['name']?.toString().trim().toLowerCase() == normalizedName,
+      (row) => isSameContactName(row['name']?.toString() ?? '', trimmedName),
     )) {
       return;
     }
@@ -90,4 +92,33 @@ class ContactProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> updateContact({
+    required String id,
+    required String name,
+    String? note,
+  }) async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) throw StateError('กรุณาล็อกอินก่อนแก้ไขรายชื่อเพื่อน');
+    final trimmedName = name.trim();
+    if (trimmedName.isEmpty) {
+      throw ArgumentError.value(name, 'name', 'ชื่อเพื่อนต้องไม่เป็นค่าว่าง');
+    }
+    final duplicate = _contacts.any(
+      (contact) =>
+          contact.id != id && isSameContactName(contact.name, trimmedName),
+    );
+    if (duplicate) return;
+
+    final rows = await _supabase
+        .from('saved_contacts')
+        .update({'name': trimmedName, 'note': note?.trim()})
+        .eq('id', id)
+        .eq('user_id', userId)
+        .select()
+        .limit(1);
+    if (rows.isEmpty) {
+      throw StateError('ไม่พบรายชื่อเพื่อนที่ต้องการแก้ไข');
+    }
+    await loadContacts();
+  }
 }

@@ -236,6 +236,35 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ),
                                   ),
                                 ),
+                                const SizedBox(height: 14),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 52,
+                                  child: OutlinedButton.icon(
+                                    icon: const Icon(
+                                      Icons.flash_on_rounded,
+                                      color: AppColors.primary,
+                                    ),
+                                    label: Text(
+                                      'ทดลองใช้งานทันที (Demo / Bypass)',
+                                      style: AppTextStyles.body.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                    onPressed: _navigateToHome,
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: AppColors.primary,
+                                      side: const BorderSide(
+                                        color: AppColors.primary,
+                                        width: 1.5,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                    ),
+                                  ),
+                                ),
                                 if (_isLoading) ...[
                                   const SizedBox(height: 12),
                                   Text(

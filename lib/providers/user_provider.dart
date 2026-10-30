@@ -44,12 +44,10 @@ class UserProvider with ChangeNotifier {
 
     try {
       final trimmedPromptPayNumber = promptPayNumber?.trim();
-      final paymentInfo = trimmedPromptPayNumber == null || trimmedPromptPayNumber.isEmpty
+      final paymentInfo =
+          trimmedPromptPayNumber == null || trimmedPromptPayNumber.isEmpty
           ? null
-          : {
-              'type': promptPayType,
-              'number': trimmedPromptPayNumber,
-            };
+          : {'type': promptPayType, 'number': trimmedPromptPayNumber};
 
       _currentUser = await _dbService.updateUserProfile(
         displayName: name,
@@ -79,6 +77,6 @@ class UserProvider with ChangeNotifier {
   // เพิ่มเพื่อนใหม่ แล้วสั่งให้รีเฟรชหน้าจอ
   Future<void> addFriend(String name) async {
     await _dbService.addFriend(name);
-    await loadFriends(); 
+    await loadFriends();
   }
 }

@@ -98,8 +98,10 @@ class ClaimItemCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Text('ทั้งหมด $itemQuantity ชิ้น',
-                          style: AppTextStyles.caption),
+                      Text(
+                        'ทั้งหมด $itemQuantity ชิ้น',
+                        style: AppTextStyles.caption,
+                      ),
                     ],
                   ),
                 ),
@@ -200,20 +202,21 @@ class ClaimItemCard extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Wrap(
-                spacing: 6,
+                spacing: 8,
                 runSpacing: 6,
                 children: [
                   ...itemClaims.keys.map(
-                    (userId) => _ClaimTag(
-                      color: AppColors.accent.withValues(alpha: 0.1),
-                      label: '${userNames[userId] ?? 'เพื่อน'} × '
-                          '${itemClaims[userId]}',
+                    (userId) => _FriendClaimBadge(
+                      userName: userNames[userId] ?? 'เพื่อน',
+                      claimText: '${itemClaims[userId]} ชิ้น',
+                      isShared: false,
                     ),
                   ),
                   ...sharedUsers.map(
-                    (userId) => _ClaimTag(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      label: '${userNames[userId] ?? 'เพื่อน'} แชร์',
+                    (userId) => _FriendClaimBadge(
+                      userName: userNames[userId] ?? 'เพื่อน',
+                      claimText: 'กินด้วยกัน',
+                      isShared: true,
                     ),
                   ),
                 ],
@@ -226,21 +229,58 @@ class ClaimItemCard extends StatelessWidget {
   }
 }
 
-class _ClaimTag extends StatelessWidget {
-  final Color color;
-  final String label;
+class _FriendClaimBadge extends StatelessWidget {
+  final String userName;
+  final String claimText;
+  final bool isShared;
 
-  const _ClaimTag({required this.color, required this.label});
+  const _FriendClaimBadge({
+    required this.userName,
+    required this.claimText,
+    required this.isShared,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final bgColor = isShared ? Colors.blue.shade50 : Colors.amber.shade50;
+    final borderColor = isShared ? Colors.blue.shade200 : Colors.amber.shade300;
+    final textColor = isShared ? Colors.blue.shade900 : Colors.brown.shade800;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      padding: const EdgeInsets.fromLTRB(4, 3, 8, 3),
       decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(20),
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
       ),
-      child: Text(label, style: const TextStyle(fontSize: 11)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircleAvatar(
+            radius: 10,
+            backgroundColor: isShared
+                ? Colors.blue.shade200
+                : Colors.amber.shade200,
+            child: Text(
+              userName.isNotEmpty ? userName[0].toUpperCase() : '?',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: isShared ? Colors.blue.shade900 : Colors.brown.shade900,
+              ),
+            ),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            '$userName ($claimText)',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: textColor,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

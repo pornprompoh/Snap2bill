@@ -2,6 +2,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../models/bill_model.dart';
 import '../../../models/user_model.dart';
 import '../../../providers/bill_provider.dart';
@@ -12,7 +15,7 @@ import '../../../theme/app_colors.dart';
 import '../../../utils/formatters.dart';
 import '../../../widgets/bill/promptpay_card.dart';
 import '../../../widgets/bill/member_summary_list.dart';
-import '../../../widgets/custom_button.dart';
+import '../../widgets/common/custom_button.dart';
 
 class SummaryScreen extends StatefulWidget {
   final String lobbyId;
@@ -241,7 +244,12 @@ class _SummaryScreenState extends State<SummaryScreen> {
     });
   }
 
+  final Map<String, bool> _manualPaidStatus = {};
+
   bool _isParticipantPaid(String userId) {
+    if (_manualPaidStatus.containsKey(userId)) {
+      return _manualPaidStatus[userId]!;
+    }
     for (final sharers in widget.itemSharers.values) {
       for (final sharer in sharers) {
         if (sharer['user_id']?.toString() != userId) continue;
@@ -416,6 +424,235 @@ class _SummaryScreenState extends State<SummaryScreen> {
     return crc.toRadixString(16).toUpperCase().padLeft(4, '0');
   }
 
+  Future<void> _showMemberPaymentDialog({
+    required String memberId,
+    required String memberName,
+    required double amount,
+  }) async {
+    final bool canGenerateQr = _hasValidPromptPay && amount > 0;
+    String qrPayload = '';
+    if (canGenerateQr) {
+      try {
+        qrPayload = _generatePromptPayPayload(_hostPromptPay, amount);
+      } catch (_) {}
+    }
+
+    final shopName = widget.receiptData['shop_name'] ?? 'ไม่ระบุชื่อร้าน';
+
+    await showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (dialogCtx, setDialogState) {
+          final currentPaid = _isParticipantPaid(memberId);
+          return AlertDialog(
+            title: Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: AppColors.secondary,
+                  radius: 18,
+                  child: Text(
+                    memberName.isNotEmpty ? memberName[0].toUpperCase() : '?',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        memberName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'ยอดสุทธิ: ${AppFormatters.formatCurrency(amount)}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (canGenerateQr && qrPayload.isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.border),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 8,
+                          ),
+                        ],
+                      ),
+                      child: QrImageView(
+                        data: qrPayload,
+                        version: QrVersions.auto,
+                        size: 180,
+                        eyeStyle: const QrEyeStyle(
+                          eyeShape: QrEyeShape.square,
+                          color: AppColors.primaryDark,
+                        ),
+                        dataModuleStyle: const QrDataModuleStyle(
+                          dataModuleShape: QrDataModuleShape.square,
+                          color: AppColors.primaryDark,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'พร้อมเพย์: $_hostPromptPay ($_hostName)',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'สแกนจ่ายได้ทันที ยอด ฿${amount.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.success,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ] else ...[
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text(
+                        'ยังไม่ได้ระบุเลขพร้อมเพย์ของเจ้าของบิล',
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+
+                  // ปุ่มทวงเงินเข้า LINE
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF06C755),
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(double.infinity, 44),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: const Icon(Icons.send_outlined, size: 18),
+                    label: const Text('ส่งแจ้งเตือนทวงเงินเข้า LINE'),
+                    onPressed: () {
+                      final reminder =
+                          '👋 สวัสดี $memberName!\n'
+                          '🍲 ยอดหารบิลร้าน $shopName ของคุณคือ ฿${amount.toStringAsFixed(2)}\n'
+                          '💳 พร้อมเพย์: $_hostPromptPay ($_hostName)\n'
+                          '✨ สแกน QR โอนแล้วรบกวนส่งสลิปด้วยน้า ขอบคุณครับ/ค่ะ 🙏';
+                      SharePlus.instance.share(
+                        ShareParams(title: 'ทวงเงินค่าอาหาร', text: reminder),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 8),
+
+                  // ปุ่มแนบสลิปแจ้งโอน
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 44),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: const Icon(Icons.receipt_long, size: 18),
+                    label: const Text('แนบสลิปแจ้งโอนเงิน'),
+                    onPressed: () async {
+                      final picker = ImagePicker();
+                      final file = await picker.pickImage(
+                        source: ImageSource.gallery,
+                      );
+                      if (file != null && mounted) {
+                        setDialogState(() {
+                          _manualPaidStatus[memberId] = true;
+                        });
+                        setState(() {
+                          _manualPaidStatus[memberId] = true;
+                        });
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'แนบสลิปและบันทึกสถานะจ่ายแล้วให้ $memberName แล้ว',
+                              ),
+                            ),
+                          );
+                        }
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // สลับสถานะจ่ายแล้ว / รอจ่าย
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        currentPaid ? 'สถานะ: จ่ายแล้ว ✅' : 'สถานะ: รอชำระ ⏳',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: currentPaid
+                              ? Colors.green
+                              : Colors.orange.shade800,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          setDialogState(() {
+                            _manualPaidStatus[memberId] = !currentPaid;
+                          });
+                          setState(() {
+                            _manualPaidStatus[memberId] = !currentPaid;
+                          });
+                        },
+                        child: Text(
+                          currentPaid
+                              ? 'เปลี่ยนเป็นรอจ่าย'
+                              : 'เปลี่ยนเป็นจ่ายแล้ว',
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx),
+                child: const Text('ปิด'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final splitType = context.watch<BillProvider>().splitType;
@@ -574,10 +811,20 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         ),
                     ],
                     selectedMemberId: selectedQrUserId,
-                    onMemberTap: _isCurrentUserHost
-                        ? (userId) =>
-                              setState(() => _selectedUserId = userId)
-                        : null,
+                    onMemberTap: (userId) {
+                      setState(() => _selectedUserId = userId);
+                      _showMemberPaymentDialog(
+                        memberId: userId,
+                        memberName: userNames[userId] ?? 'เพื่อน',
+                        amount: totalsByUser[userId] ?? 0.0,
+                      );
+                    },
+                    onStatusToggle: (member) {
+                      final current = _isParticipantPaid(member.id);
+                      setState(() {
+                        _manualPaidStatus[member.id] = !current;
+                      });
+                    },
                   ),
                   const Divider(thickness: 2),
                   const SizedBox(height: 16),

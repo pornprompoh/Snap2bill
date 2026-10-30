@@ -7,7 +7,7 @@ import '../../providers/user_provider.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/constants.dart';
-import '../../widgets/custom_button.dart';
+import '../../widgets/common/custom_button.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});

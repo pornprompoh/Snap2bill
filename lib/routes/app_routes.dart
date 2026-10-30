@@ -3,15 +3,15 @@ import 'dart:typed_data';
 
 import '../screens/auth/login_screen.dart';
 import '../screens/bill/scan_screen.dart';
-import '../screens/loading_screen.dart';
+import '../screens/common/loading_screen.dart';
 import '../screens/bill/review_screen.dart';
 import '../screens/bill/lobby_screen.dart';
 import '../screens/bill/claim_screen.dart';
 import '../screens/bill/summary_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/friends/friend_list_screen.dart';
-import '../screens/detail_screen.dart';
-import '../screens/main_screen.dart';
+import '../screens/bill/bill_detail_screen.dart';
+import '../screens/common/main_screen.dart';
 
 class AppRoutes {
   static const String login = '/login';
@@ -51,7 +51,7 @@ class AppRoutes {
       case detail:
         final billData = settings.arguments as Map<String, dynamic>? ?? {};
         return MaterialPageRoute(
-          builder: (_) => DetailScreen(billData: billData),
+          builder: (_) => BillDetailScreen(billData: billData),
         );
 
       case loading:

@@ -1,0 +1,48 @@
+name: Flutter CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - 'dev-*'
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Create dummy .env file
+        run: |
+          touch .env
+          echo "SUPABASE_URL=https://dummy.supabase.co" >> .env
+          echo "SUPABASE_ANON_KEY=dummy_key" >> .env
+          echo "GEMINI_API_KEY=dummy_key" >> .env
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Run tests with coverage
+        run: flutter test --coverage

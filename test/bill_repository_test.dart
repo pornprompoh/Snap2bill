@@ -58,7 +58,9 @@ void main() {
     'uploads pending image before writing bill and marks it synced',
     () async {
       final imageBytes = Uint8List.fromList([1, 2, 3]);
-      const receiptUrl = 'https://storage.example/receipts/bill-1.jpg';
+      const receiptUrl =
+          'https://storage.example/storage/v1/object/public/'
+          'firebase_receipts/bill-1/receipt.jpg';
       await database.saveCachedBill(
         CachedBillsCompanion.insert(
           id: 'bill-1',

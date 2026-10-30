@@ -7,7 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 const int _maxImageDimension = 1280;
 const int _maxUploadBytes = 500 * 1024;
-const String _receiptBucket = 'receipts';
+const String _receiptBucket = 'firebase_receipts';
 
 Uint8List _compressReceipt(Uint8List sourceBytes) {
   final decodedImage = img.decodeImage(sourceBytes);
@@ -80,16 +80,12 @@ class SupabaseStorageService {
 
     final compressedBytes = await compute(_compressReceipt, imageBytes);
     final filePath = '$billId/receipt.jpg';
-    await _supabase.storage
-        .from(_receiptBucket)
-        .uploadBinary(
-          filePath,
-          compressedBytes,
-          fileOptions: const FileOptions(
-            contentType: 'image/jpeg',
-            upsert: true,
-          ),
-        );
-    return _supabase.storage.from(_receiptBucket).getPublicUrl(filePath);
+    final bucket = _supabase.storage.from(_receiptBucket);
+    await bucket.uploadBinary(
+      filePath,
+      compressedBytes,
+      fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true),
+    );
+    return bucket.getPublicUrl(filePath);
   }
 }

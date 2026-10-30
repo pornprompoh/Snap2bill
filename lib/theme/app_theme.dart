@@ -84,6 +84,10 @@ class AppTheme {
     return ThemeData(
       fontFamily: AppTextStyles.fontFamily,
       colorScheme: colorScheme,
+      textTheme: AppTextStyles.textTheme.apply(
+        bodyColor: AppColors.darkTextPrimary,
+        displayColor: AppColors.darkTextPrimary,
+      ),
       brightness: Brightness.dark,
       scaffoldBackgroundColor: AppColors.darkBackground,
       appBarTheme: const AppBarTheme(

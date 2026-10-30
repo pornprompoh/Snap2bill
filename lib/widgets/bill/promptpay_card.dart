@@ -67,7 +67,8 @@ class _PromptPayCardState extends State<PromptPayCard> {
   void _startCountdown() {
     _countdownTimer?.cancel();
     _secondsRemaining = _initialDurationSeconds;
-    _currentSessionId = 'TXN-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
+    _currentSessionId =
+        'TXN-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) {
         timer.cancel();
@@ -163,7 +164,8 @@ class _PromptPayCardState extends State<PromptPayCard> {
   @override
   Widget build(BuildContext context) {
     final hasPromptPay = widget.promptPayNumber.trim().isNotEmpty;
-    final hasBank = widget.bankAccountNumber != null &&
+    final hasBank =
+        widget.bankAccountNumber != null &&
         widget.bankAccountNumber!.trim().isNotEmpty;
     final isBankSelected = _selectedPaymentMethod == 1 && hasBank;
 
@@ -234,7 +236,10 @@ class _PromptPayCardState extends State<PromptPayCard> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('ยอดชำระสุทธิ', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                      const Text(
+                        'ยอดชำระสุทธิ',
+                        style: TextStyle(color: Colors.grey, fontSize: 13),
+                      ),
                       Text(
                         '${AppFormatters.formatCurrency(widget.amount)} ฿',
                         style: const TextStyle(
@@ -261,7 +266,9 @@ class _PromptPayCardState extends State<PromptPayCard> {
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 44),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 icon: const Icon(Icons.receipt_long, size: 18),
                 label: const Text('แนบ / ตรวจสอบสลิปหลักฐาน'),
@@ -392,7 +399,9 @@ class _PromptPayCardState extends State<PromptPayCard> {
                 Icon(
                   isExpired ? Icons.timer_off_outlined : Icons.timer_outlined,
                   size: 18,
-                  color: isExpired ? Colors.red.shade700 : Colors.amber.shade900,
+                  color: isExpired
+                      ? Colors.red.shade700
+                      : Colors.amber.shade900,
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -402,7 +411,9 @@ class _PromptPayCardState extends State<PromptPayCard> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: isExpired ? Colors.red.shade700 : Colors.amber.shade900,
+                    color: isExpired
+                        ? Colors.red.shade700
+                        : Colors.amber.shade900,
                   ),
                 ),
               ],
@@ -443,10 +454,11 @@ class _PromptPayCardState extends State<PromptPayCard> {
                         const SizedBox(width: 8),
                         Text(
                           'PROMPTPAY (Single-Use)',
-                          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w700,
-                          ),
+                          style: Theme.of(context).textTheme.labelLarge
+                              ?.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
                         ),
                       ],
                     ),
@@ -472,26 +484,41 @@ class _PromptPayCardState extends State<PromptPayCard> {
                           ? Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.error_outline, size: 48, color: Colors.red.shade400),
+                                Icon(
+                                  Icons.error_outline,
+                                  size: 48,
+                                  color: Colors.red.shade400,
+                                ),
                                 const SizedBox(height: 8),
                                 const Text(
                                   'QR Code หมดอายุแล้ว',
-                                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.red,
+                                  ),
                                 ),
                                 const SizedBox(height: 4),
                                 const Text(
                                   'โปรดกดสร้างใหม่เพื่อชำระ',
-                                  style: TextStyle(fontSize: 11, color: Colors.grey),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey,
+                                  ),
                                 ),
                                 const SizedBox(height: 10),
                                 FilledButton.icon(
                                   style: FilledButton.styleFrom(
                                     visualDensity: VisualDensity.compact,
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
                                   ),
                                   onPressed: _regenerateQr,
                                   icon: const Icon(Icons.refresh, size: 16),
-                                  label: const Text('สร้างใหม่', style: TextStyle(fontSize: 12)),
+                                  label: const Text(
+                                    'สร้างใหม่',
+                                    style: TextStyle(fontSize: 12),
+                                  ),
                                 ),
                               ],
                             )
@@ -580,7 +607,8 @@ class _PromptPayCardState extends State<PromptPayCard> {
   Widget _buildBankTransferCard(BuildContext context) {
     final bankName = widget.bankName ?? 'ธนาคารพาณิชย์';
     final accountNumber = widget.bankAccountNumber ?? '-';
-    final accountName = (widget.bankAccountName != null &&
+    final accountName =
+        (widget.bankAccountName != null &&
             widget.bankAccountName!.trim().isNotEmpty)
         ? widget.bankAccountName!
         : widget.hostName;
@@ -616,9 +644,9 @@ class _PromptPayCardState extends State<PromptPayCard> {
               Text(
                 'โอนผ่านเลขที่บัญชีธนาคาร',
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
@@ -677,7 +705,10 @@ class _PromptPayCardState extends State<PromptPayCard> {
                 const Divider(height: 24),
                 const Text(
                   'เลขที่บัญชีธนาคาร',
-                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Row(
@@ -711,14 +742,20 @@ class _PromptPayCardState extends State<PromptPayCard> {
                         );
                       },
                       icon: const Icon(Icons.copy_rounded, size: 16),
-                      label: const Text('คัดลอก', style: TextStyle(fontSize: 12)),
+                      label: const Text(
+                        'คัดลอก',
+                        style: TextStyle(fontSize: 12),
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 12),
                 const Text(
                   'ชื่อบัญชี',
-                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -734,10 +771,7 @@ class _PromptPayCardState extends State<PromptPayCard> {
           const SizedBox(height: 16),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 12,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
               color: AppColors.secondary.withValues(alpha: 0.35),
               borderRadius: BorderRadius.circular(12),
@@ -751,15 +785,15 @@ class _PromptPayCardState extends State<PromptPayCard> {
                       Text(
                         'ยอดโอนของ ${widget.selectedUserName}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                       Text(
                         '${AppFormatters.formatCurrency(widget.amount)} ฿',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: AppColors.primaryDark,
-                              fontWeight: FontWeight.w800,
-                            ),
+                          color: AppColors.primaryDark,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ],
                   ),
@@ -785,7 +819,10 @@ class _PromptPayCardState extends State<PromptPayCard> {
                     );
                   },
                   icon: const Icon(Icons.copy_rounded, size: 16),
-                  label: const Text('คัดลอกยอด', style: TextStyle(fontSize: 12)),
+                  label: const Text(
+                    'คัดลอกยอด',
+                    style: TextStyle(fontSize: 12),
+                  ),
                 ),
               ],
             ),

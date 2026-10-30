@@ -1,0 +1,131 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function ownsBill(billId) {
+      return signedIn()
+          && get(/databases/$(database)/documents/bills/$(billId)).data.owner_id
+              == request.auth.uid;
+    }
+
+    function participatesInBill(billId) {
+      return signedIn()
+          && exists(
+            /databases/$(database)/documents/bill_participants/$(billId + '_' + request.auth.uid)
+          );
+    }
+
+    function ownsBillAfter(billId) {
+      return signedIn()
+          && getAfter(/databases/$(database)/documents/bills/$(billId)).data.owner_id
+              == request.auth.uid;
+    }
+
+    function isRoomParticipant(roomCode) {
+      return signedIn()
+          && exists(
+            /databases/$(database)/documents/lobbies/$(roomCode)/participants/$(request.auth.uid)
+          );
+    }
+
+    function isRoomHost(roomCode) {
+      return signedIn()
+          && get(/databases/$(database)/documents/lobbies/$(roomCode)).data.host_id
+              == request.auth.uid;
+    }
+
+    match /profiles/{userId} {
+      allow read: if signedIn();
+      allow create, update, delete: if signedIn()
+          && request.auth.uid == userId;
+    }
+
+    match /friends/{friendId} {
+      allow read, delete: if signedIn()
+          && resource.data.user_id == request.auth.uid;
+      allow create: if signedIn()
+          && request.resource.data.user_id == request.auth.uid;
+      allow update: if signedIn()
+          && resource.data.user_id == request.auth.uid
+          && request.resource.data.user_id == request.auth.uid;
+    }
+
+    match /saved_contacts/{contactId} {
+      allow read, delete: if signedIn()
+          && resource.data.user_id == request.auth.uid;
+      allow create: if signedIn()
+          && request.resource.data.user_id == request.auth.uid;
+      allow update: if signedIn()
+          && resource.data.user_id == request.auth.uid
+          && request.resource.data.user_id == request.auth.uid;
+    }
+
+    match /bills/{billId} {
+      allow read: if signedIn()
+          && (resource.data.owner_id == request.auth.uid
+              || participatesInBill(billId));
+      allow create: if signedIn()
+          && request.resource.data.owner_id == request.auth.uid;
+      allow update, delete: if signedIn()
+          && resource.data.owner_id == request.auth.uid;
+    }
+
+    match /bill_participants/{participantId} {
+      allow read: if signedIn()
+          && (resource.data.profile_id == request.auth.uid
+              || ownsBill(resource.data.bill_id)
+              || participatesInBill(resource.data.bill_id));
+      allow create: if ownsBillAfter(request.resource.data.bill_id);
+      allow update: if signedIn()
+          && (ownsBill(resource.data.bill_id)
+              || (resource.data.profile_id == request.auth.uid
+                  && request.resource.data.diff(resource.data).affectedKeys()
+                      .hasOnly(['status'])));
+      allow delete: if signedIn() && ownsBill(resource.data.bill_id);
+    }
+
+    match /lobbies/{roomCode} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+          && request.resource.data.host_id == request.auth.uid;
+      allow update, delete: if signedIn()
+          && resource.data.host_id == request.auth.uid;
+
+      match /participants/{sessionId} {
+        allow read: if signedIn();
+        allow create, update: if signedIn()
+            && request.resource.data.user_id == request.auth.uid
+            && sessionId == request.auth.uid;
+        allow delete: if signedIn()
+            && resource.data.user_id == request.auth.uid
+            && sessionId == request.auth.uid;
+      }
+
+      match /events/{eventId} {
+        allow read: if isRoomParticipant(roomCode);
+        allow create: if signedIn()
+            && isRoomParticipant(roomCode)
+            && (
+              request.resource.data.event in [
+                'request_sync',
+                'full_sync',
+                'update_claim'
+              ]
+              || (request.resource.data.event == 'go_to_summary'
+                  && isRoomHost(roomCode))
+              || (request.resource.data.event in [
+                    'start_claim',
+                    'add_guest_member',
+                    'invite_participants'
+                  ]
+                  && isRoomHost(roomCode))
+            );
+        allow update, delete: if false;
+      }
+    }
+  }
+}

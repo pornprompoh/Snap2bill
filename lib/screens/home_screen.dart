@@ -1,11 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../providers/theme_provider.dart';
-import '../repositories/local_bill_repository.dart';
+import '../repositories/bill_repository.dart';
 import '../routes/app_routes.dart';
+import '../services/firebase_db_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/formatters.dart';
 import '../widgets/bill_card.dart';
@@ -18,17 +21,25 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _supabase = Supabase.instance.client;
-  final LocalBillRepository _localRepo = LocalBillRepository();
+  final FirebaseDbService _dbService = FirebaseDbService();
+  final BillRepository _billRepository = BillRepository();
 
-  late Future<List<Map<String, dynamic>>> _billsFuture;
+  late Stream<List<Map<String, dynamic>>> _billsStream;
   bool _isCheckingRoom = false;
   String _historyFilter = 'all'; // 'all', 'unpaid', 'completed'
 
   @override
   void initState() {
     super.initState();
-    _billsFuture = _fetchMyBills();
+    _billsStream = _billRepository.getBillsStream(
+      userId: FirebaseAuth.instance.currentUser?.uid,
+    );
+  }
+
+  @override
+  void dispose() {
+    unawaited(_billRepository.dispose());
+    super.dispose();
   }
 
   Future<void> _pickImageAndScan(ImageSource source) async {
@@ -56,67 +67,13 @@ class _HomeScreenState extends State<HomeScreen> {
           (bill['total_amount'] ?? bill['sub_total'])?.toString() ?? '0',
         ) ??
         0.0;
-    final message = '📢 สะกิดเตือนเพื่อนตี้ "$shopName" จ้า!\n'
+    final message =
+        '📢 สะกิดเตือนเพื่อนตี้ "$shopName" จ้า!\n'
         '🍲 ยอดบิลรวม ฿${amount.toStringAsFixed(2)} ยังมียอดค้างชำระอยู่น้า\n'
         '📲 ใครยังไม่ได้โอนเงิน รบกวนเปิด Snap2Bill โอนเงินพร้อมส่งสลิปด้วยเน้อ ขอบคุณครับ/ค่ะ 🙏✨';
     await SharePlus.instance.share(
-      ShareParams(
-        title: 'สะกิดเตือนเพื่อนหารบิล',
-        text: message,
-      ),
+      ShareParams(title: 'สะกิดเตือนเพื่อนหารบิล', text: message),
     );
-  }
-
-  Future<List<Map<String, dynamic>>> _fetchMyBills() async {
-    try {
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) {
-        return await _localRepo.getCachedBills();
-      }
-
-      final ownedBills = await _supabase
-          .from('bills')
-          .select()
-          .eq('owner_id', userId);
-
-      final participated = await _supabase
-          .from('bill_participants')
-          .select('bills(*)')
-          .eq('profile_id', userId);
-
-      final Map<String, Map<String, dynamic>> uniqueBills = {};
-
-      for (var b in ownedBills) {
-        uniqueBills[b['id'].toString()] = b;
-      }
-
-      for (var p in participated) {
-        if (p['bills'] != null) {
-          final b = p['bills'] as Map<String, dynamic>;
-          uniqueBills[b['id'].toString()] = b;
-        }
-      }
-
-      final result = uniqueBills.values.toList();
-
-      result.sort((a, b) {
-        final dateA =
-            DateTime.tryParse(a['created_at'].toString()) ??
-            DateTime.fromMillisecondsSinceEpoch(0);
-        final dateB =
-            DateTime.tryParse(b['created_at'].toString()) ??
-            DateTime.fromMillisecondsSinceEpoch(0);
-        return dateB.compareTo(dateA);
-      });
-
-      await _localRepo.cacheSupabaseBills(result);
-      return result;
-    } catch (e) {
-      debugPrint('Error fetching bills from Supabase: $e');
-      final cached = await _localRepo.getCachedBills();
-      if (cached.isNotEmpty) return cached;
-      return [];
-    }
   }
 
   Future<void> _joinRoom(String roomCode) async {
@@ -131,11 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _isCheckingRoom = true);
 
     try {
-      final response = await _supabase
-          .from('lobbies')
-          .select()
-          .eq('room_code', roomCode)
-          .maybeSingle();
+      final response = await _dbService.getLobby(roomCode);
 
       if (!mounted) return;
 
@@ -177,19 +130,29 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('เข้าร่วมห้องหารบิล', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'เข้าร่วมห้องหารบิล',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('กรอกรหัส 6 หลักที่เพื่อนแชร์มาให้', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+            const Text(
+              'กรอกรหัส 6 หลักที่เพื่อนแชร์มาให้',
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: codeController,
               keyboardType: TextInputType.number,
               maxLength: 6,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 4),
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 4,
+              ),
               decoration: InputDecoration(
                 hintText: '123456',
                 filled: true,
@@ -205,7 +168,10 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('ยกเลิก', style: TextStyle(color: AppColors.textSecondary)),
+            child: const Text(
+              'ยกเลิก',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           ElevatedButton(
             onPressed: _isCheckingRoom
@@ -217,13 +183,18 @@ class _HomeScreenState extends State<HomeScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: _isCheckingRoom
                 ? const SizedBox(
                     width: 16,
                     height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   )
                 : const Text('เข้าร่วมตี้'),
           ),
@@ -233,9 +204,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _refreshBills() async {
-    setState(() {
-      _billsFuture = _fetchMyBills();
-    });
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+    try {
+      await _billRepository.syncWithCloud(userId: userId);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('ซิงค์ประวัติบิลไม่สำเร็จ: $error')),
+      );
+    }
   }
 
   bool _isBillSettled(Map<String, dynamic> bill) {
@@ -245,11 +223,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final email = _supabase.auth.currentUser?.email;
+    final email = FirebaseAuth.instance.currentUser?.email;
     final userName = email != null ? email.split('@')[0] : 'คุณ';
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.textSecondary;
 
     return Scaffold(
       appBar: AppBar(
@@ -260,10 +242,16 @@ class _HomeScreenState extends State<HomeScreen> {
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: isDark ? AppColors.darkCardBackground : AppColors.secondary,
+                color: isDark
+                    ? AppColors.darkCardBackground
+                    : AppColors.secondary,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.receipt_long_rounded, color: AppColors.primary, size: 20),
+              child: const Icon(
+                Icons.receipt_long_rounded,
+                color: AppColors.primary,
+                size: 20,
+              ),
             ),
             const SizedBox(width: 8),
             Column(
@@ -310,7 +298,11 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           IconButton(
-            icon: Icon(Icons.people_outline_rounded, color: textPrimary, size: 22),
+            icon: Icon(
+              Icons.people_outline_rounded,
+              color: textPrimary,
+              size: 22,
+            ),
             tooltip: 'สมุดรายชื่อเพื่อน',
             onPressed: () => Navigator.pushNamed(context, AppRoutes.friends),
           ),
@@ -318,7 +310,11 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Stack(
               clipBehavior: Clip.none,
               children: [
-                Icon(Icons.notifications_none_rounded, color: textPrimary, size: 22),
+                Icon(
+                  Icons.notifications_none_rounded,
+                  color: textPrimary,
+                  size: 22,
+                ),
                 Positioned(
                   right: -2,
                   top: -2,
@@ -360,7 +356,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 alignment: Alignment.center,
                 child: Text(
                   userName.substring(0, 1).toUpperCase(),
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
                 ),
               ),
             ),
@@ -370,8 +370,8 @@ class _HomeScreenState extends State<HomeScreen> {
       body: RefreshIndicator(
         color: AppColors.primary,
         onRefresh: _refreshBills,
-        child: FutureBuilder<List<Map<String, dynamic>>>(
-          future: _billsFuture,
+        child: StreamBuilder<List<Map<String, dynamic>>>(
+          stream: _billsStream,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Padding(
@@ -422,7 +422,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
             return SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 8.0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -445,7 +448,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 4),
-                                const Text('✌️', style: TextStyle(fontSize: 16)),
+                                const Text(
+                                  '✌️',
+                                  style: TextStyle(fontSize: 16),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 2),
@@ -460,16 +466,25 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.success.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+                          border: Border.all(
+                            color: AppColors.success.withValues(alpha: 0.3),
+                          ),
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.bolt, size: 14, color: AppColors.success),
+                            Icon(
+                              Icons.bolt,
+                              size: 14,
+                              color: AppColors.success,
+                            ),
                             SizedBox(width: 3),
                             Text(
                               'AI พร้อมทำงาน',
@@ -495,12 +510,19 @@ class _HomeScreenState extends State<HomeScreen> {
                       },
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
                         decoration: BoxDecoration(
-                          color: isDark ? AppColors.darkCardBackground : AppColors.secondary,
+                          color: isDark
+                              ? AppColors.darkCardBackground
+                              : AppColors.secondary,
                           borderRadius: BorderRadius.circular(18),
                           border: Border.all(
-                            color: isDark ? AppColors.darkBorder : AppColors.primary.withValues(alpha: 0.2),
+                            color: isDark
+                                ? AppColors.darkBorder
+                                : AppColors.primary.withValues(alpha: 0.2),
                           ),
                         ),
                         child: Row(
@@ -508,10 +530,16 @@ class _HomeScreenState extends State<HomeScreen> {
                             Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: isDark ? AppColors.darkSurface : Colors.white,
+                                color: isDark
+                                    ? AppColors.darkSurface
+                                    : Colors.white,
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.primary, size: 22),
+                              child: const Icon(
+                                Icons.account_balance_wallet_rounded,
+                                color: AppColors.primary,
+                                size: 22,
+                              ),
                             ),
                             const SizedBox(width: 14),
                             Expanded(
@@ -530,7 +558,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                   Row(
                                     children: [
                                       Text(
-                                        AppFormatters.formatCurrency(unpaidTotal),
+                                        AppFormatters.formatCurrency(
+                                          unpaidTotal,
+                                        ),
                                         style: const TextStyle(
                                           fontSize: 19,
                                           fontWeight: FontWeight.w800,
@@ -550,7 +580,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ],
                               ),
                             ),
-                            const Icon(Icons.chevron_right_rounded, color: AppColors.primary),
+                            const Icon(
+                              Icons.chevron_right_rounded,
+                              color: AppColors.primary,
+                            ),
                           ],
                         ),
                       ),
@@ -563,17 +596,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [
-                          Color(0xFFE26A82),
-                          Color(0xFFD95D77),
-                        ],
+                        colors: [Color(0xFFE26A82), Color(0xFFD95D77)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFD95D77).withValues(alpha: 0.28),
+                          color: const Color(
+                            0xFFD95D77,
+                          ).withValues(alpha: 0.28),
                           blurRadius: 20,
                           offset: const Offset(0, 10),
                         ),
@@ -586,7 +618,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.white.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(20),
@@ -594,7 +629,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               child: const Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.auto_awesome, size: 12, color: Colors.white),
+                                  Icon(
+                                    Icons.auto_awesome,
+                                    size: 12,
+                                    color: Colors.white,
+                                  ),
                                   SizedBox(width: 4),
                                   Text(
                                     'สแกนแยกบิลอัตโนมัติ',
@@ -656,8 +695,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
-                            onPressed: () => _pickImageAndScan(ImageSource.camera),
-                            icon: const Icon(Icons.qr_code_scanner_rounded, size: 18, color: AppColors.primary),
+                            onPressed: () =>
+                                _pickImageAndScan(ImageSource.camera),
+                            icon: const Icon(
+                              Icons.qr_code_scanner_rounded,
+                              size: 18,
+                              color: AppColors.primary,
+                            ),
                             label: const Text(
                               'เริ่มเปิดกล้องสแกน',
                               style: TextStyle(
@@ -684,13 +728,30 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: [
                             Expanded(
                               child: OutlinedButton.icon(
-                                onPressed: () => _pickImageAndScan(ImageSource.gallery),
-                                icon: const Icon(Icons.photo_library_outlined, size: 16, color: Colors.white),
-                                label: const Text('เลือกจากอัลบั้ม', style: TextStyle(color: Colors.white, fontSize: 12)),
+                                onPressed: () =>
+                                    _pickImageAndScan(ImageSource.gallery),
+                                icon: const Icon(
+                                  Icons.photo_library_outlined,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                                label: const Text(
+                                  'เลือกจากอัลบั้ม',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                  ),
+                                ),
                                 style: OutlinedButton.styleFrom(
-                                  side: BorderSide(color: Colors.white.withValues(alpha: 0.4)),
-                                  backgroundColor: Colors.white.withValues(alpha: 0.12),
-                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  side: BorderSide(
+                                    color: Colors.white.withValues(alpha: 0.4),
+                                  ),
+                                  backgroundColor: Colors.white.withValues(
+                                    alpha: 0.12,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 10,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
@@ -701,12 +762,28 @@ class _HomeScreenState extends State<HomeScreen> {
                             Expanded(
                               child: OutlinedButton.icon(
                                 onPressed: () => _showJoinRoomDialog(context),
-                                icon: const Icon(Icons.login_rounded, size: 16, color: Colors.white),
-                                label: const Text('ใส่รหัสเข้าตี้', style: TextStyle(color: Colors.white, fontSize: 12)),
+                                icon: const Icon(
+                                  Icons.login_rounded,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                                label: const Text(
+                                  'ใส่รหัสเข้าตี้',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                  ),
+                                ),
                                 style: OutlinedButton.styleFrom(
-                                  side: BorderSide(color: Colors.white.withValues(alpha: 0.4)),
-                                  backgroundColor: Colors.white.withValues(alpha: 0.12),
-                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  side: BorderSide(
+                                    color: Colors.white.withValues(alpha: 0.4),
+                                  ),
+                                  backgroundColor: Colors.white.withValues(
+                                    alpha: 0.12,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 10,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
@@ -722,16 +799,29 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   // 4. การ์ดเคล็ดลับ (Warm Cream & Butter Peach Tint)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
-                      color: isDark ? AppColors.darkCardBackground : AppColors.warmCream,
+                      color: isDark
+                          ? AppColors.darkCardBackground
+                          : AppColors.warmCream,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.butterPeach),
+                      border: Border.all(
+                        color: isDark
+                            ? AppColors.darkBorder
+                            : AppColors.butterPeach,
+                      ),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.lightbulb_rounded, size: 18, color: Color(0xFFD97706)),
+                        const Icon(
+                          Icons.lightbulb_rounded,
+                          size: 18,
+                          color: Color(0xFFD97706),
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -801,9 +891,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         _buildFilterChip('all', 'ทั้งหมด', bills.length),
                         const SizedBox(width: 8),
-                        _buildFilterChip('unpaid', 'รอเก็บเงิน (Active)', unpaidCount),
+                        _buildFilterChip(
+                          'unpaid',
+                          'รอเก็บเงิน (Active)',
+                          unpaidCount,
+                        ),
                         const SizedBox(width: 8),
-                        _buildFilterChip('completed', 'เสร็จสิ้นแล้ว (Settled)', recoveredMonthlyCount),
+                        _buildFilterChip(
+                          'completed',
+                          'เสร็จสิ้นแล้ว (Settled)',
+                          recoveredMonthlyCount,
+                        ),
                       ],
                     ),
                   ),
@@ -816,7 +914,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       alignment: Alignment.center,
                       child: Column(
                         children: [
-                          Icon(Icons.receipt_outlined, size: 48, color: Colors.grey.shade400),
+                          Icon(
+                            Icons.receipt_outlined,
+                            size: 48,
+                            color: Colors.grey.shade400,
+                          ),
                           const SizedBox(height: 8),
                           Text(
                             _historyFilter == 'unpaid'
@@ -824,7 +926,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                 : _historyFilter == 'completed'
                                 ? 'ยังไม่มีบิลที่ปิดยอดเสร็จสิ้น'
                                 : 'ยังไม่มีประวัติบิล เริ่มต้นด้วยการสแกนได้เลย',
-                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 13,
+                            ),
                           ),
                         ],
                       ),
@@ -861,7 +966,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             AppRoutes.detail,
                             arguments: bill,
                           ),
-                          onRemind: !isSettled ? () => _pokeFriends(bill) : null,
+                          onRemind: !isSettled
+                              ? () => _pokeFriends(bill)
+                              : null,
                         );
                       },
                     ),
@@ -874,10 +981,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [
-                          Color(0xFF0F766E),
-                          Color(0xFF065F46),
-                        ],
+                        colors: [Color(0xFF0F766E), Color(0xFF065F46)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -894,7 +998,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                 color: Colors.white.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: const Icon(Icons.savings_rounded, color: Colors.white, size: 16),
+                              child: const Icon(
+                                Icons.savings_rounded,
+                                color: Colors.white,
+                                size: 16,
+                              ),
                             ),
                             const SizedBox(width: 8),
                             const Text(
@@ -919,7 +1027,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: [
                             Text(
                               AppFormatters.formatCurrency(
-                                recoveredMonthlyTotal > 0 ? recoveredMonthlyTotal : 16467.73,
+                                recoveredMonthlyTotal > 0
+                                    ? recoveredMonthlyTotal
+                                    : 16467.73,
                               ),
                               style: const TextStyle(
                                 fontSize: 24,
@@ -929,7 +1039,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.white.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(8),
@@ -948,7 +1061,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: 8),
                         Row(
                           children: [
-                            const Icon(Icons.bolt, size: 13, color: Color(0xFF34D399)),
+                            const Icon(
+                              Icons.bolt,
+                              size: 13,
+                              color: Color(0xFF34D399),
+                            ),
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
@@ -1006,7 +1123,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 color: isSelected
                     ? Colors.white
-                    : (isDark ? AppColors.darkTextPrimary : AppColors.textPrimary),
+                    : (isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.textPrimary),
               ),
             ),
             if (count > 0 && !isSelected) ...[

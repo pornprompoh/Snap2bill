@@ -2,12 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../models/contact_model.dart';
 import '../../models/user_model.dart';
 import '../../providers/contact_provider.dart';
-import '../../services/supabase_db_service.dart';
+import '../../services/firebase_db_service.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/constants.dart';
 import '../../widgets/custom_button.dart';
@@ -23,8 +23,8 @@ class FriendListScreen extends StatefulWidget {
 }
 
 class _FriendListScreenState extends State<FriendListScreen> {
-  final _supabase = Supabase.instance.client;
-  final _dbService = SupabaseDbService();
+  final _auth = FirebaseAuth.instance;
+  final _dbService = FirebaseDbService();
   final Set<String> _selectedIds = {};
   Future<List<UserModel>>? _participantsFuture;
 
@@ -40,7 +40,7 @@ class _FriendListScreenState extends State<FriendListScreen> {
   }
 
   void _loadPastParticipants() {
-    final userId = _supabase.auth.currentUser?.id;
+    final userId = _auth.currentUser?.uid;
     _participantsFuture = userId == null
         ? null
         : _dbService.getPastParticipants(userId);
@@ -161,9 +161,7 @@ class _FriendListScreenState extends State<FriendListScreen> {
             ),
             child: Card(
               child: ListTile(
-                leading: const CircleAvatar(
-                  child: Icon(Icons.person_outline),
-                ),
+                leading: const CircleAvatar(child: Icon(Icons.person_outline)),
                 title: Text(
                   contact.name,
                   style: const TextStyle(fontWeight: FontWeight.bold),
@@ -182,7 +180,7 @@ class _FriendListScreenState extends State<FriendListScreen> {
   }
 
   Widget _buildPastParticipants() {
-    final userId = _supabase.auth.currentUser?.id;
+    final userId = _auth.currentUser?.uid;
     if (userId == null) {
       return const Center(child: Text('กรุณาล็อกอิน'));
     }
@@ -266,7 +264,9 @@ class _FriendListScreenState extends State<FriendListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.selectionMode ? 'เลือกเพื่อนจากบิลก่อนหน้า' : 'เพื่อนที่เคยหารบิล',
+          widget.selectionMode
+              ? 'เลือกเพื่อนจากบิลก่อนหน้า'
+              : 'เพื่อนที่เคยหารบิล',
         ),
       ),
       body: widget.selectionMode

@@ -1,10 +1,12 @@
 import 'dart:typed_data';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../models/bill_model.dart';
 import '../../../providers/bill_provider.dart';
 import '../../../routes/app_routes.dart';
+import '../../../services/firebase_room_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../utils/formatters.dart';
 import '../../../widgets/bill/claim_item_card.dart';
@@ -34,10 +36,10 @@ class _ClaimScreenState extends State<ClaimScreen> {
   final Map<int, Set<String>> _sharedItems = {};
   final Map<String, String> _userNames = {};
 
-  final _supabase = Supabase.instance.client;
+  final FirebaseRoomService _roomService = FirebaseRoomService();
   late String _currentUserId;
   late String _currentUserName;
-  late RealtimeChannel _claimChannel;
+  StreamSubscription<Map<String, dynamic>>? _eventsSubscription;
 
   String get _activeClaimingUserId => widget.isHost
       ? context.read<BillProvider>().currentClaimingUserId
@@ -49,10 +51,10 @@ class _ClaimScreenState extends State<ClaimScreen> {
   @override
   void initState() {
     super.initState();
+    final currentUser = FirebaseAuth.instance.currentUser;
     _currentUserId =
-        _supabase.auth.currentUser?.id ??
-        'guest_${DateTime.now().millisecondsSinceEpoch}';
-    final email = _supabase.auth.currentUser?.email;
+        currentUser?.uid ?? 'guest_${DateTime.now().millisecondsSinceEpoch}';
+    final email = currentUser?.email;
     if (email != null) {
       _currentUserName = email.split('@')[0];
     } else {
@@ -83,11 +85,26 @@ class _ClaimScreenState extends State<ClaimScreen> {
   }
 
   void _setupRealtime() {
-    _claimChannel = _supabase.channel('room_${widget.lobbyId}');
+    _eventsSubscription = _roomService
+        .watchEvents(widget.lobbyId)
+        .listen(
+          _handleRoomEvent,
+          onError: (Object error, StackTrace stackTrace) {
+            debugPrint('รับข้อมูลการแบ่งรายการไม่สำเร็จ: $error\n$stackTrace');
+          },
+        );
+  }
 
-    _claimChannel.onBroadcast(
-      event: 'update_claim',
-      callback: (payload) {
+  void _handleRoomEvent(Map<String, dynamic> event) {
+    final eventName = event['event']?.toString();
+    final rawPayload = event['payload'];
+    final payload = rawPayload is Map
+        ? Map<String, dynamic>.from(rawPayload)
+        : <String, dynamic>{};
+    switch (eventName) {
+      case '_ready':
+        unawaited(_sendRoomEvent('request_sync', {}));
+      case 'update_claim':
         final index = int.tryParse(payload['item_index']?.toString() ?? '');
         final userId = payload['user_id']?.toString();
         final userName = payload['user_name']?.toString() ?? 'เพื่อน';
@@ -115,28 +132,18 @@ class _ClaimScreenState extends State<ClaimScreen> {
             _claimedItems[index] = itemClaims;
           }
         });
-      },
-    );
-
-    _claimChannel.onBroadcast(
-      event: 'request_sync',
-      callback: (_) {
-        _claimChannel.sendBroadcastMessage(
-          event: 'full_sync',
-          payload: {
+      case 'request_sync':
+        unawaited(
+          _sendRoomEvent('full_sync', {
             'claims': _claimedItems.map((k, v) => MapEntry(k.toString(), v)),
             'shared_users': _sharedItems.map(
               (k, v) => MapEntry(k.toString(), v.toList()),
             ),
             'names': _userNames,
-          },
+          }),
         );
-      },
-    );
-
-    _claimChannel.onBroadcast(
-      event: 'full_sync',
-      callback: (payload) {
+      case 'full_sync':
+        if (!mounted) return;
         setState(() {
           final claimsData = payload['claims'] as Map<String, dynamic>? ?? {};
           _claimedItems.clear();
@@ -162,54 +169,68 @@ class _ClaimScreenState extends State<ClaimScreen> {
           final namesData = payload['names'] as Map<String, dynamic>? ?? {};
           namesData.forEach((k, v) => _userNames[k] = v.toString());
         });
-      },
-    );
-
-    _claimChannel.onBroadcast(
-      event: 'go_to_summary',
-      callback: (_) {
+      case 'go_to_summary':
         if (!widget.isHost && mounted) {
           _navigateToSummaryLocal();
         }
-      },
-    );
+    }
+  }
 
-    _claimChannel.subscribe((status, error) {
-      if (status == RealtimeSubscribeStatus.subscribed) {
-        _claimChannel.sendBroadcastMessage(event: 'request_sync', payload: {});
+  Future<void> _sendRoomEvent(
+    String event,
+    Map<String, dynamic> payload,
+  ) async {
+    try {
+      await _roomService.sendEvent(widget.lobbyId, event, payload);
+    } catch (error, stackTrace) {
+      debugPrint('ส่งข้อมูลห้องไม่สำเร็จ: $error\n$stackTrace');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('ส่งข้อมูลห้องไม่สำเร็จ: $error')),
+        );
       }
-    });
+    }
   }
 
   @override
   void dispose() {
-    _supabase.removeChannel(_claimChannel);
+    _eventsSubscription?.cancel();
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId != null) {
+      unawaited(_removePresence(userId));
+    }
     super.dispose();
   }
 
+  Future<void> _removePresence(String userId) async {
+    try {
+      await _roomService.removePresence(widget.lobbyId, userId);
+    } catch (error, stackTrace) {
+      debugPrint('ลบสถานะสมาชิกในห้องไม่สำเร็จ: $error\n$stackTrace');
+    }
+  }
+
   void _broadcastPersonalUpdate(int index, int qty) {
-    _claimChannel.sendBroadcastMessage(
-      event: 'update_claim',
-      payload: {
+    unawaited(
+      _sendRoomEvent('update_claim', {
         'item_index': index,
         'user_id': _activeClaimingUserId,
         'user_name': _activeClaimingUserName,
         'claim_type': 'personal',
         'qty': qty,
-      },
+      }),
     );
   }
 
   void _broadcastSharedUpdate(int index, bool isShared) {
-    _claimChannel.sendBroadcastMessage(
-      event: 'update_claim',
-      payload: {
+    unawaited(
+      _sendRoomEvent('update_claim', {
         'item_index': index,
         'user_id': _activeClaimingUserId,
         'user_name': _activeClaimingUserName,
         'claim_type': 'shared',
         'is_shared': isShared,
-      },
+      }),
     );
   }
 
@@ -250,9 +271,18 @@ class _ClaimScreenState extends State<ClaimScreen> {
     });
   }
 
-  void _hostTriggerSummary() {
-    _claimChannel.sendBroadcastMessage(event: 'go_to_summary', payload: {});
-    _navigateToSummaryLocal();
+  Future<void> _hostTriggerSummary() async {
+    try {
+      await _roomService.sendEvent(widget.lobbyId, 'go_to_summary', {});
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('ส่งสถานะการสรุปบิลไม่สำเร็จ: $error')),
+        );
+      }
+      return;
+    }
+    if (mounted) _navigateToSummaryLocal();
   }
 
   Future<void> _showAddGuestDialog(BuildContext context) async {
@@ -267,7 +297,10 @@ class _ClaimScreenState extends State<ClaimScreen> {
           children: [
             Icon(Icons.person_add_alt_1_rounded, color: AppColors.primary),
             SizedBox(width: 8),
-            Text('เพิ่มเพื่อนที่ไม่มีแอป', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(
+              'เพิ่มเพื่อนที่ไม่มีแอป',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         content: Column(
@@ -287,7 +320,9 @@ class _ClaimScreenState extends State<ClaimScreen> {
                 hintText: 'เช่น ต้น, นนท์',
                 filled: true,
                 fillColor: AppColors.surface,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ],
@@ -295,7 +330,10 @@ class _ClaimScreenState extends State<ClaimScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('ยกเลิก', style: TextStyle(color: AppColors.textSecondary)),
+            child: const Text(
+              'ยกเลิก',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -305,7 +343,9 @@ class _ClaimScreenState extends State<ClaimScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             child: const Text('เพิ่มเพื่อน'),
           ),
@@ -332,7 +372,9 @@ class _ClaimScreenState extends State<ClaimScreen> {
       if (mounted) {
         messenger.showSnackBar(
           SnackBar(
-            content: Text('เพิ่มเพื่อน "${newMember.name}" แล้ว สามารถเลือกอาหารแทนเพื่อนได้ทันที ✅'),
+            content: Text(
+              'เพิ่มเพื่อน "${newMember.name}" แล้ว สามารถเลือกอาหารแทนเพื่อนได้ทันที ✅',
+            ),
             backgroundColor: AppColors.success,
           ),
         );
@@ -420,15 +462,21 @@ class _ClaimScreenState extends State<ClaimScreen> {
     int selectedDishCount = 0;
     for (int i = 0; i < items.length; i++) {
       final item = items[i];
-      final price = double.tryParse(item['unit_price']?.toString() ?? '0') ?? 0.0;
+      final price =
+          double.tryParse(item['unit_price']?.toString() ?? '0') ?? 0.0;
       final myQty = _claimedItems[i]?[claimingUserId] ?? 0;
       if (myQty > 0) {
         currentClaimingTotal += (myQty * price);
         selectedDishCount++;
       }
       if (_sharedItems[i]?.contains(claimingUserId) == true) {
-        final totalPersonal = (_claimedItems[i]?.values ?? []).fold<int>(0, (a, b) => a + b);
-        final maxQty = int.tryParse((item['qty'] ?? item['quantity'] ?? 1).toString()) ?? 1;
+        final totalPersonal = (_claimedItems[i]?.values ?? []).fold<int>(
+          0,
+          (a, b) => a + b,
+        );
+        final maxQty =
+            int.tryParse((item['qty'] ?? item['quantity'] ?? 1).toString()) ??
+            1;
         final remaining = (maxQty - totalPersonal).clamp(0, maxQty);
         final sharersCount = _sharedItems[i]?.length ?? 1;
         if (sharersCount > 0) {
@@ -455,18 +503,28 @@ class _ClaimScreenState extends State<ClaimScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.secondary,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Text(
                     'ขั้นตอน 4/6',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     borderRadius: BorderRadius.circular(14),
@@ -474,9 +532,19 @@ class _ClaimScreenState extends State<ClaimScreen> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.restaurant_menu_rounded, size: 14, color: AppColors.primary),
+                      const Icon(
+                        Icons.restaurant_menu_rounded,
+                        size: 14,
+                        color: AppColors.primary,
+                      ),
                       const SizedBox(width: 4),
-                      Text(shopName, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
+                      Text(
+                        shopName,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -500,12 +568,19 @@ class _ClaimScreenState extends State<ClaimScreen> {
                 const SizedBox(width: 6),
                 const Text(
                   'ซิงค์สด Real-time',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
                 ),
                 const Spacer(),
                 Text(
                   'ห้อง #${widget.lobbyId}',
-                  style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -525,7 +600,9 @@ class _ClaimScreenState extends State<ClaimScreen> {
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.3),
+              ),
             ),
             child: Row(
               children: [
@@ -535,18 +612,29 @@ class _ClaimScreenState extends State<ClaimScreen> {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.receipt_rounded, size: 16, color: AppColors.primary),
+                          const Icon(
+                            Icons.receipt_rounded,
+                            size: 16,
+                            color: AppColors.primary,
+                          ),
                           const SizedBox(width: 6),
                           Text(
                             'ยอดของ ${_userNames[claimingUserId] ?? "คุณ"} ตอนนี้',
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 2),
                       Text(
                         'รายการที่เลือก ($selectedDishCount รายการ)',
-                        style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textMuted,
+                        ),
                       ),
                     ],
                   ),
@@ -564,7 +652,10 @@ class _ClaimScreenState extends State<ClaimScreen> {
                     ),
                     const Text(
                       'ยังไม่รวม Vat/Svc',
-                      style: TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ],
                 ),
@@ -584,7 +675,11 @@ class _ClaimScreenState extends State<ClaimScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.switch_account_rounded, size: 18, color: AppColors.primary),
+                  const Icon(
+                    Icons.switch_account_rounded,
+                    size: 18,
+                    color: AppColors.primary,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: DropdownButton<String>(
@@ -600,7 +695,10 @@ class _ClaimScreenState extends State<ClaimScreen> {
                               child: Text(
                                 'เลือกจานให้: ${entry.value}'
                                 '${entry.key == _currentUserId ? ' (คุณ)' : ''}',
-                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
                               ),
                             ),
                           )
@@ -614,14 +712,30 @@ class _ClaimScreenState extends State<ClaimScreen> {
                   ),
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       visualDensity: VisualDensity.compact,
                       side: const BorderSide(color: AppColors.primary),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                     onPressed: () => _showAddGuestDialog(context),
-                    icon: const Icon(Icons.person_add_alt, size: 14, color: AppColors.primary),
-                    label: const Text('+ เพื่อน', style: TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.bold)),
+                    icon: const Icon(
+                      Icons.person_add_alt,
+                      size: 14,
+                      color: AppColors.primary,
+                    ),
+                    label: const Text(
+                      '+ เพื่อน',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -686,7 +800,13 @@ class _ClaimScreenState extends State<ClaimScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text('ยอดของคุณตอนนี้', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                        const Text(
+                          'ยอดของคุณตอนนี้',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
                         Text(
                           AppFormatters.formatCurrency(currentClaimingTotal),
                           style: const TextStyle(
@@ -705,7 +825,10 @@ class _ClaimScreenState extends State<ClaimScreen> {
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 14,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
@@ -714,8 +837,13 @@ class _ClaimScreenState extends State<ClaimScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          widget.isHost ? 'สรุปยอดและเคลียร์บิล' : 'รอเจ้ามือสรุปยอด...',
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                          widget.isHost
+                              ? 'สรุปยอดและเคลียร์บิล'
+                              : 'รอเจ้ามือสรุปยอด...',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                         if (widget.isHost) ...[
                           const SizedBox(width: 6),

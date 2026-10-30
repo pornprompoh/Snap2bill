@@ -1,14 +1,15 @@
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:image/image.dart' as img;
-import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 const int _maxImageDimension = 1280;
 const int _maxUploadBytes = 500 * 1024;
+const String _receiptBucket = 'receipts';
 
-Uint8List _compressImage(Uint8List sourceBytes) {
+Uint8List _compressReceipt(Uint8List sourceBytes) {
   final decodedImage = img.decodeImage(sourceBytes);
   if (decodedImage == null) {
     throw const FormatException('ไม่สามารถอ่านรูปภาพได้');
@@ -17,7 +18,7 @@ Uint8List _compressImage(Uint8List sourceBytes) {
   final orientedImage = img.bakeOrientation(decodedImage);
   final longestSide = math.max(orientedImage.width, orientedImage.height);
   final initialScale = math.min(1.0, _maxImageDimension / longestSide);
-  final initialImage = initialScale < 1
+  var image = initialScale < 1
       ? img.copyResize(
           orientedImage,
           width: (orientedImage.width * initialScale).round(),
@@ -26,10 +27,8 @@ Uint8List _compressImage(Uint8List sourceBytes) {
         )
       : orientedImage;
 
-  var image = initialImage;
   var encoded = Uint8List.fromList(img.encodeJpg(image, quality: 78));
   if (encoded.length <= _maxUploadBytes) return encoded;
-
   for (final quality in [70, 62]) {
     encoded = Uint8List.fromList(img.encodeJpg(image, quality: quality));
     if (encoded.length <= _maxUploadBytes) return encoded;
@@ -46,52 +45,51 @@ Uint8List _compressImage(Uint8List sourceBytes) {
       height: (orientedImage.height * scale).round(),
       interpolation: img.Interpolation.linear,
     );
-    encoded = Uint8List.fromList(img.encodeJpg(image, quality: 70));
-    if (encoded.length <= _maxUploadBytes) return encoded;
-    encoded = Uint8List.fromList(img.encodeJpg(image, quality: 62));
-    if (encoded.length <= _maxUploadBytes) return encoded;
+    for (final quality in [70, 62]) {
+      encoded = Uint8List.fromList(img.encodeJpg(image, quality: quality));
+      if (encoded.length <= _maxUploadBytes) return encoded;
+    }
   }
-
   return encoded;
 }
 
 class SupabaseStorageService {
-  final _supabase = Supabase.instance.client;
+  SupabaseClient? _client;
 
-  Future<String?> uploadReceiptXFile(XFile imageFile, String lobbyId) async {
-    return uploadReceiptBytes(await imageFile.readAsBytes(), lobbyId);
-  }
+  SupabaseClient get _supabase {
+    final client = _client;
+    if (client != null) return client;
 
-  Future<Uint8List> compressImageBytes(Uint8List imageBytes) {
-    return compute(_compressImage, imageBytes);
-  }
-
-  Future<String?> uploadReceiptBytes(
-    Uint8List imageBytes,
-    String lobbyId, {
-    String? fileName,
-  }) async {
-    try {
-      final compressedBytes = await compressImageBytes(imageBytes);
-      final resolvedFileName =
-          fileName ?? '${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final filePath = 'receipts/$lobbyId/$resolvedFileName';
-
-      await _supabase.storage
-          .from('receipts')
-          .uploadBinary(
-            filePath,
-            compressedBytes,
-            fileOptions: const FileOptions(
-              contentType: 'image/jpeg',
-              upsert: true,
-            ),
-          );
-
-      return _supabase.storage.from('receipts').getPublicUrl(filePath);
-    } catch (error) {
-      debugPrint('เกิดข้อผิดพลาดในการบีบอัด/อัปโหลดรูปภาพ: $error');
-      return null;
+    final url = dotenv.env['SUPABASE_URL']?.trim();
+    final anonKey = dotenv.env['SUPABASE_ANON_KEY']?.trim();
+    if (url == null || url.isEmpty || anonKey == null || anonKey.isEmpty) {
+      throw StateError(
+        'กำหนด SUPABASE_URL และ SUPABASE_ANON_KEY ในไฟล์ .env ก่อนอัปโหลดรูป',
+      );
     }
+    return _client = SupabaseClient(url, anonKey);
+  }
+
+  Future<String> uploadReceiptBytes(
+    Uint8List imageBytes,
+    String billId,
+  ) async {
+    if (!RegExp(r'^[A-Za-z0-9_-]+$').hasMatch(billId)) {
+      throw ArgumentError.value(billId, 'billId', 'Invalid bill ID.');
+    }
+
+    final compressedBytes = await compute(_compressReceipt, imageBytes);
+    final filePath = '$billId/receipt.jpg';
+    await _supabase.storage
+        .from(_receiptBucket)
+        .uploadBinary(
+          filePath,
+          compressedBytes,
+          fileOptions: const FileOptions(
+            contentType: 'image/jpeg',
+            upsert: true,
+          ),
+        );
+    return _supabase.storage.from(_receiptBucket).getPublicUrl(filePath);
   }
 }

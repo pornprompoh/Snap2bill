@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:snap2bill/models/contact_model.dart';
 
@@ -16,8 +17,20 @@ void main() {
     expect(contact.userId, 'user-1');
     expect(contact.name, 'Mina');
     expect(contact.note, 'Work friend');
-    expect(contact.createdAt, createdAt);
+    expect(contact.createdAt.isAtSameMomentAs(createdAt), isTrue);
     expect(contact.toJson()['user_id'], 'user-1');
     expect(contact.toJson()['created_at'], createdAt.toIso8601String());
+  });
+
+  test('parses a Firestore Timestamp', () {
+    final createdAt = DateTime.parse('2026-10-04T08:00:00.000Z');
+    final contact = ContactModel.fromJson({
+      'id': 'contact-2',
+      'user_id': 'user-1',
+      'name': 'Nina',
+      'created_at': Timestamp.fromDate(createdAt),
+    });
+
+    expect(contact.createdAt.isAtSameMomentAs(createdAt), isTrue);
   });
 }

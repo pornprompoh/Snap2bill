@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
@@ -9,8 +9,9 @@ import '../../../models/bill_model.dart';
 import '../../../models/user_model.dart';
 import '../../../providers/bill_provider.dart';
 import '../../../providers/user_provider.dart';
+import '../../../repositories/bill_repository.dart';
 import '../../../routes/app_routes.dart';
-import '../../../services/supabase_storage_service.dart';
+import '../../../services/firebase_db_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../utils/formatters.dart';
 import '../../../widgets/bill/promptpay_card.dart';
@@ -39,6 +40,8 @@ class SummaryScreen extends StatefulWidget {
 }
 
 class _SummaryScreenState extends State<SummaryScreen> {
+  final FirebaseDbService _dbService = FirebaseDbService();
+  final BillRepository _billRepository = BillRepository();
   bool _isFinishing = false;
   String _hostPromptPay = '';
   String? _hostPromptPayType;
@@ -65,7 +68,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
   @override
   void initState() {
     super.initState();
-    _currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    _currentUserId = FirebaseAuth.instance.currentUser?.uid;
     _selectedUserId = _currentUserId;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _fetchHostPromptPayInfo();
@@ -74,18 +77,13 @@ class _SummaryScreenState extends State<SummaryScreen> {
 
   Future<void> _fetchHostPromptPayInfo() async {
     try {
-      final supabase = Supabase.instance.client;
       final userProvider = context.read<UserProvider>();
       final currentProfile = await userProvider.fetchCurrentUserProfile();
-      final currentUserId = supabase.auth.currentUser?.id;
+      final currentUserId = FirebaseAuth.instance.currentUser?.uid;
       String? hostId;
 
       if (widget.lobbyId.isNotEmpty) {
-        final lobby = await supabase
-            .from('lobbies')
-            .select('host_id')
-            .eq('room_code', widget.lobbyId)
-            .maybeSingle();
+        final lobby = await _dbService.getLobby(widget.lobbyId);
         hostId = lobby?['host_id']?.toString();
       }
 
@@ -94,12 +92,11 @@ class _SummaryScreenState extends State<SummaryScreen> {
 
       UserModel? hostProfile = currentProfile;
       if (hostId != null && hostId != currentProfile?.id) {
-        final response = await supabase
-            .from('profiles')
-            .select()
-            .eq('id', hostId)
-            .maybeSingle();
-        if (response != null) hostProfile = UserModel.fromMap(response);
+        try {
+          hostProfile = await _dbService.getProfile(hostId);
+        } on StateError {
+          hostProfile = null;
+        }
       }
 
       if (mounted) {
@@ -254,7 +251,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
 
   bool _isGuestMember(String userId) {
     if (userId.startsWith('guest_')) return true;
-    if (context.read<BillProvider>().roomMembers.any((m) => m.id == userId && m.isGuest)) {
+    if (context.read<BillProvider>().roomMembers.any(
+      (m) => m.id == userId && m.isGuest,
+    )) {
       return true;
     }
     return widget.roomParticipants.any((participant) {
@@ -300,8 +299,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
     var savedSuccessfully = false;
 
     try {
-      final supabase = Supabase.instance.client;
-      final userId = supabase.auth.currentUser?.id;
+      final userId = FirebaseAuth.instance.currentUser?.uid;
       if (userId == null) throw 'ไม่พบรหัสผู้ใช้งาน กรุณาล็อกอินใหม่';
       final userTotalsForDB = _calculateUserShares();
       final calculatedTotal = userTotalsForDB.values.fold<double>(
@@ -309,14 +307,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
         (sum, amount) => sum + amount,
       );
 
-      String? imageUrl;
-      if (widget.receiptImageBytes != null) {
-        imageUrl = await SupabaseStorageService().uploadReceiptBytes(
-          widget.receiptImageBytes!,
-          widget.lobbyId,
-        );
-      }
-
+      final billId = _dbService.newBillId();
       final sharersJson = widget.itemSharers.map(
         (key, value) => MapEntry(key.toString(), value),
       );
@@ -329,41 +320,28 @@ class _SummaryScreenState extends State<SummaryScreen> {
           ) ??
           calculatedTotal;
 
-      final insertedBill = await supabase
-          .from('bills')
-          .insert({
-            'owner_id': userId,
-            'shop_name': widget.receiptData['shop_name'] ?? 'ไม่ระบุชื่อร้าน',
-            'sub_total': finalTotal,
-            'image_url': imageUrl,
-            'receipt_json': {
-              ...widget.receiptData,
-              'final_total': finalTotal,
-              'total_amount': finalTotal,
-              'split_type': splitType,
-            },
-            'sharers_json': sharersJson,
-          })
-          .select('id')
-          .single();
-
-      final String newBillId = insertedBill['id'].toString();
-
-      final List<Map<String, dynamic>> participantsData = [];
-      userTotalsForDB.forEach((uid, amount) {
-        // 🚀 กรองไม่เอา 'guest_1234' ลงตาราง เพื่อป้องกัน UUID Error
-        if (!uid.startsWith('guest_')) {
-          participantsData.add({
-            'bill_id': newBillId,
-            'profile_id': uid,
-            'amount_owed': amount,
-          });
-        }
-      });
-
-      if (participantsData.isNotEmpty) {
-        await supabase.from('bill_participants').insert(participantsData);
-      }
+      await _billRepository.createBillLocally(
+        billId: billId,
+        userId: userId,
+        bill: {
+          'owner_id': userId,
+          'shop_name': widget.receiptData['shop_name'] ?? 'ไม่ระบุชื่อร้าน',
+          'sub_total': finalTotal,
+          'total_amount': finalTotal,
+          'status': 'completed',
+          'receipt_date': DateTime.now().toIso8601String(),
+          'receipt_image_url': null,
+          'receipt_json': {
+            ...widget.receiptData,
+            'final_total': finalTotal,
+            'total_amount': finalTotal,
+            'split_type': splitType,
+          },
+          'sharers_json': sharersJson,
+        },
+        participantTotals: userTotalsForDB,
+        imageBytes: widget.receiptImageBytes,
+      );
       savedSuccessfully = true;
     } catch (e) {
       if (mounted) {
@@ -473,7 +451,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   radius: 18,
                   child: Text(
                     memberName.isNotEmpty ? memberName[0].toUpperCase() : '?',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -481,10 +462,20 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(memberName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      Text(
+                        memberName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       Text(
                         'ยอดสุทธิ: ${AppFormatters.formatCurrency(amount)}',
-                        style: const TextStyle(fontSize: 13, color: AppColors.primary, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -502,7 +493,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
                       decoration: BoxDecoration(
                         color: Colors.green.shade50,
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.green.shade300, width: 2),
+                        border: Border.all(
+                          color: Colors.green.shade300,
+                          width: 2,
+                        ),
                       ),
                       child: const Icon(
                         Icons.check_circle_rounded,
@@ -538,7 +532,13 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('ยอดชำระ', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                              const Text(
+                                'ยอดชำระ',
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 12,
+                                ),
+                              ),
                               Text(
                                 '${AppFormatters.formatCurrency(amount)} ฿',
                                 style: const TextStyle(
@@ -553,16 +553,41 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('ผู้รับเงิน', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                              Text('$_hostName ($_hostPromptPay)', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                              const Text(
+                                'ผู้รับเงิน',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              Text(
+                                '$_hostName ($_hostPromptPay)',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 4),
                           const Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('สถานะ', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                              Text('ชำระเงินแล้ว ✅', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF00AA5B))),
+                              Text(
+                                'สถานะ',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              Text(
+                                'ชำระเงินแล้ว ✅',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF00AA5B),
+                                ),
+                              ),
                             ],
                           ),
                         ],
@@ -571,7 +596,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   ] else if (canGenerateQr && qrPayload.isNotEmpty) ...[
                     // ⏱️ Single-use dynamic QR with countdown reminder
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       margin: const EdgeInsets.only(bottom: 8),
                       decoration: BoxDecoration(
                         color: Colors.amber.shade50,
@@ -581,9 +609,20 @@ class _SummaryScreenState extends State<SummaryScreen> {
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.timer_outlined, size: 14, color: Colors.amber),
+                          Icon(
+                            Icons.timer_outlined,
+                            size: 14,
+                            color: Colors.amber,
+                          ),
                           SizedBox(width: 4),
-                          Text('คิวอาร์โค้ดใช้ครั้งเดียว (Single-Use)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.brown)),
+                          Text(
+                            'คิวอาร์โค้ดใช้ครั้งเดียว (Single-Use)',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.brown,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -617,12 +656,20 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     const SizedBox(height: 8),
                     Text(
                       'พร้อมเพย์: $_hostPromptPay ($_hostName)',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'สแกนจ่ายได้ทันที ยอด ฿${amount.toStringAsFixed(2)}',
-                      style: const TextStyle(fontSize: 12, color: AppColors.success, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.success,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ] else ...[
                     Container(
@@ -631,7 +678,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         color: Colors.orange.shade50,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Text('ยังไม่ได้ระบุเลขพร้อมเพย์ของเจ้าของบิล'),
+                      child: const Text(
+                        'ยังไม่ได้ระบุเลขพร้อมเพย์ของเจ้าของบิล',
+                      ),
                     ),
                   ],
                   const SizedBox(height: 16),
@@ -643,7 +692,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         backgroundColor: const Color(0xFF06C755),
                         foregroundColor: Colors.white,
                         minimumSize: const Size(double.infinity, 44),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       icon: const Icon(Icons.send_outlined, size: 18),
                       label: const Text('ส่งแจ้งเตือนทวงเงินเข้า LINE (สะกิด)'),
@@ -654,15 +705,13 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         final promptPayInfo = _hasValidPromptPay
                             ? '\n💳 พร้อมเพย์: $_hostPromptPay ($_hostName)'
                             : '';
-                        final reminder = '👋 สวัสดี $memberName!\n'
+                        final reminder =
+                            '👋 สวัสดี $memberName!\n'
                             '🍲 ยอดหารบิลร้าน $shopName ของคุณคือ ฿${amount.toStringAsFixed(2)}'
                             '$promptPayInfo$bankInfo\n'
                             '✨ โอนแล้วรบกวนส่งสลิปด้วยน้า ขอบคุณครับ/ค่ะ 🙏';
                         SharePlus.instance.share(
-                          ShareParams(
-                            title: 'ทวงเงินค่าอาหาร',
-                            text: reminder,
-                          ),
+                          ShareParams(title: 'ทวงเงินค่าอาหาร', text: reminder),
                         );
                       },
                     ),
@@ -673,13 +722,17 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size(double.infinity, 44),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     icon: const Icon(Icons.receipt_long, size: 18),
                     label: const Text('แนบสลิปแจ้งโอนเงิน'),
                     onPressed: () async {
                       final picker = ImagePicker();
-                      final file = await picker.pickImage(source: ImageSource.gallery);
+                      final file = await picker.pickImage(
+                        source: ImageSource.gallery,
+                      );
                       if (file != null && mounted) {
                         setDialogState(() {
                           _manualPaidStatus[memberId] = true;
@@ -689,7 +742,11 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         });
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('แนบสลิปและบันทึกสถานะจ่ายแล้วให้ $memberName แล้ว')),
+                            SnackBar(
+                              content: Text(
+                                'แนบสลิปและบันทึกสถานะจ่ายแล้วให้ $memberName แล้ว',
+                              ),
+                            ),
                           );
                         }
                       }
@@ -705,7 +762,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         currentPaid ? 'สถานะ: จ่ายแล้ว ✅' : 'สถานะ: รอชำระ ⏳',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: currentPaid ? Colors.green : Colors.orange.shade800,
+                          color: currentPaid
+                              ? Colors.green
+                              : Colors.orange.shade800,
                         ),
                       ),
                       TextButton(
@@ -717,7 +776,11 @@ class _SummaryScreenState extends State<SummaryScreen> {
                             _manualPaidStatus[memberId] = !currentPaid;
                           });
                         },
-                        child: Text(currentPaid ? 'เปลี่ยนเป็นรอจ่าย' : 'เปลี่ยนเป็นจ่ายแล้ว'),
+                        child: Text(
+                          currentPaid
+                              ? 'เปลี่ยนเป็นรอจ่าย'
+                              : 'เปลี่ยนเป็นจ่ายแล้ว',
+                        ),
                       ),
                     ],
                   ),
@@ -756,9 +819,17 @@ class _SummaryScreenState extends State<SummaryScreen> {
               '',
         ) ??
         calculatedTotal;
-    final subTotal = double.tryParse(widget.receiptData['sub_total']?.toString() ?? '0') ?? (billTotal * 0.85);
-    final scAmount = double.tryParse(widget.receiptData['service_charge']?.toString() ?? '0') ?? 0.0;
-    final vatAmount = double.tryParse(widget.receiptData['vat_amount']?.toString() ?? '0') ?? 0.0;
+    final subTotal =
+        double.tryParse(widget.receiptData['sub_total']?.toString() ?? '0') ??
+        (billTotal * 0.85);
+    final scAmount =
+        double.tryParse(
+          widget.receiptData['service_charge']?.toString() ?? '0',
+        ) ??
+        0.0;
+    final vatAmount =
+        double.tryParse(widget.receiptData['vat_amount']?.toString() ?? '0') ??
+        0.0;
 
     final selectedQrUserId = _isCurrentUserHost
         ? (_selectedUserId ?? _currentUserId)
@@ -781,14 +852,19 @@ class _SummaryScreenState extends State<SummaryScreen> {
     final activeUserIds = displayedUserIds
         .where((uid) => (totalsByUser[uid] ?? 0) > 0)
         .toList();
-    final paidMembersCount = activeUserIds.where((uid) => _isParticipantPaid(uid)).length;
+    final paidMembersCount = activeUserIds
+        .where((uid) => _isParticipantPaid(uid))
+        .length;
     final paidAmount = activeUserIds
         .where((uid) => _isParticipantPaid(uid))
         .fold<double>(0, (sum, uid) => sum + (totalsByUser[uid] ?? 0.0));
     final unpaidAmount = (billTotal - paidAmount).clamp(0.0, billTotal);
-    final progress = billTotal > 0 ? (paidAmount / billTotal).clamp(0.0, 1.0) : 1.0;
+    final progress = billTotal > 0
+        ? (paidAmount / billTotal).clamp(0.0, 1.0)
+        : 1.0;
 
-    final allParticipantsPaid = activeUserIds.isNotEmpty &&
+    final allParticipantsPaid =
+        activeUserIds.isNotEmpty &&
         activeUserIds.every((uid) => _isParticipantPaid(uid));
 
     return Scaffold(
@@ -804,7 +880,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
               children: [
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -813,7 +892,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppColors.secondary,
                                 borderRadius: BorderRadius.circular(20),
@@ -828,7 +910,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppColors.surface,
                                 borderRadius: BorderRadius.circular(14),
@@ -836,9 +921,19 @@ class _SummaryScreenState extends State<SummaryScreen> {
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.restaurant_rounded, size: 14, color: AppColors.primary),
+                                  const Icon(
+                                    Icons.restaurant_rounded,
+                                    size: 14,
+                                    color: AppColors.primary,
+                                  ),
                                   const SizedBox(width: 4),
-                                  Text(shopName, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
+                                  Text(
+                                    shopName,
+                                    style: const TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -882,7 +977,11 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                       color: AppColors.secondary,
                                       borderRadius: BorderRadius.circular(10),
                                     ),
-                                    child: const Icon(Icons.receipt_long_rounded, color: AppColors.primary, size: 16),
+                                    child: const Icon(
+                                      Icons.receipt_long_rounded,
+                                      color: AppColors.primary,
+                                      size: 16,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -900,32 +999,51 @@ class _SummaryScreenState extends State<SummaryScreen> {
                               // Breakdown Lines
                               _buildSummaryLine('ค่าอาหารรวม', subTotal),
                               if (scAmount > 0)
-                                _buildSummaryLine('Service Charge (10%)', scAmount),
+                                _buildSummaryLine(
+                                  'Service Charge (10%)',
+                                  scAmount,
+                                ),
                               if (vatAmount > 0)
                                 _buildSummaryLine('VAT (7%)', vatAmount),
                               const SizedBox(height: 6),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.secondary.withValues(alpha: 0.6),
+                                  color: AppColors.secondary.withValues(
+                                    alpha: 0.6,
+                                  ),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
                                   splitType == 'equal'
                                       ? '⚡ คำนวณ Service & VAT แบบหารเท่าเฉพาะคนที่กินจริง'
                                       : '⚡ คำนวณ Service & VAT ตามสัดส่วนจานที่แต่ละคนทานจริง',
-                                  style: const TextStyle(fontSize: 10.5, color: AppColors.primary, fontWeight: FontWeight.w600),
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
-                              const Divider(height: 20, color: AppColors.border),
+                              const Divider(
+                                height: 20,
+                                color: AppColors.border,
+                              ),
 
                               // Progress Bar
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     'ชำระแล้ว $paidMembersCount จาก ${activeUserIds.length} คน',
-                                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                                    style: const TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                   Text(
                                     '${AppFormatters.formatCurrency(paidAmount)} / ${AppFormatters.formatCurrency(billTotal)}',
@@ -949,15 +1067,23 @@ class _SummaryScreenState extends State<SummaryScreen> {
                               ),
                               const SizedBox(height: 6),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     'คืบหน้า ${(progress * 100).toStringAsFixed(0)}%',
-                                    style: const TextStyle(fontSize: 10.5, color: AppColors.textSecondary),
+                                    style: const TextStyle(
+                                      fontSize: 10.5,
+                                      color: AppColors.textSecondary,
+                                    ),
                                   ),
                                   Text(
                                     'ยังค้างเบิก ${AppFormatters.formatCurrency(unpaidAmount)}',
-                                    style: const TextStyle(fontSize: 10.5, color: AppColors.warning, fontWeight: FontWeight.w600),
+                                    style: const TextStyle(
+                                      fontSize: 10.5,
+                                      color: AppColors.warning,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -971,7 +1097,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              _isCurrentUserHost ? 'สรุปรายบุคคล' : 'ส่วนของคุณ',
+                              _isCurrentUserHost
+                                  ? 'สรุปรายบุคคล'
+                                  : 'ส่วนของคุณ',
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,
@@ -979,14 +1107,21 @@ class _SummaryScreenState extends State<SummaryScreen> {
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppColors.secondary,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
                                 '${activeUserIds.length} ยอดเรียกเก็บ',
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
                               ),
                             ),
                           ],
@@ -1010,7 +1145,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                             : 'รอชำระ',
                                         ...?itemSharesByUser[userId],
                                       ].join('\n')
-                                    : (itemSharesByUser[userId]?.isNotEmpty == true
+                                    : (itemSharesByUser[userId]?.isNotEmpty ==
+                                              true
                                           ? itemSharesByUser[userId]!.join('\n')
                                           : null),
                               ),
@@ -1049,11 +1185,15 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                 : '',
                             selectedUserName: selectedQrName,
                             amount: qrAmount,
-                            isPaid: selectedQrUserId != null && _isParticipantPaid(selectedQrUserId),
+                            isPaid:
+                                selectedQrUserId != null &&
+                                _isParticipantPaid(selectedQrUserId),
                             onAttachSlip: () async {
                               final messenger = ScaffoldMessenger.of(context);
                               final picker = ImagePicker();
-                              final file = await picker.pickImage(source: ImageSource.gallery);
+                              final file = await picker.pickImage(
+                                source: ImageSource.gallery,
+                              );
                               if (file != null && mounted) {
                                 if (selectedQrUserId != null) {
                                   setState(() {
@@ -1062,7 +1202,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                 }
                                 messenger.showSnackBar(
                                   SnackBar(
-                                    content: Text('แนบสลิปและบันทึกสถานะจ่ายแล้วให้ $selectedQrName แล้ว ✅'),
+                                    content: Text(
+                                      'แนบสลิปและบันทึกสถานะจ่ายแล้วให้ $selectedQrName แล้ว ✅',
+                                    ),
                                     backgroundColor: AppColors.success,
                                   ),
                                 );
@@ -1079,24 +1221,38 @@ class _SummaryScreenState extends State<SummaryScreen> {
                             decoration: BoxDecoration(
                               color: const Color(0xFFF0FDF4),
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: const Color(0xFF86EFAC)),
+                              border: Border.all(
+                                color: const Color(0xFF86EFAC),
+                              ),
                             ),
                             child: const Row(
                               children: [
-                                Icon(Icons.celebration_rounded, color: Color(0xFF16A34A), size: 24),
+                                Icon(
+                                  Icons.celebration_rounded,
+                                  color: Color(0xFF16A34A),
+                                  size: 24,
+                                ),
                                 SizedBox(width: 10),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         '🎉 ทุกคนชำระเงินครบ 100% แล้ว!',
-                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Color(0xFF166534)),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13.5,
+                                          color: Color(0xFF166534),
+                                        ),
                                       ),
                                       SizedBox(height: 2),
                                       Text(
                                         'ยอดเงินครบตามบิลแล้ว เจ้าของบิลสามารถกดปิดบิลเสร็จสิ้นได้เลย',
-                                        style: TextStyle(fontSize: 11, color: Color(0xFF15803D)),
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Color(0xFF15803D),
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -1109,7 +1265,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         const Center(
                           child: Text(
                             'ระบบจะส่งสลิปหลักฐานเข้ากลุ่ม LINE อัตโนมัติเมื่อทุกคนโอนครบ',
-                            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -1123,7 +1282,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                   decoration: BoxDecoration(
                     color: AppColors.surface,
-                    border: const Border(top: BorderSide(color: AppColors.border)),
+                    border: const Border(
+                      top: BorderSide(color: AppColors.border),
+                    ),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.05),
@@ -1140,7 +1301,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         Expanded(
                           child: ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF06C755), // LINE Green
+                              backgroundColor: const Color(
+                                0xFF06C755,
+                              ), // LINE Green
                               foregroundColor: Colors.white,
                               elevation: 0,
                               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -1151,14 +1314,19 @@ class _SummaryScreenState extends State<SummaryScreen> {
                             icon: const Icon(Icons.send_rounded, size: 18),
                             label: const Text(
                               'แชร์บิลสรุปให้ทุกคนใน LINE',
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                             onPressed: () {
                               final listNames = activeUserIds
                                   .map((uid) {
                                     final name = userNames[uid] ?? 'เพื่อน';
                                     final isPaid = _isParticipantPaid(uid);
-                                    final amt = AppFormatters.formatCurrency(totalsByUser[uid] ?? 0);
+                                    final amt = AppFormatters.formatCurrency(
+                                      totalsByUser[uid] ?? 0,
+                                    );
                                     return '- $name: ฿$amt ${isPaid ? "(จ่ายแล้ว ✓)" : "(รอโอน ⏳)"}';
                                   })
                                   .join('\n');
@@ -1168,7 +1336,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
                               final promptPayInfo = _hasValidPromptPay
                                   ? '\n💳 พร้อมเพย์: $_hostPromptPay ($_hostName)'
                                   : '';
-                              final msg = '🍲 สรุปยอดค่าอาหารร้าน "$shopName" 🍲\n'
+                              final msg =
+                                  '🍲 สรุปยอดค่าอาหารร้าน "$shopName" 🍲\n'
                                   'ยอดรวมทั้งโต๊ะ: ${AppFormatters.formatCurrency(billTotal)} บาท\n\n'
                                   '📌 ยอดสรุปรายบุคคล:\n$listNames\n'
                                   '$promptPayInfo$bankInfo\n\n'
@@ -1187,14 +1356,28 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         // ปุ่มปิดบิลเสร็จสิ้น
                         IconButton.filledTonal(
                           style: IconButton.styleFrom(
-                            backgroundColor: allParticipantsPaid ? AppColors.success : AppColors.secondary,
-                            foregroundColor: allParticipantsPaid ? Colors.white : AppColors.primary,
+                            backgroundColor: allParticipantsPaid
+                                ? AppColors.success
+                                : AppColors.secondary,
+                            foregroundColor: allParticipantsPaid
+                                ? Colors.white
+                                : AppColors.primary,
                             padding: const EdgeInsets.all(12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
                           ),
-                          tooltip: _isCurrentUserHost ? 'ปิดบิลเสร็จสิ้น' : 'กลับหน้าแรก',
+                          tooltip: _isCurrentUserHost
+                              ? 'ปิดบิลเสร็จสิ้น'
+                              : 'กลับหน้าแรก',
                           icon: _isFinishing
-                              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
                               : const Icon(Icons.check_rounded, size: 22),
                           onPressed: _isFinishing ? null : _saveAndFinish,
                         ),
@@ -1213,14 +1396,23 @@ class _SummaryScreenState extends State<SummaryScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
+          ),
           Text(
             AppFormatters.formatCurrency(amount),
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
           ),
         ],
       ),
     );
   }
 }
-

@@ -84,6 +84,77 @@ class $CachedBillsTable extends CachedBills
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _localImagePathMeta = const VerificationMeta(
+    'localImagePath',
+  );
+  @override
+  late final GeneratedColumn<String> localImagePath = GeneratedColumn<String>(
+    'receipt_image_local_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _localImageBytesMeta = const VerificationMeta(
+    'localImageBytes',
+  );
+  @override
+  late final GeneratedColumn<Uint8List> localImageBytes =
+      GeneratedColumn<Uint8List>(
+        'local_image_bytes',
+        aliasedName,
+        true,
+        type: DriftSqlType.blob,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _receiptImageUrlMeta = const VerificationMeta(
+    'receiptImageUrl',
+  );
+  @override
+  late final GeneratedColumn<String> receiptImageUrl = GeneratedColumn<String>(
+    'receipt_image_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _ownerIdMeta = const VerificationMeta(
+    'ownerId',
+  );
+  @override
+  late final GeneratedColumn<String> ownerId = GeneratedColumn<String>(
+    'owner_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _cachedForUserIdMeta = const VerificationMeta(
+    'cachedForUserId',
+  );
+  @override
+  late final GeneratedColumn<String> cachedForUserId = GeneratedColumn<String>(
+    'cached_for_user_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _syncedWithServerMeta = const VerificationMeta(
+    'syncedWithServer',
+  );
+  @override
+  late final GeneratedColumn<bool> syncedWithServer = GeneratedColumn<bool>(
+    'synced_with_server',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("synced_with_server" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _cachedAtMeta = const VerificationMeta(
     'cachedAt',
   );
@@ -105,6 +176,12 @@ class $CachedBillsTable extends CachedBills
     status,
     receiptJson,
     sharersJson,
+    localImagePath,
+    localImageBytes,
+    receiptImageUrl,
+    ownerId,
+    cachedForUserId,
+    syncedWithServer,
     cachedAt,
   ];
   @override
@@ -172,6 +249,57 @@ class $CachedBillsTable extends CachedBills
         ),
       );
     }
+    if (data.containsKey('receipt_image_local_path')) {
+      context.handle(
+        _localImagePathMeta,
+        localImagePath.isAcceptableOrUnknown(
+          data['receipt_image_local_path']!,
+          _localImagePathMeta,
+        ),
+      );
+    }
+    if (data.containsKey('local_image_bytes')) {
+      context.handle(
+        _localImageBytesMeta,
+        localImageBytes.isAcceptableOrUnknown(
+          data['local_image_bytes']!,
+          _localImageBytesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('receipt_image_url')) {
+      context.handle(
+        _receiptImageUrlMeta,
+        receiptImageUrl.isAcceptableOrUnknown(
+          data['receipt_image_url']!,
+          _receiptImageUrlMeta,
+        ),
+      );
+    }
+    if (data.containsKey('owner_id')) {
+      context.handle(
+        _ownerIdMeta,
+        ownerId.isAcceptableOrUnknown(data['owner_id']!, _ownerIdMeta),
+      );
+    }
+    if (data.containsKey('cached_for_user_id')) {
+      context.handle(
+        _cachedForUserIdMeta,
+        cachedForUserId.isAcceptableOrUnknown(
+          data['cached_for_user_id']!,
+          _cachedForUserIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('synced_with_server')) {
+      context.handle(
+        _syncedWithServerMeta,
+        syncedWithServer.isAcceptableOrUnknown(
+          data['synced_with_server']!,
+          _syncedWithServerMeta,
+        ),
+      );
+    }
     if (data.containsKey('cached_at')) {
       context.handle(
         _cachedAtMeta,
@@ -215,6 +343,30 @@ class $CachedBillsTable extends CachedBills
         DriftSqlType.string,
         data['${effectivePrefix}sharers_json'],
       ),
+      localImagePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}receipt_image_local_path'],
+      ),
+      localImageBytes: attachedDatabase.typeMapping.read(
+        DriftSqlType.blob,
+        data['${effectivePrefix}local_image_bytes'],
+      ),
+      receiptImageUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}receipt_image_url'],
+      ),
+      ownerId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner_id'],
+      ),
+      cachedForUserId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cached_for_user_id'],
+      ),
+      syncedWithServer: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}synced_with_server'],
+      )!,
       cachedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}cached_at'],
@@ -236,6 +388,12 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
   final String status;
   final String? receiptJson;
   final String? sharersJson;
+  final String? localImagePath;
+  final Uint8List? localImageBytes;
+  final String? receiptImageUrl;
+  final String? ownerId;
+  final String? cachedForUserId;
+  final bool syncedWithServer;
   final DateTime cachedAt;
   const CachedBill({
     required this.id,
@@ -245,6 +403,12 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
     required this.status,
     this.receiptJson,
     this.sharersJson,
+    this.localImagePath,
+    this.localImageBytes,
+    this.receiptImageUrl,
+    this.ownerId,
+    this.cachedForUserId,
+    required this.syncedWithServer,
     required this.cachedAt,
   });
   @override
@@ -265,6 +429,22 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
     if (!nullToAbsent || sharersJson != null) {
       map['sharers_json'] = Variable<String>(sharersJson);
     }
+    if (!nullToAbsent || localImagePath != null) {
+      map['receipt_image_local_path'] = Variable<String>(localImagePath);
+    }
+    if (!nullToAbsent || localImageBytes != null) {
+      map['local_image_bytes'] = Variable<Uint8List>(localImageBytes);
+    }
+    if (!nullToAbsent || receiptImageUrl != null) {
+      map['receipt_image_url'] = Variable<String>(receiptImageUrl);
+    }
+    if (!nullToAbsent || ownerId != null) {
+      map['owner_id'] = Variable<String>(ownerId);
+    }
+    if (!nullToAbsent || cachedForUserId != null) {
+      map['cached_for_user_id'] = Variable<String>(cachedForUserId);
+    }
+    map['synced_with_server'] = Variable<bool>(syncedWithServer);
     map['cached_at'] = Variable<DateTime>(cachedAt);
     return map;
   }
@@ -286,6 +466,22 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
       sharersJson: sharersJson == null && nullToAbsent
           ? const Value.absent()
           : Value(sharersJson),
+      localImagePath: localImagePath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(localImagePath),
+      localImageBytes: localImageBytes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(localImageBytes),
+      receiptImageUrl: receiptImageUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(receiptImageUrl),
+      ownerId: ownerId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ownerId),
+      cachedForUserId: cachedForUserId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cachedForUserId),
+      syncedWithServer: Value(syncedWithServer),
       cachedAt: Value(cachedAt),
     );
   }
@@ -303,6 +499,12 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
       status: serializer.fromJson<String>(json['status']),
       receiptJson: serializer.fromJson<String?>(json['receiptJson']),
       sharersJson: serializer.fromJson<String?>(json['sharersJson']),
+      localImagePath: serializer.fromJson<String?>(json['localImagePath']),
+      localImageBytes: serializer.fromJson<Uint8List?>(json['localImageBytes']),
+      receiptImageUrl: serializer.fromJson<String?>(json['receiptImageUrl']),
+      ownerId: serializer.fromJson<String?>(json['ownerId']),
+      cachedForUserId: serializer.fromJson<String?>(json['cachedForUserId']),
+      syncedWithServer: serializer.fromJson<bool>(json['syncedWithServer']),
       cachedAt: serializer.fromJson<DateTime>(json['cachedAt']),
     );
   }
@@ -317,6 +519,12 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
       'status': serializer.toJson<String>(status),
       'receiptJson': serializer.toJson<String?>(receiptJson),
       'sharersJson': serializer.toJson<String?>(sharersJson),
+      'localImagePath': serializer.toJson<String?>(localImagePath),
+      'localImageBytes': serializer.toJson<Uint8List?>(localImageBytes),
+      'receiptImageUrl': serializer.toJson<String?>(receiptImageUrl),
+      'ownerId': serializer.toJson<String?>(ownerId),
+      'cachedForUserId': serializer.toJson<String?>(cachedForUserId),
+      'syncedWithServer': serializer.toJson<bool>(syncedWithServer),
       'cachedAt': serializer.toJson<DateTime>(cachedAt),
     };
   }
@@ -329,6 +537,12 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
     String? status,
     Value<String?> receiptJson = const Value.absent(),
     Value<String?> sharersJson = const Value.absent(),
+    Value<String?> localImagePath = const Value.absent(),
+    Value<Uint8List?> localImageBytes = const Value.absent(),
+    Value<String?> receiptImageUrl = const Value.absent(),
+    Value<String?> ownerId = const Value.absent(),
+    Value<String?> cachedForUserId = const Value.absent(),
+    bool? syncedWithServer,
     DateTime? cachedAt,
   }) => CachedBill(
     id: id ?? this.id,
@@ -338,6 +552,20 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
     status: status ?? this.status,
     receiptJson: receiptJson.present ? receiptJson.value : this.receiptJson,
     sharersJson: sharersJson.present ? sharersJson.value : this.sharersJson,
+    localImagePath: localImagePath.present
+        ? localImagePath.value
+        : this.localImagePath,
+    localImageBytes: localImageBytes.present
+        ? localImageBytes.value
+        : this.localImageBytes,
+    receiptImageUrl: receiptImageUrl.present
+        ? receiptImageUrl.value
+        : this.receiptImageUrl,
+    ownerId: ownerId.present ? ownerId.value : this.ownerId,
+    cachedForUserId: cachedForUserId.present
+        ? cachedForUserId.value
+        : this.cachedForUserId,
+    syncedWithServer: syncedWithServer ?? this.syncedWithServer,
     cachedAt: cachedAt ?? this.cachedAt,
   );
   CachedBill copyWithCompanion(CachedBillsCompanion data) {
@@ -357,6 +585,22 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
       sharersJson: data.sharersJson.present
           ? data.sharersJson.value
           : this.sharersJson,
+      localImagePath: data.localImagePath.present
+          ? data.localImagePath.value
+          : this.localImagePath,
+      localImageBytes: data.localImageBytes.present
+          ? data.localImageBytes.value
+          : this.localImageBytes,
+      receiptImageUrl: data.receiptImageUrl.present
+          ? data.receiptImageUrl.value
+          : this.receiptImageUrl,
+      ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
+      cachedForUserId: data.cachedForUserId.present
+          ? data.cachedForUserId.value
+          : this.cachedForUserId,
+      syncedWithServer: data.syncedWithServer.present
+          ? data.syncedWithServer.value
+          : this.syncedWithServer,
       cachedAt: data.cachedAt.present ? data.cachedAt.value : this.cachedAt,
     );
   }
@@ -371,6 +615,12 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
           ..write('status: $status, ')
           ..write('receiptJson: $receiptJson, ')
           ..write('sharersJson: $sharersJson, ')
+          ..write('localImagePath: $localImagePath, ')
+          ..write('localImageBytes: $localImageBytes, ')
+          ..write('receiptImageUrl: $receiptImageUrl, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('cachedForUserId: $cachedForUserId, ')
+          ..write('syncedWithServer: $syncedWithServer, ')
           ..write('cachedAt: $cachedAt')
           ..write(')'))
         .toString();
@@ -385,6 +635,12 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
     status,
     receiptJson,
     sharersJson,
+    localImagePath,
+    $driftBlobEquality.hash(localImageBytes),
+    receiptImageUrl,
+    ownerId,
+    cachedForUserId,
+    syncedWithServer,
     cachedAt,
   );
   @override
@@ -398,6 +654,15 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
           other.status == this.status &&
           other.receiptJson == this.receiptJson &&
           other.sharersJson == this.sharersJson &&
+          other.localImagePath == this.localImagePath &&
+          $driftBlobEquality.equals(
+            other.localImageBytes,
+            this.localImageBytes,
+          ) &&
+          other.receiptImageUrl == this.receiptImageUrl &&
+          other.ownerId == this.ownerId &&
+          other.cachedForUserId == this.cachedForUserId &&
+          other.syncedWithServer == this.syncedWithServer &&
           other.cachedAt == this.cachedAt);
 }
 
@@ -409,6 +674,12 @@ class CachedBillsCompanion extends UpdateCompanion<CachedBill> {
   final Value<String> status;
   final Value<String?> receiptJson;
   final Value<String?> sharersJson;
+  final Value<String?> localImagePath;
+  final Value<Uint8List?> localImageBytes;
+  final Value<String?> receiptImageUrl;
+  final Value<String?> ownerId;
+  final Value<String?> cachedForUserId;
+  final Value<bool> syncedWithServer;
   final Value<DateTime> cachedAt;
   final Value<int> rowid;
   const CachedBillsCompanion({
@@ -419,6 +690,12 @@ class CachedBillsCompanion extends UpdateCompanion<CachedBill> {
     this.status = const Value.absent(),
     this.receiptJson = const Value.absent(),
     this.sharersJson = const Value.absent(),
+    this.localImagePath = const Value.absent(),
+    this.localImageBytes = const Value.absent(),
+    this.receiptImageUrl = const Value.absent(),
+    this.ownerId = const Value.absent(),
+    this.cachedForUserId = const Value.absent(),
+    this.syncedWithServer = const Value.absent(),
     this.cachedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -430,6 +707,12 @@ class CachedBillsCompanion extends UpdateCompanion<CachedBill> {
     this.status = const Value.absent(),
     this.receiptJson = const Value.absent(),
     this.sharersJson = const Value.absent(),
+    this.localImagePath = const Value.absent(),
+    this.localImageBytes = const Value.absent(),
+    this.receiptImageUrl = const Value.absent(),
+    this.ownerId = const Value.absent(),
+    this.cachedForUserId = const Value.absent(),
+    this.syncedWithServer = const Value.absent(),
     this.cachedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id);
@@ -441,6 +724,12 @@ class CachedBillsCompanion extends UpdateCompanion<CachedBill> {
     Expression<String>? status,
     Expression<String>? receiptJson,
     Expression<String>? sharersJson,
+    Expression<String>? localImagePath,
+    Expression<Uint8List>? localImageBytes,
+    Expression<String>? receiptImageUrl,
+    Expression<String>? ownerId,
+    Expression<String>? cachedForUserId,
+    Expression<bool>? syncedWithServer,
     Expression<DateTime>? cachedAt,
     Expression<int>? rowid,
   }) {
@@ -452,6 +741,12 @@ class CachedBillsCompanion extends UpdateCompanion<CachedBill> {
       if (status != null) 'status': status,
       if (receiptJson != null) 'receipt_json': receiptJson,
       if (sharersJson != null) 'sharers_json': sharersJson,
+      if (localImagePath != null) 'receipt_image_local_path': localImagePath,
+      if (localImageBytes != null) 'local_image_bytes': localImageBytes,
+      if (receiptImageUrl != null) 'receipt_image_url': receiptImageUrl,
+      if (ownerId != null) 'owner_id': ownerId,
+      if (cachedForUserId != null) 'cached_for_user_id': cachedForUserId,
+      if (syncedWithServer != null) 'synced_with_server': syncedWithServer,
       if (cachedAt != null) 'cached_at': cachedAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -465,6 +760,12 @@ class CachedBillsCompanion extends UpdateCompanion<CachedBill> {
     Value<String>? status,
     Value<String?>? receiptJson,
     Value<String?>? sharersJson,
+    Value<String?>? localImagePath,
+    Value<Uint8List?>? localImageBytes,
+    Value<String?>? receiptImageUrl,
+    Value<String?>? ownerId,
+    Value<String?>? cachedForUserId,
+    Value<bool>? syncedWithServer,
     Value<DateTime>? cachedAt,
     Value<int>? rowid,
   }) {
@@ -476,6 +777,12 @@ class CachedBillsCompanion extends UpdateCompanion<CachedBill> {
       status: status ?? this.status,
       receiptJson: receiptJson ?? this.receiptJson,
       sharersJson: sharersJson ?? this.sharersJson,
+      localImagePath: localImagePath ?? this.localImagePath,
+      localImageBytes: localImageBytes ?? this.localImageBytes,
+      receiptImageUrl: receiptImageUrl ?? this.receiptImageUrl,
+      ownerId: ownerId ?? this.ownerId,
+      cachedForUserId: cachedForUserId ?? this.cachedForUserId,
+      syncedWithServer: syncedWithServer ?? this.syncedWithServer,
       cachedAt: cachedAt ?? this.cachedAt,
       rowid: rowid ?? this.rowid,
     );
@@ -505,6 +812,24 @@ class CachedBillsCompanion extends UpdateCompanion<CachedBill> {
     if (sharersJson.present) {
       map['sharers_json'] = Variable<String>(sharersJson.value);
     }
+    if (localImagePath.present) {
+      map['receipt_image_local_path'] = Variable<String>(localImagePath.value);
+    }
+    if (localImageBytes.present) {
+      map['local_image_bytes'] = Variable<Uint8List>(localImageBytes.value);
+    }
+    if (receiptImageUrl.present) {
+      map['receipt_image_url'] = Variable<String>(receiptImageUrl.value);
+    }
+    if (ownerId.present) {
+      map['owner_id'] = Variable<String>(ownerId.value);
+    }
+    if (cachedForUserId.present) {
+      map['cached_for_user_id'] = Variable<String>(cachedForUserId.value);
+    }
+    if (syncedWithServer.present) {
+      map['synced_with_server'] = Variable<bool>(syncedWithServer.value);
+    }
     if (cachedAt.present) {
       map['cached_at'] = Variable<DateTime>(cachedAt.value);
     }
@@ -524,6 +849,12 @@ class CachedBillsCompanion extends UpdateCompanion<CachedBill> {
           ..write('status: $status, ')
           ..write('receiptJson: $receiptJson, ')
           ..write('sharersJson: $sharersJson, ')
+          ..write('localImagePath: $localImagePath, ')
+          ..write('localImageBytes: $localImageBytes, ')
+          ..write('receiptImageUrl: $receiptImageUrl, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('cachedForUserId: $cachedForUserId, ')
+          ..write('syncedWithServer: $syncedWithServer, ')
           ..write('cachedAt: $cachedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -911,6 +1242,12 @@ typedef $$CachedBillsTableCreateCompanionBuilder =
       Value<String> status,
       Value<String?> receiptJson,
       Value<String?> sharersJson,
+      Value<String?> localImagePath,
+      Value<Uint8List?> localImageBytes,
+      Value<String?> receiptImageUrl,
+      Value<String?> ownerId,
+      Value<String?> cachedForUserId,
+      Value<bool> syncedWithServer,
       Value<DateTime> cachedAt,
       Value<int> rowid,
     });
@@ -923,6 +1260,12 @@ typedef $$CachedBillsTableUpdateCompanionBuilder =
       Value<String> status,
       Value<String?> receiptJson,
       Value<String?> sharersJson,
+      Value<String?> localImagePath,
+      Value<Uint8List?> localImageBytes,
+      Value<String?> receiptImageUrl,
+      Value<String?> ownerId,
+      Value<String?> cachedForUserId,
+      Value<bool> syncedWithServer,
       Value<DateTime> cachedAt,
       Value<int> rowid,
     });
@@ -968,6 +1311,36 @@ class $$CachedBillsTableFilterComposer
 
   ColumnFilters<String> get sharersJson => $composableBuilder(
     column: $table.sharersJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get localImagePath => $composableBuilder(
+    column: $table.localImagePath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<Uint8List> get localImageBytes => $composableBuilder(
+    column: $table.localImageBytes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get receiptImageUrl => $composableBuilder(
+    column: $table.receiptImageUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ownerId => $composableBuilder(
+    column: $table.ownerId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cachedForUserId => $composableBuilder(
+    column: $table.cachedForUserId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get syncedWithServer => $composableBuilder(
+    column: $table.syncedWithServer,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1021,6 +1394,36 @@ class $$CachedBillsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get localImagePath => $composableBuilder(
+    column: $table.localImagePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<Uint8List> get localImageBytes => $composableBuilder(
+    column: $table.localImageBytes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get receiptImageUrl => $composableBuilder(
+    column: $table.receiptImageUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ownerId => $composableBuilder(
+    column: $table.ownerId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get cachedForUserId => $composableBuilder(
+    column: $table.cachedForUserId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get syncedWithServer => $composableBuilder(
+    column: $table.syncedWithServer,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get cachedAt => $composableBuilder(
     column: $table.cachedAt,
     builder: (column) => ColumnOrderings(column),
@@ -1062,6 +1465,34 @@ class $$CachedBillsTableAnnotationComposer
 
   GeneratedColumn<String> get sharersJson => $composableBuilder(
     column: $table.sharersJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get localImagePath => $composableBuilder(
+    column: $table.localImagePath,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<Uint8List> get localImageBytes => $composableBuilder(
+    column: $table.localImageBytes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get receiptImageUrl => $composableBuilder(
+    column: $table.receiptImageUrl,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get ownerId =>
+      $composableBuilder(column: $table.ownerId, builder: (column) => column);
+
+  GeneratedColumn<String> get cachedForUserId => $composableBuilder(
+    column: $table.cachedForUserId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get syncedWithServer => $composableBuilder(
+    column: $table.syncedWithServer,
     builder: (column) => column,
   );
 
@@ -1107,6 +1538,12 @@ class $$CachedBillsTableTableManager
                 Value<String> status = const Value.absent(),
                 Value<String?> receiptJson = const Value.absent(),
                 Value<String?> sharersJson = const Value.absent(),
+                Value<String?> localImagePath = const Value.absent(),
+                Value<Uint8List?> localImageBytes = const Value.absent(),
+                Value<String?> receiptImageUrl = const Value.absent(),
+                Value<String?> ownerId = const Value.absent(),
+                Value<String?> cachedForUserId = const Value.absent(),
+                Value<bool> syncedWithServer = const Value.absent(),
                 Value<DateTime> cachedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CachedBillsCompanion(
@@ -1117,6 +1554,12 @@ class $$CachedBillsTableTableManager
                 status: status,
                 receiptJson: receiptJson,
                 sharersJson: sharersJson,
+                localImagePath: localImagePath,
+                localImageBytes: localImageBytes,
+                receiptImageUrl: receiptImageUrl,
+                ownerId: ownerId,
+                cachedForUserId: cachedForUserId,
+                syncedWithServer: syncedWithServer,
                 cachedAt: cachedAt,
                 rowid: rowid,
               ),
@@ -1129,6 +1572,12 @@ class $$CachedBillsTableTableManager
                 Value<String> status = const Value.absent(),
                 Value<String?> receiptJson = const Value.absent(),
                 Value<String?> sharersJson = const Value.absent(),
+                Value<String?> localImagePath = const Value.absent(),
+                Value<Uint8List?> localImageBytes = const Value.absent(),
+                Value<String?> receiptImageUrl = const Value.absent(),
+                Value<String?> ownerId = const Value.absent(),
+                Value<String?> cachedForUserId = const Value.absent(),
+                Value<bool> syncedWithServer = const Value.absent(),
                 Value<DateTime> cachedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CachedBillsCompanion.insert(
@@ -1139,6 +1588,12 @@ class $$CachedBillsTableTableManager
                 status: status,
                 receiptJson: receiptJson,
                 sharersJson: sharersJson,
+                localImagePath: localImagePath,
+                localImageBytes: localImageBytes,
+                receiptImageUrl: receiptImageUrl,
+                ownerId: ownerId,
+                cachedForUserId: cachedForUserId,
+                syncedWithServer: syncedWithServer,
                 cachedAt: cachedAt,
                 rowid: rowid,
               ),

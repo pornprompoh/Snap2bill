@@ -1,12 +1,12 @@
 # Snap2Bill
 
-Snap2Bill เป็นแอป Flutter สำหรับสแกนใบเสร็จ แบ่งรายการอาหารกับเพื่อน และสรุปยอดที่แต่ละคนต้องชำระ ใช้ Supabase สำหรับ Authentication, Database, Realtime และ Storage
+Snap2Bill เป็นแอป Flutter สำหรับสแกนใบเสร็จ แบ่งรายการอาหารกับเพื่อน และสรุปยอดที่แต่ละคนต้องชำระ ใช้ Firebase Authentication และ Cloud Firestore; รูปใบเสร็จเก็บใน Supabase Storage และแคชในเครื่องด้วย Drift
 
 ## ฟีเจอร์หลัก
 
-- เข้าสู่ระบบด้วย Supabase และ Google Sign-In
+- เข้าสู่ระบบด้วย Firebase Authentication และ Google Sign-In
 - สแกน/เลือกรูปใบเสร็จ แล้วใช้ Gemini OCR แยกรายการ ราคา VAT เซอร์วิสชาร์จ และส่วนลด โดยมีโมเดลสำรองเมื่อเกิด rate limit หรือ service unavailable
-- บีบอัดรูปเป็น JPEG ก่อนอัปโหลดไป Supabase Storage
+- บีบอัดรูปเป็น JPEG ก่อนอัปโหลดไป Supabase Storage; Firestore เก็บเฉพาะ Public URL
 - สร้าง Lobby แบบ Realtime, แชร์ห้องด้วย QR deep link และเลือกเพื่อนจากประวัติบิล
 - เลือกรายการที่แต่ละคนรับผิดชอบ คำนวณส่วนแบ่ง และสร้าง PromptPay QR ตามยอดชำระ
 - ตั้งค่า Display Name และข้อมูล PromptPay ในโปรไฟล์
@@ -20,13 +20,15 @@ snap2bill/
 ├── ios/                                  # โปรเจกต์ iOS
 │   └── Runner/Info.plist                 # URL scheme และการตั้งค่าแอป
 ├── lib/                                  # โค้ด Flutter หลัก
-│   ├── main.dart                         # เริ่มแอป, initialize Supabase, providers และ deep-link listener
-│   ├── models/                           # Data models และการแปลงข้อมูลจาก/ไป Supabase
+│   ├── main.dart                         # เริ่มแอป, initialize Firebase, providers และ deep-link listener
+│   ├── models/                           # Data models และการแปลงข้อมูล
 │   │   ├── bill_model.dart               # Bill, item และ participant models
 │   │   └── user_model.dart               # User/Friend models รวม payment_info ของ PromptPay
 │   ├── providers/                        # State management ด้วย Provider
 │   │   ├── bill_provider.dart            # บิลและรายชื่อสมาชิกห้องปัจจุบัน
 │   │   └── user_provider.dart            # โปรไฟล์และรายชื่อเพื่อน
+│   ├── repositories/                     # ประสานข้อมูลในเครื่องและ Cloud
+│   │   └── bill_repository.dart          # Offline-first Drift และซิงค์ Firestore/Supabase
 │   ├── routes/
 │   │   └── app_routes.dart               # Named routes และส่ง arguments ระหว่างหน้าจอ
 │   ├── screens/                          # หน้าจอและ workflow ของแอป
@@ -45,9 +47,10 @@ snap2bill/
 │   │   │   └── summary_screen.dart       # ยอดชำระ, PromptPay QR และบันทึกบิล
 │   ├── services/                         # การเชื่อมต่อ API และ business services
 │   │   ├── ocr_service.dart              # Gemini OCR พร้อม retry/fallback model
-│   │   ├── supabase_auth_service.dart    # Supabase Auth และ Google Sign-In
-│   │   ├── supabase_db_service.dart      # อ่าน/เขียน profiles, friends และ bills
-│   │   └── supabase_storage_service.dart # Resize/compress ภาพและอัปโหลด Storage
+│   │   ├── firebase_auth_service.dart    # Firebase Auth และ Google Sign-In
+│   │   ├── firebase_db_service.dart      # อ่าน/เขียน profiles, friends และ bills
+│   │   ├── firebase_room_service.dart    # Lobby presence และ realtime events
+│   │   └── supabase_storage_service.dart # Resize/compress ภาพและอัปโหลด Supabase Storage
 │   ├── theme/                            # สีและรูปแบบตัวอักษร
 │   │   ├── app_colors.dart               # ชุดสีหลัก
 │   │   └── app_text_styles.dart          # Text styles ที่ใช้ซ้ำ
@@ -77,9 +80,36 @@ snap2bill/
 ## เครื่องมือและ Dependencies
 
 - Flutter SDK/Dart SDK ตาม constraints ใน `pubspec.yaml` (แพ็กเกจ `app_links` ต้องใช้ Flutter 3.44 ขึ้นไป)
-- Supabase project สำหรับ Auth, Database, Realtime และ Storage
+- Firebase project โดยเปิดใช้ Authentication (Google และ Email/Password) และ Cloud Firestore
+- Supabase project พร้อม public `receipts` bucket สำหรับอ่านรูปใบเสร็จผ่าน Public URL
 - Gemini API key สำหรับ OCR
-- Dependencies สำคัญ: `supabase_flutter`, `google_generative_ai`, `image_picker`, `image`, `app_links` และ `provider`
+- Dependencies สำคัญ: `firebase_core`, `firebase_auth`, `cloud_firestore`, `supabase_flutter`, `google_generative_ai`, `image_picker`, `image`, `app_links` และ `provider`
+
+### ตั้งค่า Firebase
+
+1. เลือก Firebase project ใน Firebase Console แล้วเปิด Authentication providers ที่ต้องการ และสร้าง Cloud Firestore database
+2. ติดตั้ง Firebase CLI และ FlutterFire CLI จากนั้นล็อกอินและตั้งค่าแอป:
+
+   ```bash
+   npm install -g firebase-tools
+   firebase login
+   dart pub global activate flutterfire_cli
+   flutterfire configure
+   ```
+
+   ใน repository นี้มี `lib/firebase_options.dart` และ Firebase Android configuration อยู่แล้ว หากใช้ Firebase project อื่น ให้รัน `flutterfire configure` ใหม่และตรวจสอบค่า project ใน `.firebaserc`
+3. ติดตั้งแพ็กเกจ Flutter และ deploy Firestore rules พร้อม indexes:
+
+   ```bash
+   flutter pub get
+   firebase deploy --only firestore
+   ```
+
+แอปจะเขียนข้อมูลโปรไฟล์ บิล เพื่อน และห้องลง Firestore ส่วนรูปใบเสร็จอัปโหลดไป Supabase Storage ที่ `receipts/{billId}/receipt.jpg` และบันทึก Public URL ใน `receipt_image_url` เท่านั้น โดย Drift เก็บ `localImagePath`, `receiptImageUrl` และ `syncedWithServer` เป็นข้อมูลหลักสำหรับหน้า History: สร้างบิลลง Drift ก่อน แล้วซิงค์รายการที่ยังไม่สำเร็จเมื่อมีเครือข่าย; รูปที่ยังไม่อัปโหลดจะคงไว้ในเครื่องจนได้ URL ส่วน Flutter Web เก็บ bytes ใน Drift IndexedDB แทน filesystem path
+
+### ตั้งค่า Supabase Storage สำหรับใบเสร็จ
+
+สร้าง bucket ชื่อ `receipts` ใน Supabase และเปิด Public bucket access เพื่อให้ `getPublicUrl()` ใช้ได้ข้ามอุปกรณ์และบนเว็บ จากนั้นกำหนด Storage policy สำหรับการอัปโหลดผ่าน client; อย่าใส่ Supabase `service_role` key ในแอป ให้ใช้ backend/Edge Function ที่ตรวจ Firebase Auth หากต้องการจำกัดการอัปโหลดให้เฉพาะผู้ใช้ที่ลงชื่อเข้าใช้
 
 ## เริ่มต้นใช้งาน
 
@@ -93,9 +123,9 @@ snap2bill/
 2. สร้างไฟล์ `.env` ที่ root ของโปรเจกต์ โดยกำหนดค่าตาม environment ของตนเอง:
 
    ```dotenv
-   SUPABASE_URL=ใส่_URL_ของ_Supabase
-   SUPABASE_ANON_KEY=ใส่_publishable_key_ของ_Supabase
    GEMINI_API_KEY=ใส่_Gemini_API_key
+   SUPABASE_URL=ใส่_URL_ของ_Supabase
+   SUPABASE_ANON_KEY=ใส่_anon_key_ของ_Supabase
    GOOGLE_CLIENT_ID=ใส่_Google_client_id_ถ้าใช้งาน
    GOOGLE_SERVER_CLIENT_ID=ใส่_Google_server_client_id_ถ้าใช้งาน
    ```
@@ -130,7 +160,7 @@ snap2bill/
 
 ## Deep Links
 
-แอปรองรับ custom link รูปแบบ `snap2bill://join/{roomCode}` ตัวอย่างเช่น `snap2bill://join/123456` โดย root handler จะตรวจสถานะล็อกอินและเปิด Lobby เมื่อพบห้องใน Supabase ตาราง `lobbies` ส่วน Android intent filters และ iOS URL scheme ตั้งค่าไว้ใน native project folders ด้านบน
+แอปรองรับ custom link รูปแบบ `snap2bill://join/{roomCode}` ตัวอย่างเช่น `snap2bill://join/123456` โดย root handler จะตรวจสถานะล็อกอินและเปิด Lobby เมื่อพบห้องใน Firestore collection `lobbies` ส่วน Android intent filters และ iOS URL scheme ตั้งค่าไว้ใน native project folders ด้านบน
 
 ## แนวทางทำงานร่วมกัน
 

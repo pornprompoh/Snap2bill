@@ -5,11 +5,13 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../models/bill_model.dart';
 import '../../../models/user_model.dart';
 import '../../../providers/bill_provider.dart';
 import '../../../routes/app_routes.dart';
+import '../../../services/firebase_db_service.dart';
+import '../../../services/firebase_room_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../utils/formatters.dart';
 import '../../../widgets/custom_button.dart';
@@ -34,14 +36,18 @@ class LobbyScreen extends StatefulWidget {
 }
 
 class _LobbyScreenState extends State<LobbyScreen> {
-  final _supabase = Supabase.instance.client;
+  final FirebaseDbService _dbService = FirebaseDbService();
+  final FirebaseRoomService _roomService = FirebaseRoomService();
   late String _roomId;
   late bool _isHost;
-  late RealtimeChannel _lobbyChannel;
+  late String _presenceSessionId;
+  StreamSubscription<List<Map<String, dynamic>>>? _participantsSubscription;
+  StreamSubscription<Map<String, dynamic>>? _eventsSubscription;
 
   List<Map<String, dynamic>> _participants = [];
   late String _currentUserId;
   late String _currentUserName;
+  bool _keepPresenceForClaiming = false;
 
   @override
   void initState() {
@@ -54,10 +60,10 @@ class _LobbyScreenState extends State<LobbyScreen> {
       _initializeRoomMembers();
     });
 
+    final currentUser = FirebaseAuth.instance.currentUser;
     _currentUserId =
-        _supabase.auth.currentUser?.id ??
-        'guest_${DateTime.now().millisecondsSinceEpoch}';
-    final email = _supabase.auth.currentUser?.email;
+        currentUser?.uid ?? 'guest_${DateTime.now().millisecondsSinceEpoch}';
+    final email = currentUser?.email;
     _currentUserName = email != null
         ? email.split('@')[0]
         : 'Guest (${_currentUserId.substring(_currentUserId.length - 4)})';
@@ -83,64 +89,94 @@ class _LobbyScreenState extends State<LobbyScreen> {
 
   Future<void> _createLobbyInDB() async {
     try {
-      final existing = await _supabase
-          .from('lobbies')
-          .select('id')
-          .eq('room_code', _roomId)
-          .maybeSingle();
+      final existing = await _dbService.getLobby(_roomId);
       if (existing == null && mounted) {
         final rawTotalAmount =
             double.tryParse(
               widget.receiptData?['total_amount']?.toString() ?? '0',
             ) ??
             0.0;
-        await _supabase.from('lobbies').insert({
-          'host_id': _supabase.auth.currentUser?.id,
-          'room_code': _roomId,
-          'shop_name': widget.receiptData?['shop_name'] ?? 'ไม่ระบุชื่อร้าน',
-          'total_amount': rawTotalAmount,
-          'status': 'waiting',
-          'receipt_json': widget.receiptData,
-        });
+        await _dbService.createLobby(
+          roomCode: _roomId,
+          hostId: FirebaseAuth.instance.currentUser?.uid,
+          shopName: widget.receiptData?['shop_name'] ?? 'ไม่ระบุชื่อร้าน',
+          totalAmount: rawTotalAmount,
+          receiptData: widget.receiptData,
+        );
       }
     } catch (e) {
       debugPrint('ตั้งห้องใน DB ไม่สำเร็จ: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('สร้างห้องใน Firebase ไม่สำเร็จ: $e')),
+        );
+      }
     }
   }
 
   void _setupRealtimeLobby() {
-    _lobbyChannel = _supabase.channel(
-      'room_$_roomId',
-      opts: const RealtimeChannelConfig(key: 'presence'),
-    );
+    _presenceSessionId = _currentUserId;
+    unawaited(_connectToRoom());
+  }
 
-    _lobbyChannel.onPresenceSync((_) {
-      final newState = _lobbyChannel.presenceState();
-      final List<Map<String, dynamic>> users = [];
-      for (final state in newState) {
-        for (final presence in state.presences) {
-          final payload = presence.payload;
-          users.add({
-            'user_id': payload['user_id'],
-            'user_name': payload['user_name'],
-            'is_host': payload['is_host'] == true,
-          });
-        }
-      }
+  Future<void> _connectToRoom() async {
+    await _registerPresence();
+    if (!mounted) return;
+
+    _participantsSubscription = _roomService
+        .watchParticipants(_roomId)
+        .listen(
+          (users) {
+            if (mounted) {
+              setState(() => _participants = users);
+              unawaited(
+                context.read<BillProvider>().saveRoomMemberContacts(
+                  users.map(RoomMember.fromMap),
+                ),
+              );
+            }
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            debugPrint('โหลดสมาชิกในห้องไม่สำเร็จ: $error\n$stackTrace');
+          },
+        );
+    _eventsSubscription = _roomService
+        .watchEvents(_roomId)
+        .listen(
+          _handleRoomEvent,
+          onError: (Object error, StackTrace stackTrace) {
+            debugPrint('รับเหตุการณ์ในห้องไม่สำเร็จ: $error\n$stackTrace');
+          },
+        );
+  }
+
+  Future<void> _registerPresence() async {
+    try {
+      await _roomService.setPresence(_roomId, _presenceSessionId, {
+        'user_id': _currentUserId,
+        'user_name': _currentUserName,
+        'is_host': _isHost,
+      });
+    } catch (error, stackTrace) {
+      debugPrint('ลงทะเบียนสมาชิกในห้องไม่สำเร็จ: $error\n$stackTrace');
       if (mounted) {
-        setState(() => _participants = users);
-        unawaited(
-          context.read<BillProvider>().saveRoomMemberContacts(
-            users.map(RoomMember.fromMap),
-          ),
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('เชื่อมต่อสมาชิกในห้องไม่สำเร็จ: $error')),
         );
       }
-    });
+    }
+  }
 
-    _lobbyChannel.onBroadcast(
-      event: 'start_claim',
-      callback: (payload) {
-        if (!mounted) return;
+  void _handleRoomEvent(Map<String, dynamic> event) {
+    final eventName = event['event']?.toString();
+    final rawPayload = event['payload'];
+    final payload = rawPayload is Map
+        ? Map<String, dynamic>.from(rawPayload)
+        : <String, dynamic>{};
+    switch (eventName) {
+      case 'start_claim':
+        if (!mounted || _isHost) return;
+        _keepPresenceForClaiming = true;
         final receiptData = payload['receiptData'] as Map<String, dynamic>?;
         final rawParticipants = payload['roomParticipants'];
         final roomParticipants = <Map<String, dynamic>>[];
@@ -162,36 +198,18 @@ class _LobbyScreenState extends State<LobbyScreen> {
             'isHost': _isHost,
           },
         );
-      },
-    );
-
-    _lobbyChannel.onBroadcast(
-      event: 'add_guest_member',
-      callback: (payload) {
-        final memberData = payload['member'] as Map<String, dynamic>?;
-        if (memberData == null) return;
-        final member = RoomMember.fromMap(memberData);
-        context.read<BillProvider>().addGuestMember(member.name);
-      },
-    );
-
-    _lobbyChannel.onBroadcast(
-      event: 'invite_participants',
-      callback: (payload) {
+      case 'add_guest_member':
         if (!mounted) return;
-        _mergeInvitedParticipants(payload);
-      },
-    );
-
-    _lobbyChannel.subscribe((status, [error]) async {
-      if (status == RealtimeSubscribeStatus.subscribed) {
-        await _lobbyChannel.track({
-          'user_id': _currentUserId,
-          'user_name': _currentUserName,
-          'is_host': _isHost,
-        });
-      }
-    });
+        final memberData = payload['member'];
+        if (memberData is Map) {
+          final member = RoomMember.fromMap(
+            Map<String, dynamic>.from(memberData),
+          );
+          context.read<BillProvider>().mergeRoomMembers([member]);
+        }
+      case 'invite_participants':
+        if (mounted) _mergeInvitedParticipants(payload);
+    }
   }
 
   Future<void> _addGuestMember() async {
@@ -207,10 +225,9 @@ class _LobbyScreenState extends State<LobbyScreen> {
       final member = await context.read<BillProvider>().addGuestMember(
         guestName,
       );
-      _lobbyChannel.sendBroadcastMessage(
-        event: 'add_guest_member',
-        payload: {'member': member.toMap()},
-      );
+      await _roomService.sendEvent(_roomId, 'add_guest_member', {
+        'member': member.toMap(),
+      });
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -246,23 +263,41 @@ class _LobbyScreenState extends State<LobbyScreen> {
 
   @override
   void dispose() {
-    _supabase.removeChannel(_lobbyChannel);
+    _participantsSubscription?.cancel();
+    _eventsSubscription?.cancel();
+    if (!_keepPresenceForClaiming) unawaited(_removePresence());
     super.dispose();
   }
 
-  void _startClaiming() async {
+  Future<void> _removePresence() async {
+    try {
+      await _roomService.removePresence(_roomId, _presenceSessionId);
+    } catch (error, stackTrace) {
+      debugPrint('ลบสถานะสมาชิกในห้องไม่สำเร็จ: $error\n$stackTrace');
+    }
+  }
+
+  Future<void> _startClaiming() async {
     if (!_isHost) return;
     final roomParticipants = _buildRoomParticipantMaps(
       context.read<BillProvider>(),
     );
-    _lobbyChannel.sendBroadcastMessage(
-      event: 'start_claim',
-      payload: {
+    try {
+      await _roomService.sendEvent(_roomId, 'start_claim', {
         'receiptData': widget.receiptData,
         'roomParticipants': roomParticipants,
-      },
-    );
+      });
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('เริ่มแบ่งบิลไม่สำเร็จ: $error')),
+        );
+      }
+      return;
+    }
 
+    if (!mounted) return;
+    _keepPresenceForClaiming = true;
     Navigator.pushReplacementNamed(
       context,
       AppRoutes.claim,
@@ -331,15 +366,13 @@ class _LobbyScreenState extends State<LobbyScreen> {
 
   Future<void> _shareToLine() async {
     final shop = widget.receiptData?['shop_name'] ?? 'โต๊ะนี้';
-    final message = '🍲 เข้าตี้หารบิลร้าน $shop กัน!\n'
+    final message =
+        '🍲 เข้าตี้หารบิลร้าน $shop กัน!\n'
         '📲 แตะลิงก์เพื่อเข้าห้องทันที: $_joinLink\n'
         '🔢 หรือใส่รหัส 6 หลัก: $_roomId\n'
         '✨ ไม่ต้องโหลดแอป เปิดผ่านเบราว์เซอร์แล้วจิ้มอาหารได้เลย!';
     await SharePlus.instance.share(
-      ShareParams(
-        title: 'แชร์เข้ากลุ่ม LINE',
-        text: message,
-      ),
+      ShareParams(title: 'แชร์เข้ากลุ่ม LINE', text: message),
     );
   }
 
@@ -348,9 +381,14 @@ class _LobbyScreenState extends State<LobbyScreen> {
     final billProvider = context.watch<BillProvider>();
     final roomParticipants = _buildRoomParticipantMaps(billProvider);
     final shopName = widget.receiptData?['shop_name'] ?? 'ไม่ระบุชื่อร้าน';
-    final totalAmount = double.tryParse(
-      (widget.receiptData?['final_total'] ?? widget.receiptData?['total_amount'])?.toString() ?? '0',
-    ) ?? 0.0;
+    final totalAmount =
+        double.tryParse(
+          (widget.receiptData?['final_total'] ??
+                      widget.receiptData?['total_amount'])
+                  ?.toString() ??
+              '0',
+        ) ??
+        0.0;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -368,7 +406,10 @@ class _LobbyScreenState extends State<LobbyScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.secondary,
                     borderRadius: BorderRadius.circular(20),
@@ -383,7 +424,10 @@ class _LobbyScreenState extends State<LobbyScreen> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.success.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(14),
@@ -392,7 +436,14 @@ class _LobbyScreenState extends State<LobbyScreen> {
                     children: [
                       Icon(Icons.circle, size: 8, color: AppColors.success),
                       SizedBox(width: 4),
-                      Text('ห้องเปิดอยู่', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.success)),
+                      Text(
+                        'ห้องเปิดอยู่',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.success,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -417,7 +468,11 @@ class _LobbyScreenState extends State<LobbyScreen> {
                       color: AppColors.secondary,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.restaurant_rounded, color: AppColors.primary, size: 18),
+                    child: const Icon(
+                      Icons.restaurant_rounded,
+                      color: AppColors.primary,
+                      size: 18,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -426,13 +481,19 @@ class _LobbyScreenState extends State<LobbyScreen> {
                       children: [
                         Text(
                           shopName,
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         const Text(
                           'ยอดสุทธิจากใบเสร็จ',
-                          style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ],
                     ),
@@ -469,7 +530,10 @@ class _LobbyScreenState extends State<LobbyScreen> {
               child: Column(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.secondary,
                       borderRadius: BorderRadius.circular(14),
@@ -477,11 +541,19 @@ class _LobbyScreenState extends State<LobbyScreen> {
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.qr_code_2_rounded, size: 14, color: AppColors.primary),
+                        Icon(
+                          Icons.qr_code_2_rounded,
+                          size: 14,
+                          color: AppColors.primary,
+                        ),
                         SizedBox(width: 4),
                         Text(
                           'สแกนเข้าห้องได้ทันที',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
                         ),
                       ],
                     ),
@@ -495,7 +567,11 @@ class _LobbyScreenState extends State<LobbyScreen> {
                   const Text(
                     'หรือให้เพื่อนเปิดกล้องสแกนได้ทันทีโดยไม่ต้องโหลดแอปก็ได้ สะดวก รวดเร็ว',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.3),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                      height: 1.3,
+                    ),
                   ),
                   const SizedBox(height: 16),
 
@@ -528,7 +604,10 @@ class _LobbyScreenState extends State<LobbyScreen> {
                     borderRadius: BorderRadius.circular(14),
                     onTap: _copyJoinLink,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.secondary.withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(14),
@@ -536,7 +615,13 @@ class _LobbyScreenState extends State<LobbyScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text('รหัสตี้: ', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                          const Text(
+                            'รหัสตี้: ',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                           Text(
                             '#SB-$_roomId',
                             style: const TextStyle(
@@ -547,7 +632,11 @@ class _LobbyScreenState extends State<LobbyScreen> {
                             ),
                           ),
                           const SizedBox(width: 6),
-                          const Icon(Icons.copy_rounded, size: 14, color: AppColors.primary),
+                          const Icon(
+                            Icons.copy_rounded,
+                            size: 14,
+                            color: AppColors.primary,
+                          ),
                         ],
                       ),
                     ),
@@ -597,10 +686,17 @@ class _LobbyScreenState extends State<LobbyScreen> {
               children: [
                 Text(
                   'เพื่อนที่เข้าร่วมแล้ว ${roomParticipants.length} คน',
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.success.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
@@ -609,7 +705,14 @@ class _LobbyScreenState extends State<LobbyScreen> {
                     children: [
                       Icon(Icons.circle, size: 7, color: AppColors.success),
                       SizedBox(width: 4),
-                      Text('Real-time', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.success)),
+                      Text(
+                        'Real-time',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.success,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -627,24 +730,33 @@ class _LobbyScreenState extends State<LobbyScreen> {
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: isSelf ? AppColors.primary.withValues(alpha: 0.4) : AppColors.border,
+                    color: isSelf
+                        ? AppColors.primary.withValues(alpha: 0.4)
+                        : AppColors.border,
                   ),
                 ),
                 child: Row(
                   children: [
                     CircleAvatar(
                       radius: 18,
-                      backgroundColor: isHostUser ? AppColors.secondary : const Color(0xFFF0FDF4),
+                      backgroundColor: isHostUser
+                          ? AppColors.secondary
+                          : const Color(0xFFF0FDF4),
                       child: Text(
                         userName.isNotEmpty ? userName[0].toUpperCase() : '?',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: isHostUser ? AppColors.primary : AppColors.success,
+                          color: isHostUser
+                              ? AppColors.primary
+                              : AppColors.success,
                         ),
                       ),
                     ),
@@ -657,19 +769,39 @@ class _LobbyScreenState extends State<LobbyScreen> {
                             children: [
                               Text(
                                 userName,
-                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                ),
                               ),
                               if (isSelf)
-                                const Text(' (คุณ)', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 12)),
+                                const Text(
+                                  ' (คุณ)',
+                                  style: TextStyle(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
                               if (isHostUser) ...[
                                 const SizedBox(width: 4),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 5,
+                                    vertical: 1,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: AppColors.primary,
                                     borderRadius: BorderRadius.circular(6),
                                   ),
-                                  child: const Text('เจ้ามือ', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                                  child: const Text(
+                                    'เจ้ามือ',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ],
@@ -681,14 +813,19 @@ class _LobbyScreenState extends State<LobbyScreen> {
                                 : 'กำลังออนไลน์ในห้อง...',
                             style: TextStyle(
                               fontSize: 11.5,
-                              color: isHostUser ? AppColors.success : AppColors.textSecondary,
+                              color: isHostUser
+                                  ? AppColors.success
+                                  : AppColors.textSecondary,
                             ),
                           ),
                         ],
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: isHostUser
                             ? AppColors.success.withValues(alpha: 0.12)
@@ -700,7 +837,9 @@ class _LobbyScreenState extends State<LobbyScreen> {
                         style: TextStyle(
                           fontSize: 10.5,
                           fontWeight: FontWeight.w600,
-                          color: isHostUser ? AppColors.success : AppColors.primary,
+                          color: isHostUser
+                              ? AppColors.success
+                              : AppColors.primary,
                         ),
                       ),
                     ),
@@ -732,11 +871,22 @@ class _LobbyScreenState extends State<LobbyScreen> {
                 child: const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.primary,
+                      ),
+                    ),
                     SizedBox(width: 10),
                     Text(
                       'รอเจ้ามือกดเริ่มจิ้มอาหาร...',
-                      style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 14),
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
                     ),
                   ],
                 ),
@@ -782,9 +932,21 @@ class _LobbyScreenState extends State<LobbyScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13.5,
+                    ),
+                  ),
                   const SizedBox(height: 1),
-                  Text(subtitle, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
                 ],
               ),
             ),

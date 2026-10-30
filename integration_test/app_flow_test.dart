@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:snap2bill/firebase_options.dart';
 import 'package:snap2bill/screens/auth/login_screen.dart';
 
 void main() {
@@ -10,9 +11,8 @@ void main() {
 
   testWidgets('login screen renders available sign-in actions', (tester) async {
     SharedPreferences.setMockInitialValues({});
-    await Supabase.initialize(
-      url: 'https://example.supabase.co',
-      publishableKey: 'test-publishable-key',
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
     );
 
     await tester.pumpWidget(const MaterialApp(home: LoginScreen()));

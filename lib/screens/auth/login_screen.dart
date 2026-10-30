@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import '../../providers/user_provider.dart';
 import '../../routes/app_routes.dart';
-import '../../services/supabase_auth_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 
@@ -16,7 +17,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   bool _isNavigatingHome = false;
-  late final StreamSubscription<AuthState> _authStateSubscription;
+  late final StreamSubscription<User?> _authStateSubscription;
 
   void _navigateToHome() {
     if (!mounted || _isNavigatingHome) return;
@@ -32,22 +33,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
     // 🚀 1. เช็กว่าล็อกอินค้างไว้ไหม "หลังจากวาดหน้าจอเสร็จแล้ว" (แก้ปัญหาจอดำ)
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final session = Supabase.instance.client.auth.currentSession;
-      if (session != null && mounted) {
+      final user = context.read<UserProvider>().firebaseUser;
+      if (user != null && mounted) {
         _navigateToHome();
       }
     });
 
-    // 🚀 2. ดักฟังจังหวะที่เว็บ Redirect กลับมาจาก Google แล้วได้ Token
-    _authStateSubscription = Supabase.instance.client.auth.onAuthStateChange
-        .listen((data) {
-          final AuthChangeEvent event = data.event;
-          final Session? session = data.session;
-
-          // ถ้าพบว่าล็อกอินสำเร็จ ให้เด้งไปหน้า Home ทันที
-          if (event == AuthChangeEvent.signedIn || session != null) {
-            _navigateToHome();
-          }
+    _authStateSubscription = context
+        .read<UserProvider>()
+        .authStateChanges
+        .listen((user) {
+          if (user != null) _navigateToHome();
         });
   }
 
@@ -60,18 +56,18 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isLoading = true);
     try {
-      final response = await SupabaseAuthService().signInWithGoogle();
+      final response = await context.read<UserProvider>().signInWithGoogle();
 
       if (!mounted) return;
 
       // ถ้ารันบนมือถือและล็อกอินผ่าน (ป๊อปอัพ) จะได้ response กลับมา
-      if (response != null && response.user != null) {
+      if (response.user != null) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('เข้าสู่ระบบสำเร็จ')));
         _navigateToHome();
       }
-      // หมายเหตุ: บนเว็บ โค้ดจะหยุดทำแค่นี้ เพราะมัน Redirect โยนไปหน้า Google แล้ว
+      // On web, Firebase completes sign-in through its popup flow.
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(

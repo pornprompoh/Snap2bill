@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "971663072082",
+    "project_id": "slip2bill",
+    "storage_bucket": "slip2bill.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:971663072082:android:3af541e3372b54babff88b",
+        "android_client_info": {
+          "package_name": "com.example.snap2bill"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyALzv_ub6jRibhwW9pJZxtpjiajD4v9OVs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

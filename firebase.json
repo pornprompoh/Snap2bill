@@ -1,0 +1,29 @@
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "slip2bill",
+          "appId": "1:971663072082:android:3af541e3372b54babff88b",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "slip2bill",
+          "configurations": {
+            "android": "1:971663072082:android:3af541e3372b54babff88b",
+            "ios": "1:971663072082:ios:dfdf54186f42d4aebff88b",
+            "macos": "1:971663072082:ios:dfdf54186f42d4aebff88b",
+            "web": "1:971663072082:web:334d3e279cc1fa70bff88b",
+            "windows": "1:971663072082:web:abf31f4f68913fe1bff88b"
+          }
+        }
+      }
+    }
+  }
+}

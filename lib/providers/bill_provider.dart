@@ -1,14 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 
 import '../models/bill_model.dart';
 import '../models/user_model.dart';
 import 'contact_provider.dart';
-import '../services/supabase_db_service.dart';
+import '../services/firebase_db_service.dart';
+import '../repositories/bill_repository.dart';
 
 class BillProvider with ChangeNotifier {
-  final SupabaseDbService _dbService = SupabaseDbService();
+  final FirebaseDbService _dbService;
+  final BillRepository _repository;
   ContactProvider? _contactProvider;
+
+  BillProvider({BillRepository? repository, FirebaseDbService? dbService})
+    : _repository = repository ?? BillRepository(),
+      _dbService = dbService ?? FirebaseDbService();
 
   void setContactProvider(ContactProvider contactProvider) {
     _contactProvider = contactProvider;
@@ -20,6 +27,8 @@ class BillProvider with ChangeNotifier {
   final List<RoomMember> _roomMembers = [];
   bool _isLoading = false;
   bool _isCreatingBill = false;
+  bool _isOffline = false;
+  String? _error;
   String _splitType = 'proportional';
   String? _currentClaimingUserId;
 
@@ -29,6 +38,8 @@ class BillProvider with ChangeNotifier {
   String get currentClaimingUserId =>
       _currentClaimingUserId ?? _dbService.currentUserId ?? '';
   bool get isLoading => _isLoading;
+  bool get isOffline => _isOffline;
+  String? get error => _error;
   String get splitType => _splitType;
 
   void setSplitType(String type) {
@@ -47,7 +58,11 @@ class BillProvider with ChangeNotifier {
     Iterable<String> participantIds = const [],
   }) {
     if (splitType != 'equal' && splitType != 'proportional') {
-      throw ArgumentError.value(splitType, 'splitType', 'Unsupported split type.');
+      throw ArgumentError.value(
+        splitType,
+        'splitType',
+        'Unsupported split type.',
+      );
     }
 
     final itemTotalsByUser = <String, double>{
@@ -97,14 +112,15 @@ class BillProvider with ChangeNotifier {
 
     return {
       for (final entry in itemTotalsByUser.entries)
-        entry.key: activeEaterIds.isNotEmpty && !activeEaterIds.contains(entry.key)
+        entry.key:
+            activeEaterIds.isNotEmpty && !activeEaterIds.contains(entry.key)
             ? 0.0
             : entry.value +
-                (splitType == 'equal'
-                    ? (activeCount > 0 ? extraAmount / activeCount : 0.0)
-                    : (totalMenuValue > 0
-                          ? extraAmount * entry.value / totalMenuValue
-                          : 0.0)),
+                  (splitType == 'equal'
+                      ? (activeCount > 0 ? extraAmount / activeCount : 0.0)
+                      : (totalMenuValue > 0
+                            ? extraAmount * entry.value / totalMenuValue
+                            : 0.0)),
     };
   }
 
@@ -195,7 +211,9 @@ class BillProvider with ChangeNotifier {
 
   bool _mergeRoomMember(RoomMember member) {
     if (member.id.isEmpty) return false;
-    final index = _roomMembers.indexWhere((existing) => existing.id == member.id);
+    final index = _roomMembers.indexWhere(
+      (existing) => existing.id == member.id,
+    );
     if (index >= 0) return false;
     _roomMembers.add(member);
     return true;
@@ -210,31 +228,183 @@ class BillProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // ดึงประวัติบิลของเรามาแสดง
-  Future<void> loadMyBills() async {
+  Future<void> loadBills({String? userId}) async {
+    final activeUserId = userId ?? _dbService.currentUserId;
+    if (activeUserId == null || activeUserId.isEmpty) {
+      _bills = [];
+      _isOffline = false;
+      _error = null;
+      notifyListeners();
+      return;
+    }
+
     _isLoading = true;
+    _error = null;
     notifyListeners();
+    try {
+      final localBills = await _repository.getBills(
+        userId: activeUserId,
+        syncInBackground: false,
+      );
+      _replaceBills(localBills);
+      _isLoading = false;
+      notifyListeners();
+      unawaited(_syncAndRefresh(activeUserId));
+    } catch (error, stackTrace) {
+      debugPrint('Failed to load local bills: $error\n$stackTrace');
+      _error = 'โหลดประวัติบิลจากเครื่องไม่สำเร็จ: $error';
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 
-    _bills = await _dbService.getMyBills();
+  Future<void> loadMyBills() => loadBills();
 
-    _isLoading = false;
+  Future<void> _syncAndRefresh(String userId) async {
+    try {
+      _isOffline = !await _repository.hasNetworkConnection();
+      notifyListeners();
+      if (_isOffline) return;
+      await _repository.syncWithCloud(userId: userId);
+      _replaceBills(
+        await _repository.getBills(userId: userId, syncInBackground: false),
+      );
+      _error = null;
+    } catch (error, stackTrace) {
+      debugPrint('Failed to sync bills with cloud: $error\n$stackTrace');
+      _isOffline = true;
+      _error = 'ซิงค์บิลไม่สำเร็จ จะแสดงข้อมูลในเครื่อง: $error';
+    }
     notifyListeners();
   }
 
-  // สร้างบิลใหม่ แล้วยัดใส่บนสุดของลิสต์ให้ผู้ใช้เห็นทันที
-  Future<BillModel> createBill(String shopName, double totalAmount) async {
+  void _replaceBills(Iterable<Map<String, dynamic>> rows) {
+    _bills = rows
+        .map((row) {
+          final normalized = <String, dynamic>{
+            ...row,
+            'id': row['id']?.toString() ?? '',
+            'owner_id':
+                row['owner_id']?.toString() ??
+                row['userId']?.toString() ??
+                _dbService.currentUserId ??
+                '',
+          };
+          return BillModel.fromJson(normalized);
+        })
+        .where((bill) => bill.id.isNotEmpty)
+        .toList();
+  }
+
+  Future<BillModel> createBill(
+    String shopName,
+    double totalAmount, {
+    List<Map<String, dynamic>> items = const [],
+    Map<String, dynamic>? receiptData,
+    Map<String, dynamic>? sharers,
+    Map<String, double> participantTotals = const {},
+    Uint8List? imageBytes,
+    String? localImagePath,
+    String status = 'draft',
+  }) async {
     if (_isCreatingBill) {
       throw StateError('Bill creation is already in progress.');
     }
+    final userId = _dbService.currentUserId;
+    if (userId == null) throw StateError('กรุณาล็อกอินก่อนสร้างบิล');
 
     _isCreatingBill = true;
+    _error = null;
+    notifyListeners();
     try {
-      final newBill = await _dbService.createBill(shopName, totalAmount);
+      final billId = _dbService.newBillId();
+      final receiptJson = {
+        ...?receiptData,
+        if (items.isNotEmpty) 'items': items,
+      };
+      await _repository.createBillLocally(
+        billId: billId,
+        userId: userId,
+        bill: {
+          'owner_id': userId,
+          'shop_name': shopName,
+          'total_amount': totalAmount,
+          'sub_total': totalAmount,
+          'status': status,
+          'receipt_date': DateTime.now().toIso8601String(),
+          'receipt_json': receiptJson,
+          'sharers_json': sharers,
+        },
+        participantTotals: participantTotals,
+        imageBytes: imageBytes,
+        localImagePath: localImagePath,
+        items: items,
+      );
+      final newBill = BillModel.fromJson({
+        'id': billId,
+        'owner_id': userId,
+        'shop_name': shopName,
+        'total_amount': totalAmount,
+        'final_total': totalAmount,
+        'receipt_date': DateTime.now().toIso8601String(),
+        'status': status,
+        'split_type': receiptJson['split_type'],
+      });
       _bills.insert(0, newBill);
       notifyListeners();
+      unawaited(_syncAndRefresh(userId));
       return newBill;
+    } catch (error, stackTrace) {
+      debugPrint('Failed to create local bill: $error\n$stackTrace');
+      _error = 'บันทึกบิลในเครื่องไม่สำเร็จ: $error';
+      rethrow;
     } finally {
       _isCreatingBill = false;
+      notifyListeners();
     }
+  }
+
+  Future<void> updateBill({
+    required String billId,
+    required Map<String, dynamic> data,
+  }) async {
+    final userId = _dbService.currentUserId;
+    if (userId == null) throw StateError('กรุณาล็อกอินก่อนแก้ไขบิล');
+    await _repository.updateBillLocally(
+      billId: billId,
+      userId: userId,
+      data: data,
+    );
+    _replaceBills(
+      await _repository.getBills(userId: userId, syncInBackground: false),
+    );
+    notifyListeners();
+    unawaited(_syncAndRefresh(userId));
+  }
+
+  Future<void> updateParticipantStatus({
+    required String billId,
+    required String profileId,
+    required String status,
+  }) async {
+    final userId = _dbService.currentUserId;
+    if (userId == null) throw StateError('กรุณาล็อกอินก่อนแก้ไขสถานะบิล');
+    await _repository.updateParticipantStatusLocally(
+      billId: billId,
+      userId: userId,
+      profileId: profileId,
+      status: status,
+    );
+    _replaceBills(
+      await _repository.getBills(userId: userId, syncInBackground: false),
+    );
+    notifyListeners();
+    unawaited(_syncAndRefresh(userId));
+  }
+
+  @override
+  void dispose() {
+    unawaited(_repository.dispose());
+    super.dispose();
   }
 }

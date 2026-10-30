@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // 🚀 นำเข้า dotenv
 import 'package:provider/provider.dart';
+import 'firebase_options.dart';
 import 'routes/app_routes.dart';
 import 'providers/bill_provider.dart';
 import 'providers/contact_provider.dart';
@@ -20,12 +22,7 @@ void main() async {
   // 🚀 โหลดไฟล์ .env ก่อนเรียกใช้ตัวแปร
   await dotenv.load(fileName: ".env");
 
-  // 🚀 เริ่มต้น Supabase โดยดึงค่าจาก .env
-  await Supabase.initialize(
-    url: dotenv.env['SUPABASE_URL']!,
-    publishableKey:
-        dotenv.env['SUPABASE_ANON_KEY']!, // ใช้ anonKey สำหรับ Supabase
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   runApp(
     MultiProvider(
@@ -55,43 +52,45 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
 
-    final lightColorScheme = ColorScheme.fromSeed(
-      seedColor: AppColors.primary,
-      brightness: Brightness.light,
-    ).copyWith(
-      primary: AppColors.primary,
-      onPrimary: AppColors.surface,
-      primaryContainer: AppColors.secondary,
-      onPrimaryContainer: AppColors.primaryDark,
-      secondary: AppColors.secondary,
-      onSecondary: AppColors.primaryDark,
-      tertiary: AppColors.accent,
-      onTertiary: AppColors.textPrimary,
-      surface: AppColors.surface,
-      onSurface: AppColors.textPrimary,
-      outline: AppColors.border,
-      error: AppColors.error,
-      onError: AppColors.surface,
-    );
+    final lightColorScheme =
+        ColorScheme.fromSeed(
+          seedColor: AppColors.primary,
+          brightness: Brightness.light,
+        ).copyWith(
+          primary: AppColors.primary,
+          onPrimary: AppColors.surface,
+          primaryContainer: AppColors.secondary,
+          onPrimaryContainer: AppColors.primaryDark,
+          secondary: AppColors.secondary,
+          onSecondary: AppColors.primaryDark,
+          tertiary: AppColors.accent,
+          onTertiary: AppColors.textPrimary,
+          surface: AppColors.surface,
+          onSurface: AppColors.textPrimary,
+          outline: AppColors.border,
+          error: AppColors.error,
+          onError: AppColors.surface,
+        );
 
-    final darkColorScheme = ColorScheme.fromSeed(
-      seedColor: AppColors.primary,
-      brightness: Brightness.dark,
-    ).copyWith(
-      primary: AppColors.secondary,
-      onPrimary: AppColors.primaryDark,
-      primaryContainer: AppColors.primaryDark,
-      onPrimaryContainer: AppColors.secondary,
-      secondary: AppColors.secondary,
-      onSecondary: AppColors.primaryDark,
-      tertiary: AppColors.accent,
-      onTertiary: Colors.white,
-      surface: AppColors.darkSurface,
-      onSurface: AppColors.darkTextPrimary,
-      outline: AppColors.darkBorder,
-      error: AppColors.error,
-      onError: Colors.white,
-    );
+    final darkColorScheme =
+        ColorScheme.fromSeed(
+          seedColor: AppColors.primary,
+          brightness: Brightness.dark,
+        ).copyWith(
+          primary: AppColors.secondary,
+          onPrimary: AppColors.primaryDark,
+          primaryContainer: AppColors.primaryDark,
+          onPrimaryContainer: AppColors.secondary,
+          secondary: AppColors.secondary,
+          onSecondary: AppColors.primaryDark,
+          tertiary: AppColors.accent,
+          onTertiary: Colors.white,
+          surface: AppColors.darkSurface,
+          onSurface: AppColors.darkTextPrimary,
+          outline: AppColors.darkBorder,
+          error: AppColors.error,
+          onError: Colors.white,
+        );
 
     return MaterialApp(
       title: 'Snap2Bill',
@@ -153,13 +152,15 @@ class MyApp extends StatelessWidget {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: AppColors.secondary, width: 1.5),
+            borderSide: const BorderSide(
+              color: AppColors.secondary,
+              width: 1.5,
+            ),
           ),
         ),
         useMaterial3: true,
       ),
-      // OAuth returns to the app after Supabase has restored the session.
-      initialRoute: Supabase.instance.client.auth.currentSession == null
+      initialRoute: FirebaseAuth.instance.currentUser == null
           ? '/'
           : AppRoutes.home,
       onGenerateRoute: AppRoutes.generateRoute,

@@ -4,7 +4,11 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   app_links
+  cloud_firestore
+  connectivity_plus
   file_selector_windows
+  firebase_auth
+  firebase_core
   gal
   share_plus
   sqlite3_flutter_libs

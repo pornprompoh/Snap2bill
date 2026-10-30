@@ -3,10 +3,11 @@ import 'dart:convert';
 
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../routes/app_routes.dart';
-import '../services/supabase_auth_service.dart';
+import '../services/firebase_auth_service.dart';
+import '../services/firebase_db_service.dart';
 
 class DeepLinkHandler extends StatefulWidget {
   final Widget child;
@@ -27,7 +28,7 @@ class DeepLinkHandler extends StatefulWidget {
 class _DeepLinkHandlerState extends State<DeepLinkHandler> {
   final AppLinks _appLinks = AppLinks();
   StreamSubscription<Uri>? _linkSubscription;
-  StreamSubscription<AuthState>? _authSubscription;
+  StreamSubscription<User?>? _authSubscription;
   String? _pendingRoomCode;
   bool _isOpeningRoom = false;
 
@@ -38,10 +39,8 @@ class _DeepLinkHandlerState extends State<DeepLinkHandler> {
       _handleIncomingLink,
       onError: (error) => debugPrint('Deep link stream error: $error'),
     );
-    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((
-      state,
-    ) {
-      if (state.session != null && _pendingRoomCode != null) {
+    _authSubscription = FirebaseAuthService().authStateChanges.listen((user) {
+      if (user != null && _pendingRoomCode != null) {
         unawaited(_openPendingRoom());
       }
     });
@@ -78,7 +77,7 @@ class _DeepLinkHandlerState extends State<DeepLinkHandler> {
     }
 
     _pendingRoomCode = roomCode;
-    if (SupabaseAuthService().currentUser == null) {
+    if (FirebaseAuthService().currentUser == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         widget.navigatorKey.currentState?.pushNamedAndRemoveUntil(
           AppRoutes.login,
@@ -106,16 +105,12 @@ class _DeepLinkHandlerState extends State<DeepLinkHandler> {
 
   Future<void> _openPendingRoom() async {
     final roomCode = _pendingRoomCode;
-    final currentUser = SupabaseAuthService().currentUser;
+    final currentUser = FirebaseAuthService().currentUser;
     if (roomCode == null || currentUser == null || _isOpeningRoom) return;
 
     _isOpeningRoom = true;
     try {
-      final room = await Supabase.instance.client
-          .from('lobbies')
-          .select('host_id, receipt_json')
-          .eq('room_code', roomCode)
-          .maybeSingle();
+      final room = await FirebaseDbService().getLobby(roomCode);
 
       if (room == null) {
         _pendingRoomCode = null;
@@ -134,7 +129,7 @@ class _DeepLinkHandlerState extends State<DeepLinkHandler> {
         arguments: {
           'lobbyId': roomCode,
           'receiptData': receiptData,
-          'isHost': hostId == currentUser.id,
+          'isHost': hostId == currentUser.uid,
         },
       );
     } catch (error, stackTrace) {

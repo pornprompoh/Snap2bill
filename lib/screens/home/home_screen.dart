@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:snap2bill/models/bill_model.dart';
+import 'package:snap2bill/providers/theme_provider.dart';
 import 'package:snap2bill/repositories/bill_repository.dart';
 import 'package:snap2bill/routes/app_routes.dart';
 import 'package:snap2bill/screens/bill/bill_detail_screen.dart';
@@ -223,12 +225,31 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.textPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.textSecondary;
+    final currentEmail = _supabase.auth.currentUser?.email;
+    final userName = currentEmail == null
+        ? 'คุณ'
+        : currentEmail.split('@').first;
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text('Snap2Bill'),
         actions: [
+          IconButton(
+            tooltip: isDark ? 'เปลี่ยนเป็นโหมดสว่าง' : 'เปลี่ยนเป็นโหมดมืด',
+            icon: Icon(
+              isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+            ),
+            onPressed: () => context.read<ThemeProvider>().toggleTheme(),
+          ),
           IconButton(
             icon: const Icon(Icons.people_outline),
             tooltip: 'สมุดรายชื่อเพื่อน',
@@ -325,6 +346,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text(
+                      'สวัสดีคุณ$userName',
+                      style: AppTextStyles.title.copyWith(color: textPrimary),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'วันนี้ทานอะไรอร่อยๆ มาหรือยัง?',
+                      style: AppTextStyles.caption.copyWith(
+                        color: textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     // 1. การ์ดสรุปยอดเงินค้างรับ & ยอดที่ทวงคืนสำเร็จเดือนนี้
                     Row(
                       children: [
@@ -335,14 +368,22 @@ class _HomeScreenState extends State<HomeScreen> {
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 colors: [
-                                  Colors.orange.shade50,
-                                  Colors.amber.shade50,
+                                  isDark
+                                      ? AppColors.darkCardBackground
+                                      : Colors.orange.shade50,
+                                  isDark
+                                      ? AppColors.darkSurface
+                                      : Colors.amber.shade50,
                                 ],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                               ),
                               borderRadius: BorderRadius.circular(18),
-                              border: Border.all(color: Colors.orange.shade200),
+                              border: Border.all(
+                                color: isDark
+                                    ? AppColors.darkBorder
+                                    : Colors.orange.shade200,
+                              ),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -360,7 +401,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.orange.shade900,
+                                        color: isDark
+                                            ? AppColors.warning
+                                            : Colors.orange.shade900,
                                       ),
                                     ),
                                   ],
@@ -371,14 +414,18 @@ class _HomeScreenState extends State<HomeScreen> {
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.w800,
-                                    color: Colors.orange.shade900,
+                                    color: isDark
+                                        ? AppColors.darkTextPrimary
+                                        : Colors.orange.shade900,
                                   ),
                                 ),
                                 Text(
                                   'รอเก็บ $unpaidCount บิล',
                                   style: TextStyle(
                                     fontSize: 11,
-                                    color: Colors.orange.shade800,
+                                    color: isDark
+                                        ? AppColors.darkTextSecondary
+                                        : Colors.orange.shade800,
                                   ),
                                 ),
                               ],
@@ -393,14 +440,22 @@ class _HomeScreenState extends State<HomeScreen> {
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 colors: [
-                                  Colors.green.shade50,
-                                  Colors.teal.shade50,
+                                  isDark
+                                      ? AppColors.darkCardBackground
+                                      : Colors.green.shade50,
+                                  isDark
+                                      ? AppColors.darkSurface
+                                      : Colors.teal.shade50,
                                 ],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                               ),
                               borderRadius: BorderRadius.circular(18),
-                              border: Border.all(color: Colors.green.shade200),
+                              border: Border.all(
+                                color: isDark
+                                    ? AppColors.darkBorder
+                                    : Colors.green.shade200,
+                              ),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -418,7 +473,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.green.shade900,
+                                        color: isDark
+                                            ? AppColors.success
+                                            : Colors.green.shade900,
                                       ),
                                     ),
                                   ],
@@ -431,14 +488,18 @@ class _HomeScreenState extends State<HomeScreen> {
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.w800,
-                                    color: Colors.green.shade900,
+                                    color: isDark
+                                        ? AppColors.darkTextPrimary
+                                        : Colors.green.shade900,
                                   ),
                                 ),
                                 Text(
                                   'ปิดยอด $recoveredMonthlyCount บิล',
                                   style: TextStyle(
                                     fontSize: 11,
-                                    color: Colors.green.shade800,
+                                    color: isDark
+                                        ? AppColors.darkTextSecondary
+                                        : Colors.green.shade800,
                                   ),
                                 ),
                               ],
@@ -572,9 +633,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.amber.shade50,
+                        color: isDark
+                            ? AppColors.darkCardBackground
+                            : Colors.amber.shade50,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.amber.shade200),
+                        border: Border.all(
+                          color: isDark
+                              ? AppColors.darkBorder
+                              : Colors.amber.shade200,
+                        ),
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -582,7 +649,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           Icon(
                             Icons.lightbulb_outline,
                             size: 20,
-                            color: Colors.amber.shade900,
+                            color: isDark
+                                ? AppColors.warning
+                                : Colors.amber.shade900,
                           ),
                           const SizedBox(width: 10),
                           Expanded(
@@ -590,7 +659,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               '💡 คำแนะนำเพื่อให้ AI สแกนแม่นยำที่สุด: ถ่ายในที่แสงสว่างเพียงพอ วางใบเสร็จให้เรียบแบน และถ่ายให้เห็นยอดรวมชัดเจน',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.brown.shade800,
+                                color: textPrimary,
                                 height: 1.3,
                               ),
                             ),
@@ -623,7 +692,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: isDark
+                                    ? AppColors.darkSurface
+                                    : Colors.white,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Icon(
@@ -664,7 +735,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('ประวัติการหารบิล', style: AppTextStyles.title),
+                        Text(
+                          'ประวัติการหารบิล',
+                          style: AppTextStyles.title.copyWith(
+                            color: textPrimary,
+                          ),
+                        ),
                         Text(
                           'ทั้งหมด ${bills.length} บิล',
                           style: const TextStyle(
@@ -813,12 +889,16 @@ class _BillsLoadingSkeletonState extends State<_BillsLoadingSkeleton>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return AnimatedBuilder(
       animation: _pulseController,
       builder: (context, _) {
         final pulseColor = Color.lerp(
-          AppColors.border,
-          AppColors.secondary.withValues(alpha: 0.65),
+          isDark ? AppColors.darkBorder : AppColors.border,
+          isDark
+              ? AppColors.darkCardBackground
+              : AppColors.secondary.withValues(alpha: 0.65),
           _pulseController.value,
         )!;
 
@@ -832,9 +912,11 @@ class _BillsLoadingSkeletonState extends State<_BillsLoadingSkeleton>
             child: Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: isDark ? AppColors.darkSurface : AppColors.surface,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(
+                  color: isDark ? AppColors.darkBorder : AppColors.border,
+                ),
               ),
               child: Row(
                 children: [

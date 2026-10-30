@@ -81,7 +81,7 @@ void main() {
     expect(shares['user-2'], closeTo(129, 0.001));
   });
 
-  test('splits the extra amount equally across every room participant', () {
+  test('splits the extra amount equally across active eaters only, non-eaters pay 0', () {
     final shares = BillProvider.calculateUserShares(
       items: [
         BillItemModel(
@@ -98,9 +98,9 @@ void main() {
       participantIds: ['user-1', 'user-2', 'user-3'],
     );
 
-    expect(shares['user-1'], closeTo(126, 0.001));
-    expect(shares['user-2'], closeTo(126, 0.001));
-    expect(shares['user-3'], closeTo(6, 0.001));
+    expect(shares['user-1'], closeTo(129, 0.001));
+    expect(shares['user-2'], closeTo(129, 0.001));
+    expect(shares['user-3'], 0.0);
   });
 
   test('calculates a separate share for a guest room member', () {

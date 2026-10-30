@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'routes/app_routes.dart';
 import 'providers/bill_provider.dart';
 import 'providers/contact_provider.dart';
+import 'providers/theme_provider.dart';
 import 'providers/user_provider.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_text_styles.dart';
@@ -29,6 +30,7 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => ContactProvider()),
         ChangeNotifierProxyProvider<ContactProvider, BillProvider>(
@@ -51,32 +53,54 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme =
-        ColorScheme.fromSeed(
-          seedColor: AppColors.primary,
-          brightness: Brightness.light,
-        ).copyWith(
-          primary: AppColors.primary,
-          onPrimary: AppColors.surface,
-          primaryContainer: AppColors.secondary,
-          onPrimaryContainer: AppColors.primaryDark,
-          secondary: AppColors.secondary,
-          onSecondary: AppColors.primaryDark,
-          tertiary: AppColors.accent,
-          onTertiary: AppColors.textPrimary,
-          surface: AppColors.surface,
-          onSurface: AppColors.textPrimary,
-          outline: AppColors.border,
-          error: AppColors.error,
-          onError: AppColors.surface,
-        );
+    final themeProvider = context.watch<ThemeProvider>();
+
+    final lightColorScheme = ColorScheme.fromSeed(
+      seedColor: AppColors.primary,
+      brightness: Brightness.light,
+    ).copyWith(
+      primary: AppColors.primary,
+      onPrimary: AppColors.surface,
+      primaryContainer: AppColors.secondary,
+      onPrimaryContainer: AppColors.primaryDark,
+      secondary: AppColors.secondary,
+      onSecondary: AppColors.primaryDark,
+      tertiary: AppColors.accent,
+      onTertiary: AppColors.textPrimary,
+      surface: AppColors.surface,
+      onSurface: AppColors.textPrimary,
+      outline: AppColors.border,
+      error: AppColors.error,
+      onError: AppColors.surface,
+    );
+
+    final darkColorScheme = ColorScheme.fromSeed(
+      seedColor: AppColors.primary,
+      brightness: Brightness.dark,
+    ).copyWith(
+      primary: AppColors.secondary,
+      onPrimary: AppColors.primaryDark,
+      primaryContainer: AppColors.primaryDark,
+      onPrimaryContainer: AppColors.secondary,
+      secondary: AppColors.secondary,
+      onSecondary: AppColors.primaryDark,
+      tertiary: AppColors.accent,
+      onTertiary: Colors.white,
+      surface: AppColors.darkSurface,
+      onSurface: AppColors.darkTextPrimary,
+      outline: AppColors.darkBorder,
+      error: AppColors.error,
+      onError: Colors.white,
+    );
 
     return MaterialApp(
       title: 'Snap2Bill',
       navigatorKey: _navigatorKey,
       scaffoldMessengerKey: _scaffoldMessengerKey,
+      themeMode: themeProvider.themeMode,
       theme: ThemeData(
-        colorScheme: colorScheme,
+        fontFamily: AppTextStyles.fontFamily,
+        colorScheme: lightColorScheme,
         textTheme: AppTextStyles.textTheme,
         scaffoldBackgroundColor: AppColors.background,
         appBarTheme: const AppBarTheme(
@@ -102,6 +126,35 @@ class MyApp extends StatelessWidget {
           ),
           labelStyle: AppTextStyles.caption,
           hintStyle: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
+        ),
+        useMaterial3: true,
+      ),
+      darkTheme: ThemeData(
+        fontFamily: AppTextStyles.fontFamily,
+        colorScheme: darkColorScheme,
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: AppColors.darkBackground,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: AppColors.darkBackground,
+          foregroundColor: AppColors.darkTextPrimary,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: AppColors.darkSurface,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: AppColors.darkBorder),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: AppColors.darkBorder),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: AppColors.secondary, width: 1.5),
+          ),
         ),
         useMaterial3: true,
       ),

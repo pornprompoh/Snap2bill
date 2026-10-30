@@ -38,22 +38,33 @@ class UserProvider with ChangeNotifier {
     required String name,
     String? promptPayNumber,
     String? promptPayType,
+    String? bankName,
+    String? bankAccountNumber,
+    String? bankAccountName,
   }) async {
     _isLoading = true;
     notifyListeners();
 
     try {
       final trimmedPromptPayNumber = promptPayNumber?.trim();
-      final paymentInfo = trimmedPromptPayNumber == null || trimmedPromptPayNumber.isEmpty
-          ? null
-          : {
-              'type': promptPayType,
-              'number': trimmedPromptPayNumber,
-            };
+      final trimmedBankAccountNumber = bankAccountNumber?.trim();
+      final trimmedBankName = bankName?.trim();
+      final trimmedBankAccountName = bankAccountName?.trim();
+
+      final paymentInfo = <String, dynamic>{};
+      if (trimmedPromptPayNumber != null && trimmedPromptPayNumber.isNotEmpty) {
+        paymentInfo['type'] = promptPayType;
+        paymentInfo['number'] = trimmedPromptPayNumber;
+      }
+      if (trimmedBankAccountNumber != null && trimmedBankAccountNumber.isNotEmpty) {
+        paymentInfo['bank_name'] = trimmedBankName ?? 'ธนาคารทั่วไป';
+        paymentInfo['bank_account_number'] = trimmedBankAccountNumber;
+        paymentInfo['bank_account_name'] = trimmedBankAccountName ?? name;
+      }
 
       _currentUser = await _dbService.updateUserProfile(
         displayName: name,
-        paymentInfo: paymentInfo,
+        paymentInfo: paymentInfo.isEmpty ? null : paymentInfo,
       );
       return true;
     } catch (error, stackTrace) {

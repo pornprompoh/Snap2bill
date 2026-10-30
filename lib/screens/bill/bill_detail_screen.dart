@@ -1,4 +1,8 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
@@ -17,17 +21,18 @@ class BillDetailScreen extends StatefulWidget {
   const BillDetailScreen({super.key, required this.billData});
 
   @override
-  State<BillDetailScreen> createState() => _DetailScreenState();
+  State<BillDetailScreen> createState() => _BillDetailScreenState();
 }
 
-typedef DetailScreen = BillDetailScreen;
-
-class _DetailScreenState extends State<DetailScreen> {
+class _BillDetailScreenState extends State<BillDetailScreen> {
   late Future<List<MemberSummaryEntry>> _membersFuture;
   final GlobalKey _receiptCaptureKey = GlobalKey();
   bool _isSharing = false;
   String _hostPromptPay = '';
   String? _hostPromptPayType;
+  String? _hostBankName;
+  String _hostBankAccountNumber = '';
+  String? _hostBankAccountName;
   String _hostName = 'เจ้าของบิล';
 
   @override
@@ -49,9 +54,20 @@ class _DetailScreenState extends State<DetailScreen> {
             .eq('id', ownerId)
             .maybeSingle();
         if (profile != null && mounted) {
+          final paymentInfo = profile['payment_info'] as Map<String, dynamic>?;
           setState(() {
-            _hostPromptPay = profile['promptpay_number']?.toString() ?? '';
-            _hostPromptPayType = profile['promptpay_type']?.toString();
+            _hostPromptPay =
+                profile['promptpay_number']?.toString() ??
+                paymentInfo?['number']?.toString() ??
+                '';
+            _hostPromptPayType =
+                profile['promptpay_type']?.toString() ??
+                paymentInfo?['type']?.toString();
+            _hostBankName = paymentInfo?['bank_name']?.toString();
+            _hostBankAccountNumber =
+                paymentInfo?['bank_account_number']?.toString() ?? '';
+            _hostBankAccountName = paymentInfo?['bank_account_name']
+                ?.toString();
             final name = profile['display_name']?.toString().trim();
             _hostName = name?.isNotEmpty == true
                 ? name!
@@ -403,7 +419,145 @@ class _DetailScreenState extends State<DetailScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (hasPromptPay && qrPayload.isNotEmpty) ...[
+                  if (member.isPaid) ...[
+                    // 🎉 Shopee-style Payment Success View
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.green.shade300,
+                          width: 2,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.check_circle_rounded,
+                        color: Color(0xFF00AA5B),
+                        size: 48,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'ชำระเงินสำเร็จเรียบร้อยแล้ว! 🎉',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF008A4B),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'ยอดชำระของ ${member.name} ได้รับการชำระเงินแล้ว',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF7FAF8),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.green.shade100),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'ยอดชำระ',
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Text(
+                                '${AppFormatters.formatCurrency(member.amount)} ฿',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF00AA5B),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const Divider(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'ผู้รับเงิน',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              Text(
+                                '$_hostName ($_hostPromptPay)',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          const Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'สถานะ',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              Text(
+                                'ชำระเงินแล้ว ✅',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF00AA5B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else if (hasPromptPay && qrPayload.isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.amber.shade300),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.timer_outlined,
+                            size: 14,
+                            color: Colors.amber,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            'คิวอาร์โค้ดใช้ครั้งเดียว (Single-Use)',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.brown,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -449,6 +603,161 @@ class _DetailScreenState extends State<DetailScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                    if (_hostBankAccountNumber.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: Colors.blue.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(
+                                  Icons.account_balance,
+                                  size: 16,
+                                  color: Colors.blue,
+                                ),
+                                SizedBox(width: 6),
+                                Text(
+                                  'ทางเลือกโอนด้วยเลขบัญชีธนาคาร',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'ธนาคาร: ${_hostBankName ?? 'ธนาคารพาณิชย์'}',
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'เลขบัญชี: $_hostBankAccountNumber',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.copy_rounded,
+                                    size: 16,
+                                  ),
+                                  tooltip: 'คัดลอกเลขบัญชี',
+                                  onPressed: () {
+                                    Clipboard.setData(
+                                      ClipboardData(
+                                        text: _hostBankAccountNumber,
+                                      ),
+                                    );
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('คัดลอกเลขบัญชีแล้ว 📋'),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                            Text(
+                              'ชื่อบัญชี: ${_hostBankAccountName ?? _hostName}',
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ] else if (_hostBankAccountNumber.isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.blue.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(
+                                Icons.account_balance,
+                                size: 18,
+                                color: Colors.blue,
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                'โอนด้วยเลขบัญชีธนาคาร',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const Divider(height: 16),
+                          Text(
+                            'ธนาคาร: ${_hostBankName ?? 'ธนาคารพาณิชย์'}',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'เลขบัญชี: $_hostBankAccountNumber',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              FilledButton.tonalIcon(
+                                style: FilledButton.styleFrom(
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                                onPressed: () {
+                                  Clipboard.setData(
+                                    ClipboardData(text: _hostBankAccountNumber),
+                                  );
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('คัดลอกเลขบัญชีแล้ว 📋'),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.copy, size: 14),
+                                label: const Text(
+                                  'คัดลอก',
+                                  style: TextStyle(fontSize: 11),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'ชื่อบัญชี: ${_hostBankAccountName ?? _hostName}',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
                   ] else ...[
                     Container(
                       padding: const EdgeInsets.all(14),
@@ -457,36 +766,44 @@ class _DetailScreenState extends State<DetailScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Text(
-                        'ยังไม่ได้ระบุเลขพร้อมเพย์ของเจ้าของบิล',
+                        'ยังไม่ได้ระบุช่องทางรับเงินของเจ้าของบิล',
                       ),
                     ),
                   ],
                   const SizedBox(height: 16),
 
-                  // ปุ่มทวงเงินเข้า LINE
-                  FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF06C755),
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(double.infinity, 44),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  // ปุ่มทวงเงินเข้า LINE (เฉพาะคนที่ยังไม่จ่าย)
+                  if (!member.isPaid) ...[
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF06C755),
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(double.infinity, 44),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
+                      icon: const Icon(Icons.send_outlined, size: 18),
+                      label: const Text('ส่งแจ้งเตือนทวงเงินเข้า LINE (สะกิด)'),
+                      onPressed: () {
+                        final bankInfo = _hostBankAccountNumber.isNotEmpty
+                            ? '\n🏦 บัญชีธนาคาร: ${_hostBankName ?? ''} เลขบัญชี $_hostBankAccountNumber ($_hostName)'
+                            : '';
+                        final promptPayInfo = _hostPromptPay.isNotEmpty
+                            ? '\n💳 พร้อมเพย์: $_hostPromptPay ($_hostName)'
+                            : '';
+                        final reminder =
+                            '👋 สวัสดี ${member.name}!\n'
+                            '🍲 ยอดหารบิลร้าน $shopName ของคุณคือ ฿${member.amount.toStringAsFixed(2)}'
+                            '$promptPayInfo$bankInfo\n'
+                            '✨ โอนแล้วรบกวนส่งสลิปด้วยน้า ขอบคุณครับ/ค่ะ 🙏';
+                        SharePlus.instance.share(
+                          ShareParams(title: 'ทวงเงินค่าอาหาร', text: reminder),
+                        );
+                      },
                     ),
-                    icon: const Icon(Icons.send_outlined, size: 18),
-                    label: const Text('ส่งแจ้งเตือนทวงเงินเข้า LINE'),
-                    onPressed: () {
-                      final reminder =
-                          '👋 สวัสดี ${member.name}!\n'
-                          '🍲 ยอดหารบิลร้าน $shopName ของคุณคือ ฿${member.amount.toStringAsFixed(2)}\n'
-                          '💳 พร้อมเพย์: $_hostPromptPay ($_hostName)\n'
-                          '✨ สแกน QR โอนแล้วรบกวนส่งสลิปด้วยน้า ขอบคุณครับ/ค่ะ 🙏';
-                      SharePlus.instance.share(
-                        ShareParams(title: 'ทวงเงินค่าอาหาร', text: reminder),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 8),
+                    const SizedBox(height: 8),
+                  ],
 
                   // ปุ่มแนบสลิปแจ้งโอน
                   OutlinedButton.icon(
@@ -554,12 +871,93 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
+  Widget _buildReceiptImage({
+    required String? imageUrl,
+    required String? localImagePath,
+  }) {
+    Widget imagePlaceholder(IconData icon, String message) {
+      return Container(
+        height: 220,
+        width: double.infinity,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 36, color: Colors.grey),
+            const SizedBox(height: 8),
+            Text(message, style: const TextStyle(color: Colors.grey)),
+          ],
+        ),
+      );
+    }
+
+    Widget networkImage() {
+      if (imageUrl == null || imageUrl.isEmpty) {
+        return imagePlaceholder(Icons.receipt_long, 'ไม่มีรูปใบเสร็จ');
+      }
+
+      return Image.network(
+        imageUrl,
+        height: 300,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return SizedBox(
+            height: 220,
+            child: Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes == null
+                    ? null
+                    : loadingProgress.cumulativeBytesLoaded /
+                          loadingProgress.expectedTotalBytes!,
+              ),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) => imagePlaceholder(
+          Icons.broken_image_outlined,
+          'ไม่สามารถโหลดรูปใบเสร็จได้',
+        ),
+      );
+    }
+
+    Widget image = networkImage();
+    if (!kIsWeb && localImagePath != null && localImagePath.isNotEmpty) {
+      final localFile = File(localImagePath);
+      if (localFile.existsSync()) {
+        image = Image.file(
+          localFile,
+          height: 300,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => networkImage(),
+        );
+      }
+    }
+
+    return Center(
+      child: ClipRRect(borderRadius: BorderRadius.circular(12), child: image),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final shopName = widget.billData['shop_name'] ?? 'ไม่ระบุชื่อร้าน';
     final createdAt =
         widget.billData['created_at']?.toString().split('T')[0] ?? '';
-    final imageUrl = widget.billData['image_url'];
+    final imageUrl =
+        (widget.billData['receipt_image_url'] ?? widget.billData['image_url'])
+            ?.toString();
+    final localImagePath =
+        (widget.billData['local_image_path'] ??
+                widget.billData['localImagePath'] ??
+                widget.billData['receipt_image_local_path'])
+            ?.toString();
     final receiptJson = _asMap(widget.billData['receipt_json']);
     final items = receiptJson['items'] as List<dynamic>? ?? [];
     final sharersJson = _asMap(widget.billData['sharers_json']);
@@ -609,23 +1007,24 @@ class _DetailScreenState extends State<DetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (imageUrl != null && imageUrl.toString().isNotEmpty)
-                  Center(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        imageUrl,
-                        height: 300,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
+                if ((imageUrl != null && imageUrl.isNotEmpty) ||
+                    (localImagePath != null && localImagePath.isNotEmpty))
+                  _buildReceiptImage(
+                    imageUrl: imageUrl,
+                    localImagePath: localImagePath,
                   ),
                 const SizedBox(height: 16),
-                Text(
-                  shopName.toString(),
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+                Hero(
+                  tag: 'bill_${widget.billData['id']}',
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: Text(
+                      shopName.toString(),
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
                 if (createdAt.isNotEmpty)

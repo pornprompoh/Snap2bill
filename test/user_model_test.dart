@@ -42,4 +42,24 @@ void main() {
     expect(friend.friendName, 'Bob');
     expect(friend.linkedProfileId, 'user-3');
   });
+
+  test('parses bank account payment information correctly', () {
+    final user = UserModel.fromMap({
+      'id': 'user-bank',
+      'display_name': 'Somchai',
+      'payment_info': {
+        'type': 'phone',
+        'number': '0899999999',
+        'bank_name': 'ธนาคารกสิกรไทย (KBANK)',
+        'bank_account_number': '123-4-56789-0',
+        'bank_account_name': 'นายสมชาย รวยมาก',
+      },
+    });
+
+    expect(user.hasBankTransfer, isTrue);
+    expect(user.bankName, 'ธนาคารกสิกรไทย (KBANK)');
+    expect(user.bankAccountNumber, '123-4-56789-0');
+    expect(user.bankAccountName, 'นายสมชาย รวยมาก');
+  });
 }
+

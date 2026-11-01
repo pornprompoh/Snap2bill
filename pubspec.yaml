@@ -88,8 +88,12 @@ flutter:
   assets:
     - .env
     - assets/images/
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+    - assets/fonts/
+
+  fonts:
+    - family: Baitoey
+      fonts:
+        - asset: assets/fonts/Baitoey.ttf
   
 flutter_launcher_icons:
   android: true

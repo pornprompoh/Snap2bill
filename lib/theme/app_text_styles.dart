@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
 class AppTextStyles {
-  static const String fontFamily = 'IBM Plex Sans Thai';
+  static const String fontFamily = 'Baitoey';
 
   static const TextStyle headline = TextStyle(
     fontFamily: fontFamily,

@@ -5,6 +5,7 @@ import '../../providers/bill_provider.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/formatters.dart';
+import '../../utils/menu_icon_helper.dart';
 
 class ReviewScreen extends StatefulWidget {
   final Map<String, dynamic> receiptData;
@@ -299,22 +300,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
     );
   }
 
-  IconData _getDishIcon(String name) {
-    final lower = name.toLowerCase();
-    if (lower.contains('ชา') || lower.contains('น้ำ') || lower.contains('กาแฟ') || lower.contains('เบียร์')) {
-      return Icons.local_cafe_rounded;
-    }
-    if (lower.contains('เนื้อ') || lower.contains('หมู') || lower.contains('ไก่') || lower.contains('ปลา')) {
-      return Icons.set_meal_rounded;
-    }
-    if (lower.contains('ผัก') || lower.contains('สลัด')) {
-      return Icons.eco_rounded;
-    }
-    if (lower.contains('ข้าว')) {
-      return Icons.rice_bowl_rounded;
-    }
-    return Icons.ramen_dining_rounded;
-  }
+  IconData _getDishIcon(String name) => MenuIconHelper.getDishIcon(name);
 
   Color _getDishColor(int index) {
     const colors = [

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/formatters.dart';
+import '../../utils/menu_icon_helper.dart';
 
 class ClaimItemCard extends StatelessWidget {
   final String itemName;
@@ -26,22 +27,7 @@ class ClaimItemCard extends StatelessWidget {
     required this.onToggleShared,
   });
 
-  IconData _getDishIcon(String name) {
-    final lower = name.toLowerCase();
-    if (lower.contains('ชา') || lower.contains('น้ำ') || lower.contains('กาแฟ') || lower.contains('เบียร์')) {
-      return Icons.local_cafe_rounded;
-    }
-    if (lower.contains('เนื้อ') || lower.contains('หมู') || lower.contains('วากิว') || lower.contains('แซลมอน')) {
-      return Icons.set_meal_rounded;
-    }
-    if (lower.contains('ผัก') || lower.contains('สลัด')) {
-      return Icons.eco_rounded;
-    }
-    if (lower.contains('ข้าว')) {
-      return Icons.rice_bowl_rounded;
-    }
-    return Icons.ramen_dining_rounded;
-  }
+  IconData _getDishIcon(String name) => MenuIconHelper.getDishIcon(name);
 
   @override
   Widget build(BuildContext context) {

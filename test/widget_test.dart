@@ -8,6 +8,8 @@ import 'package:snap2bill/widgets/bill/member_summary_list.dart';
 import 'package:snap2bill/utils/bill_progress_helper.dart';
 import 'package:snap2bill/utils/promptpay_helper.dart';
 import 'package:snap2bill/widgets/bill/shareable_receipt_card.dart';
+import 'package:snap2bill/widgets/bill/claim_item_card.dart';
+import 'package:snap2bill/utils/menu_icon_helper.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 void main() {
@@ -502,6 +504,86 @@ void main() {
 
       expect(find.text('เจ้าของบิลยังไม่ได้ตั้งค่าพร้อมเพย์'), findsOneWidget);
       expect(find.byType(QrImageView), findsNothing);
+    });
+  });
+
+  group('MenuIconHelper & Dynamic Dish Icon Tests (Material Design 3)', () {
+    test('MenuIconHelper maps diverse food and drink keywords to correct Material icons', () {
+      // 1. ซูชิ (Sushi / Sashimi)
+      expect(MenuIconHelper.getDishIcon('B Sushi'), equals(Icons.set_meal_rounded));
+      expect(MenuIconHelper.getDishIcon('ซูชิแซลมอน'), equals(Icons.set_meal_rounded));
+      expect(MenuIconHelper.getDishIcon('ข้าวปั้นหน้ากุ้ง'), equals(Icons.set_meal_rounded));
+
+      // 2. ราเมน (Ramen / Noodles)
+      expect(MenuIconHelper.getDishIcon('B Ramen'), equals(Icons.ramen_dining_rounded));
+      expect(MenuIconHelper.getDishIcon('ราเมนต้มยำ'), equals(Icons.ramen_dining_rounded));
+      expect(MenuIconHelper.getDishIcon('สปาเก็ตตี้ขี้เมา'), equals(Icons.ramen_dining_rounded));
+
+      // 3. พิซซ่า (Pizza)
+      expect(MenuIconHelper.getDishIcon('Pizza Hawaiian'), equals(Icons.local_pizza_rounded));
+      expect(MenuIconHelper.getDishIcon('พิซซ่าหน้าซีฟู้ด'), equals(Icons.local_pizza_rounded));
+
+      // 4. เบอร์เกอร์ (Burger)
+      expect(MenuIconHelper.getDishIcon('Cheeseburger'), equals(Icons.lunch_dining_rounded));
+      expect(MenuIconHelper.getDishIcon('เบอร์เกอร์หมู'), equals(Icons.lunch_dining_rounded));
+
+      // 5. น้ำปั่น / เครื่องดื่มปั่น (Smoothie / Shakes)
+      expect(MenuIconHelper.getDishIcon('น้ำส้มปั่น'), equals(Icons.local_drink_rounded));
+      expect(MenuIconHelper.getDishIcon('Strawberry Smoothie'), equals(Icons.local_drink_rounded));
+      expect(MenuIconHelper.getDishIcon('มะนาวปั่น'), equals(Icons.local_drink_rounded));
+
+      // 6. กาแฟ (Coffee)
+      expect(MenuIconHelper.getDishIcon('Iced Americano'), equals(Icons.local_cafe_rounded));
+      expect(MenuIconHelper.getDishIcon('ลาเต้ร้อน'), equals(Icons.local_cafe_rounded));
+      expect(MenuIconHelper.getDishIcon('กาแฟสด'), equals(Icons.local_cafe_rounded));
+
+      // 7. เค้ก (Cake)
+      expect(MenuIconHelper.getDishIcon('Chocolate Cake'), equals(Icons.cake_rounded));
+      expect(MenuIconHelper.getDishIcon('ชีสเค้กหน้าไหม้'), equals(Icons.cake_rounded));
+
+      // 8. อาหารทั่วไป (Fallback for unclassified items)
+      expect(MenuIconHelper.getDishIcon('อาหารจานพิเศษ #99'), equals(Icons.restaurant_rounded));
+      expect(MenuIconHelper.getDishIcon(''), equals(Icons.restaurant_rounded));
+    });
+
+    testWidgets('ClaimItemCard renders distinct icons for Sushi and Ramen instead of identical icon',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                ClaimItemCard(
+                  itemName: 'B Sushi',
+                  itemQuantity: 10,
+                  unitPrice: 40.0,
+                  claimingUserId: 'user_1',
+                  itemClaims: const {},
+                  sharedUsers: const {},
+                  userNames: const {},
+                  onChangeQuantity: (_) {},
+                  onToggleShared: () {},
+                ),
+                ClaimItemCard(
+                  itemName: 'B Ramen',
+                  itemQuantity: 1,
+                  unitPrice: 100.0,
+                  claimingUserId: 'user_1',
+                  itemClaims: const {},
+                  sharedUsers: const {},
+                  userNames: const {},
+                  onChangeQuantity: (_) {},
+                  onToggleShared: () {},
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      // Verify Sushi has set_meal icon and Ramen has ramen_dining icon
+      expect(find.byIcon(Icons.set_meal_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.ramen_dining_rounded), findsOneWidget);
     });
   });
 }

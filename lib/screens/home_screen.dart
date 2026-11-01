@@ -821,7 +821,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         Expanded(
                           child: _buildFilterTab(
                             key: 'completed',
-                            title: 'เสร็จสิ้น ($completedCount)',
+                            title: 'สำเร็จ ($completedCount)',
                             icon: Icons.check_circle_outline_rounded,
                             isDark: isDark,
                           ),
@@ -893,7 +893,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             _historyFilter == 'unpaid'
                                 ? 'ไม่มีบิลที่ค้างชำระ ยอดเคลียร์ครบแล้ว! 🎉'
                                 : _historyFilter == 'completed'
-                                ? 'ยังไม่มีบิลที่ปิดยอดเสร็จสิ้น'
+                                ? 'ยังไม่มีบิลที่ปิดยอดสำเร็จ'
                                 : 'ยังไม่มีประวัติบิล',
                             style: TextStyle(color: textSecondary, fontSize: 13),
                           ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_design_system.dart';
 import 'home_screen.dart';
 import 'bill/scan_screen.dart';
 import 'profile/profile_screen.dart';
@@ -25,6 +26,36 @@ class _MainScreenState extends State<MainScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final navBg = isDark ? AppColors.darkSurface : AppColors.white;
     final navBorder = isDark ? AppColors.darkBorder : const Color(0xFFD6D6D6);
+
+    // Tablet / desktop: navigation rail on the side instead of the bottom bar.
+    if (Responsive.useRail(context)) {
+      return Scaffold(
+        body: Row(
+          children: [
+            NavigationRail(
+              selectedIndex: _currentIndex,
+              onDestinationSelected: (i) => setState(() => _currentIndex = i),
+              destinations: const [
+                NavigationRailDestination(
+                  icon: Icon(Icons.history_rounded),
+                  label: Text('ประวัติบิล'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.document_scanner_outlined),
+                  label: Text('แสกน'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.person_outline_rounded),
+                  label: Text('โปรไฟล์'),
+                ),
+              ],
+            ),
+            VerticalDivider(width: 1, color: navBorder),
+            Expanded(child: IndexedStack(index: _currentIndex, children: _pages)),
+          ],
+        ),
+      );
+    }
 
     return Scaffold(
       extendBody: true,

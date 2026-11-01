@@ -748,8 +748,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // 7. Poke Friend Reminder Button (Matching Image 3 & 4)
-                  if (unpaidCount > 0)
+                  // 7. Poke Friend Reminder Button (Only shows on "unpaid" tab as in mockup)
+                  if (_historyFilter == 'unpaid' && unpaidCount > 0)
                     Align(
                       alignment: Alignment.centerRight,
                       child: InkWell(

@@ -15,6 +15,8 @@ class ShareableReceiptCard extends StatelessWidget {
   final String? hostName;
   final double? specificMemberAmount;
   final String? specificMemberName;
+  final VoidCallback? onConfigurePromptPay;
+  final bool isCurrentViewerOwner;
 
   const ShareableReceiptCard({
     super.key,
@@ -27,6 +29,8 @@ class ShareableReceiptCard extends StatelessWidget {
     this.hostName,
     this.specificMemberAmount,
     this.specificMemberName,
+    this.onConfigurePromptPay,
+    this.isCurrentViewerOwner = true,
   });
 
   String get _billRefCode {
@@ -37,15 +41,22 @@ class ShareableReceiptCard extends StatelessWidget {
     return id.toUpperCase();
   }
 
+  double? get _effectiveAmount {
+    if (specificMemberAmount != null && specificMemberAmount! > 0) {
+      return specificMemberAmount;
+    }
+    if (summary.totalAmount > 0) {
+      return summary.totalAmount;
+    }
+    return null;
+  }
+
   String? get _promptPayPayload {
     if (hostPromptPay == null || hostPromptPay!.trim().isEmpty) return null;
-    final amountToPay = specificMemberAmount ??
-        (summary.unpaidMembers.isNotEmpty
-            ? summary.unpaidMembers.first.amount
-            : (summary.averagePerPerson > 0 ? summary.averagePerPerson : null));
+    if (!PromptPayHelper.isValidTarget(hostPromptPay!)) return null;
     return PromptPayHelper.generatePayload(
       hostPromptPay!,
-      amount: amountToPay,
+      amount: _effectiveAmount,
       targetType: hostPromptPayType,
     );
   }
@@ -367,20 +378,21 @@ class ShareableReceiptCard extends StatelessWidget {
                 if (hasValidPromptPay && qrPayload != null && qrPayload.isNotEmpty) ...[
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFF003D6B).withValues(alpha: 0.2)),
+                      border: Border.all(color: const Color(0xFF003D6B).withValues(alpha: 0.18)),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF003D6B).withValues(alpha: 0.05),
+                          color: const Color(0xFF003D6B).withValues(alpha: 0.04),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
                       ],
                     ),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         // Thai QR Header Badge
                         Container(
@@ -413,7 +425,7 @@ class ShareableReceiptCard extends StatelessWidget {
 
                         // Crisp QR Code
                         Container(
-                          padding: const EdgeInsets.all(8),
+                          padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(10),
@@ -422,38 +434,84 @@ class ShareableReceiptCard extends StatelessWidget {
                           child: QrImageView(
                             data: qrPayload,
                             version: QrVersions.auto,
-                            size: 150,
+                            size: 160,
                             backgroundColor: Colors.white,
+                            eyeStyle: const QrEyeStyle(
+                              eyeShape: QrEyeShape.square,
+                              color: Color(0xFF003D6B),
+                            ),
+                            dataModuleStyle: const QrDataModuleStyle(
+                              dataModuleShape: QrDataModuleShape.square,
+                              color: Color(0xFF003D6B),
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 10),
 
-                        // Amount to scan
+                        // ชื่อเจ้าของบัญชีหรือชื่อผู้รับเงิน
                         Text(
-                          'สแกนจ่าย: ${AppFormatters.formatCurrency(effectiveTargetAmount)}',
+                          'ชื่อบัญชี: ${hostName?.isNotEmpty == true ? hostName! : "เจ้าของบิล"}',
                           style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFF003D6B),
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1E293B),
                           ),
+                          textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 2),
 
-                        // Host info
+                        // หมายเลข PromptPay ที่สามารถแสดงแบบปกปิดบางส่วนได้
                         Text(
-                          'ชื่อบัญชี: ${hostName ?? "เจ้าของบิล"} (${hostPromptPay!})',
+                          'พร้อมเพย์: ${PromptPayHelper.maskPromptPay(hostPromptPay!)}',
                           style: const TextStyle(
-                            fontSize: 11.5,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF003D6B),
+                            fontFamily: 'monospace',
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 4),
+
+                        // Amount to scan
+                        if (effectiveTargetAmount > 0) ...[
+                          Container(
+                            margin: const EdgeInsets.symmetric(vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF0FDF4),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFBBF7D0)),
+                            ),
+                            child: Text(
+                              'ยอดชำระ: ${AppFormatters.formatCurrency(effectiveTargetAmount)}',
+                              style: const TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF15803D),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                        ],
+
+                        // ข้อความแนะนำ
+                        const Text(
+                          'สแกนเพื่อชำระเงินเข้าบัญชีเจ้าของบิล',
+                          style: TextStyle(
+                            fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF475569),
                           ),
+                          textAlign: TextAlign.center,
                         ),
+
                         if (hostBankAccount != null && hostBankAccount!.isNotEmpty) ...[
-                          const SizedBox(height: 2),
+                          const SizedBox(height: 6),
                           Text(
                             'ธนาคาร: ${hostBankName ?? ""} $hostBankAccount',
                             style: const TextStyle(
-                              fontSize: 11,
+                              fontSize: 10.5,
                               color: Color(0xFF64748B),
                             ),
                           ),
@@ -461,7 +519,7 @@ class ShareableReceiptCard extends StatelessWidget {
                         const SizedBox(height: 6),
                         const Text(
                           '*QR Code สำหรับโอนเงินเท่านั้น การยืนยันชำระต้องให้เจ้าของกดยืนยันในแอป',
-                          style: TextStyle(fontSize: 9.5, color: Color(0xFF94A3B8)),
+                          style: TextStyle(fontSize: 9, color: Color(0xFF94A3B8)),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -471,7 +529,7 @@ class ShareableReceiptCard extends StatelessWidget {
                   // PromptPay not set warning
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(12),
@@ -479,16 +537,16 @@ class ShareableReceiptCard extends StatelessWidget {
                     ),
                     child: Column(
                       children: [
-                        const Icon(Icons.info_outline_rounded, color: Color(0xFF64748B), size: 24),
-                        const SizedBox(height: 4),
+                        const Icon(Icons.info_outline_rounded, color: Color(0xFF64748B), size: 26),
+                        const SizedBox(height: 6),
                         const Text(
                           'เจ้าของบิลยังไม่ได้ตั้งค่าพร้อมเพย์',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 3),
                         const Text(
-                          'สามารถตั้งค่าพร้อมเพย์ได้ในหน้าโปรไฟล์เพื่อสร้าง QR Code รับเงินอัตโนมัติ',
-                          style: TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8)),
+                          'สามารถตั้งค่าพร้อมเพย์เพื่อสร้าง QR Code สำหรับรับเงินอัตโนมัติ',
+                          style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                           textAlign: TextAlign.center,
                         ),
                         if (hostBankAccount != null && hostBankAccount!.isNotEmpty) ...[
@@ -496,6 +554,20 @@ class ShareableReceiptCard extends StatelessWidget {
                           Text(
                             'โอนเข้าบัญชี: ${hostBankName ?? ""} $hostBankAccount (${hostName ?? ""})',
                             style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF003D6B)),
+                          ),
+                        ],
+                        if (onConfigurePromptPay != null && isCurrentViewerOwner) ...[
+                          const SizedBox(height: 10),
+                          FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            onPressed: onConfigurePromptPay,
+                            icon: const Icon(Icons.qr_code_2_rounded, size: 16),
+                            label: const Text('ตั้งค่า PromptPay', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ],

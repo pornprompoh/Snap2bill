@@ -5,11 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../theme/app_colors.dart';
 import '../../utils/bill_progress_helper.dart';
 import '../../utils/formatters.dart';
+import '../../utils/promptpay_helper.dart';
 import 'shareable_receipt_card.dart';
 
 // Conditional import for web download
@@ -23,6 +25,8 @@ class ShareableReceiptPreviewDialog extends StatefulWidget {
   final String? hostBankAccount;
   final String? hostBankName;
   final String? hostName;
+  final bool isCurrentViewerOwner;
+  final void Function(String promptPay, String promptPayType, String? hostName)? onPromptPayUpdated;
 
   const ShareableReceiptPreviewDialog({
     super.key,
@@ -33,6 +37,8 @@ class ShareableReceiptPreviewDialog extends StatefulWidget {
     this.hostBankAccount,
     this.hostBankName,
     this.hostName,
+    this.isCurrentViewerOwner = true,
+    this.onPromptPayUpdated,
   });
 
   static Future<void> show(
@@ -44,6 +50,8 @@ class ShareableReceiptPreviewDialog extends StatefulWidget {
     String? hostBankAccount,
     String? hostBankName,
     String? hostName,
+    bool isCurrentViewerOwner = true,
+    void Function(String promptPay, String promptPayType, String? hostName)? onPromptPayUpdated,
   }) {
     final effectiveSummary = summary ?? BillProgressHelper.calculate(bill);
     return showDialog(
@@ -60,6 +68,8 @@ class ShareableReceiptPreviewDialog extends StatefulWidget {
           hostBankAccount: hostBankAccount,
           hostBankName: hostBankName,
           hostName: hostName,
+          isCurrentViewerOwner: isCurrentViewerOwner,
+          onPromptPayUpdated: onPromptPayUpdated,
         ),
       ),
     );
@@ -76,6 +86,237 @@ class _ShareableReceiptPreviewDialogState
   bool _isProcessing = false;
   String? _statusMessage;
   Color? _statusColor;
+
+  late String? _currentHostPromptPay;
+  late String? _currentHostPromptPayType;
+  late String? _currentHostBankAccount;
+  late String? _currentHostBankName;
+  late String? _currentHostName;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentHostPromptPay = widget.hostPromptPay;
+    _currentHostPromptPayType = widget.hostPromptPayType ?? 'phone';
+    _currentHostBankAccount = widget.hostBankAccount;
+    _currentHostBankName = widget.hostBankName;
+    _currentHostName = widget.hostName;
+
+    _checkAndLoadHostPromptPay();
+  }
+
+  Future<void> _checkAndLoadHostPromptPay() async {
+    if (_currentHostPromptPay != null && _currentHostPromptPay!.trim().isNotEmpty) return;
+    try {
+      final receipt = widget.bill['receipt_json'];
+      if (receipt is Map) {
+        final rPromptPay = receipt['promptpay_number']?.toString();
+        if (rPromptPay != null && rPromptPay.isNotEmpty) {
+          if (mounted) {
+            setState(() {
+              _currentHostPromptPay = rPromptPay;
+              _currentHostPromptPayType = receipt['promptpay_type']?.toString() ?? 'phone';
+            });
+          }
+          return;
+        }
+      }
+
+      final ownerId = widget.bill['owner_id']?.toString() ??
+          Supabase.instance.client.auth.currentUser?.id;
+      if (ownerId != null && ownerId.isNotEmpty) {
+        final profile = await Supabase.instance.client
+            .from('profiles')
+            .select()
+            .eq('id', ownerId)
+            .maybeSingle();
+        if (profile != null && mounted) {
+          final paymentInfo = profile['payment_info'] as Map<String, dynamic>?;
+          final pNumber = profile['promptpay_number']?.toString() ??
+              paymentInfo?['number']?.toString();
+          if (pNumber != null && pNumber.isNotEmpty) {
+            setState(() {
+              _currentHostPromptPay = pNumber;
+              _currentHostPromptPayType = profile['promptpay_type']?.toString() ??
+                  paymentInfo?['type']?.toString() ??
+                  'phone';
+              final dName = profile['display_name']?.toString().trim();
+              if (dName != null && dName.isNotEmpty) {
+                _currentHostName = dName;
+              }
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading host promptpay in dialog: $e');
+    }
+  }
+
+  Future<void> _showPromptPayConfigDialog() async {
+    String selectedType = _currentHostPromptPayType ?? 'phone';
+    final numberController = TextEditingController(text: _currentHostPromptPay ?? '');
+    final nameController = TextEditingController(text: _currentHostName ?? '');
+    String? errorText;
+
+    await showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.qr_code_2_rounded, color: AppColors.primary, size: 20),
+                ),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'ตั้งค่า PromptPay',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'กำหนดหมายเลขพร้อมเพย์ของเจ้าของบิล เพื่อสร้าง QR Code ให้เพื่อนสแกนชำระเงิน',
+                    style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('ประเภทพร้อมเพย์', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'phone', label: Text('เบอร์โทรศัพท์'), icon: Icon(Icons.phone_iphone_rounded, size: 16)),
+                      ButtonSegment(value: 'id_card', label: Text('บัตรประชาชน'), icon: Icon(Icons.badge_rounded, size: 16)),
+                    ],
+                    selected: {selectedType},
+                    onSelectionChanged: (val) {
+                      setDialogState(() {
+                        selectedType = val.first;
+                        errorText = null;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    selectedType == 'phone' ? 'เบอร์โทรศัพท์ (10 หลัก)' : 'เลขบัตรประชาชน (13 หลัก)',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: numberController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      hintText: selectedType == 'phone' ? 'เช่น 0812345678' : 'เช่น 1234567890123',
+                      errorText: errorText,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    ),
+                    onChanged: (_) {
+                      if (errorText != null) {
+                        setDialogState(() => errorText = null);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 14),
+                  const Text('ชื่อบัญชี / ชื่อเจ้าของบิล', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: nameController,
+                    decoration: InputDecoration(
+                      hintText: 'เช่น สมชาย ใจดี',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx),
+                child: const Text('ยกเลิก'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+                onPressed: () async {
+                  final target = numberController.text.trim();
+                  if (!PromptPayHelper.isValidTarget(target)) {
+                    setDialogState(() {
+                      errorText = selectedType == 'phone'
+                          ? 'กรุณากรอกเบอร์มือถือ 10 หลัก (ขึ้นต้นด้วย 0)'
+                          : 'กรุณากรอกเลขบัตรประชาชน 13 หลัก';
+                    });
+                    return;
+                  }
+
+                  final newName = nameController.text.trim().isNotEmpty ? nameController.text.trim() : null;
+
+                  // Save to Supabase
+                  try {
+                    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+                    if (currentUserId != null) {
+                      final updateData = <String, dynamic>{
+                        'promptpay_number': target,
+                        'promptpay_type': selectedType,
+                      };
+                      if (newName != null) {
+                        updateData['display_name'] = newName;
+                      }
+                      await Supabase.instance.client.from('profiles').update(updateData).eq('id', currentUserId);
+                    }
+
+                    final billId = widget.bill['id']?.toString();
+                    if (billId != null && billId.isNotEmpty) {
+                      final receipt = widget.bill['receipt_json'] is Map
+                          ? Map<String, dynamic>.from(widget.bill['receipt_json'] as Map)
+                          : <String, dynamic>{};
+                      receipt['promptpay_number'] = target;
+                      receipt['promptpay_type'] = selectedType;
+                      if (newName != null) receipt['host_name'] = newName;
+                      await Supabase.instance.client.from('bills').update({
+                        'receipt_json': receipt,
+                      }).eq('id', billId);
+                      widget.bill['receipt_json'] = receipt;
+                    }
+                  } catch (e) {
+                    debugPrint('Error updating promptpay info: $e');
+                  }
+
+                  if (mounted) {
+                    setState(() {
+                      _currentHostPromptPay = target;
+                      _currentHostPromptPayType = selectedType;
+                      if (newName != null) _currentHostName = newName;
+                      _statusMessage = 'ตั้งค่า PromptPay และสร้าง QR Code สำเร็จแล้ว ✅';
+                      _statusColor = AppColors.tealGreen;
+                    });
+                  }
+
+                  widget.onPromptPayUpdated?.call(target, selectedType, newName);
+                  if (dialogCtx.mounted) {
+                    Navigator.pop(dialogCtx);
+                  }
+                },
+                child: const Text('บันทึก'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
 
   Future<Uint8List?> _captureReceiptPng() async {
     try {
@@ -110,11 +351,15 @@ class _ShareableReceiptPreviewDialogState
       buffer.writeln('');
     }
 
-    if (widget.hostPromptPay != null && widget.hostPromptPay!.isNotEmpty) {
-      buffer.writeln('💳 พร้อมเพย์: ${widget.hostPromptPay} (${widget.hostName ?? "เจ้าของบิล"})');
+    final pPay = _currentHostPromptPay ?? widget.hostPromptPay;
+    final hName = _currentHostName ?? widget.hostName ?? "เจ้าของบิล";
+    if (pPay != null && pPay.isNotEmpty) {
+      buffer.writeln('💳 พร้อมเพย์: $pPay ($hName)');
     }
-    if (widget.hostBankAccount != null && widget.hostBankAccount!.isNotEmpty) {
-      buffer.writeln('🏦 บัญชี: ${widget.hostBankName ?? ""} ${widget.hostBankAccount} (${widget.hostName ?? "เจ้าของบิล"})');
+    final bAccount = _currentHostBankAccount ?? widget.hostBankAccount;
+    final bName = _currentHostBankName ?? widget.hostBankName ?? "";
+    if (bAccount != null && bAccount.isNotEmpty) {
+      buffer.writeln('🏦 บัญชี: $bName $bAccount ($hName)');
     }
     buffer.writeln('📲 จัดการบิลผ่าน Snap2Bill');
     return buffer.toString();
@@ -362,11 +607,13 @@ class _ShareableReceiptPreviewDialogState
                     child: ShareableReceiptCard(
                       bill: widget.bill,
                       summary: widget.summary,
-                      hostPromptPay: widget.hostPromptPay,
-                      hostPromptPayType: widget.hostPromptPayType,
-                      hostBankAccount: widget.hostBankAccount,
-                      hostBankName: widget.hostBankName,
-                      hostName: widget.hostName,
+                      hostPromptPay: _currentHostPromptPay,
+                      hostPromptPayType: _currentHostPromptPayType,
+                      hostBankAccount: _currentHostBankAccount,
+                      hostBankName: _currentHostBankName,
+                      hostName: _currentHostName,
+                      isCurrentViewerOwner: widget.isCurrentViewerOwner,
+                      onConfigurePromptPay: _showPromptPayConfigDialog,
                     ),
                   ),
                 ],

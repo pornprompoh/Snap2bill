@@ -24,6 +24,18 @@ class PromptPayHelper {
     return (clean.length == 10 && clean.startsWith('0')) || clean.length == 13;
   }
 
+  /// Masks a PromptPay target number for display privacy
+  /// e.g. Phone: 081-xxx-5678, National ID: 1-xxxx-xxxxx-12-3
+  static String maskPromptPay(String target) {
+    final clean = target.replaceAll(RegExp(r'[^0-9]'), '');
+    if (clean.length == 10) {
+      return '${clean.substring(0, 3)}-xxx-${clean.substring(6)}';
+    } else if (clean.length == 13) {
+      return '${clean.substring(0, 1)}-xxxx-xxxxx-${clean.substring(10, 12)}-${clean.substring(12)}';
+    }
+    return target;
+  }
+
   static String generatePayload(String target, {double? amount, String? targetType}) {
     final cleanTarget = target.replaceAll(RegExp(r'[^0-9]'), '');
     late final String proxyField;

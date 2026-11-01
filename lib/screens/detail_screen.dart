@@ -205,6 +205,20 @@ class _DetailScreenState extends State<DetailScreen> {
         widget.billData['user_id']?.toString() ??
         receipt['owner_id']?.toString() ??
         '';
+    Map<String, dynamic>? ownerProfile;
+    if (ownerId.isNotEmpty) {
+      try {
+        ownerProfile = await Supabase.instance.client
+            .from('profiles')
+            .select('id, display_name, email')
+            .eq('id', ownerId)
+            .maybeSingle();
+      } catch (_) {}
+    }
+    final ownerDisplayName = ownerProfile?['display_name']?.toString().trim();
+    final ownerEmail = ownerProfile?['email']?.toString();
+    final ownerEmailPrefix = ownerEmail?.split('@').first;
+
     String currentUserId = '';
     String currentEmailPrefix = '';
     try {
@@ -215,7 +229,9 @@ class _DetailScreenState extends State<DetailScreen> {
 
     bool checkIsOwner(String mid, String mName) {
       if (ownerId.isNotEmpty && (mid == ownerId || mName == ownerId)) return true;
-      if (currentUserId.isNotEmpty && mid == currentUserId) return true;
+      if (ownerDisplayName != null && ownerDisplayName.isNotEmpty && (mid == ownerDisplayName || mName == ownerDisplayName)) return true;
+      if (ownerEmailPrefix != null && ownerEmailPrefix.isNotEmpty && (mid == ownerEmailPrefix || mName == ownerEmailPrefix)) return true;
+      if (currentUserId.isNotEmpty && (mid == currentUserId || mName == currentUserId)) return true;
       if (currentEmailPrefix.isNotEmpty && (mid == currentEmailPrefix || mName == currentEmailPrefix)) return true;
       if (_hostName.isNotEmpty && (mName == _hostName || mid == _hostName)) return true;
       return false;
@@ -448,6 +464,16 @@ class _DetailScreenState extends State<DetailScreen> {
       hostBankAccount: _hostBankAccountNumber,
       hostBankName: _hostBankName,
       hostName: _hostName,
+      isCurrentViewerOwner: _isCurrentUserOwner,
+      onPromptPayUpdated: (promptPay, promptPayType, hostName) {
+        setState(() {
+          _hostPromptPay = promptPay;
+          _hostPromptPayType = promptPayType;
+          if (hostName != null && hostName.isNotEmpty) {
+            _hostName = hostName;
+          }
+        });
+      },
     );
   }
 

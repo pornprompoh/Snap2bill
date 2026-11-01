@@ -1019,5 +1019,83 @@ void main() {
       expect(copied.itemsCount, 2);
       expect(copied.dishes.length, 1);
     });
+
+    test('PromptPayHelper.maskPromptPay masks phone numbers and national IDs correctly', () {
+      expect(PromptPayHelper.maskPromptPay('0812345678'), '081-xxx-5678');
+      expect(PromptPayHelper.maskPromptPay('0899991234'), '089-xxx-1234');
+      expect(PromptPayHelper.maskPromptPay('1234567890123'), '1-xxxx-xxxxx-12-3');
+      expect(PromptPayHelper.maskPromptPay('1100501234567'), '1-xxxx-xxxxx-56-7');
+      expect(PromptPayHelper.maskPromptPay('12345'), '12345');
+    });
+
+    testWidgets('ShareableReceiptCard displays owner PromptPay QR code with masked number and guidance text', (WidgetTester tester) async {
+      final bill = {
+        'id': 'bill-receipt-1',
+        'shop_name': 'Sushi Masa',
+        'sub_total': 500.0,
+        'created_at': '2026-11-01T12:00:00Z',
+      };
+      final summary = BillProgressHelper.calculate(bill);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: ShareableReceiptCard(
+                bill: bill,
+                summary: summary,
+                hostPromptPay: '0812345678',
+                hostPromptPayType: 'phone',
+                hostName: 'คุณเจ้าของบิล',
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Verify Thai QR PromptPay header badge
+      expect(find.text('Thai QR Payment (พร้อมเพย์)'), findsOneWidget);
+      // Verify QR Code image
+      expect(find.byType(QrImageView), findsOneWidget);
+      // Verify Account Name and masked number
+      expect(find.textContaining('คุณเจ้าของบิล'), findsOneWidget);
+      expect(find.textContaining('081-xxx-5678'), findsOneWidget);
+      // Verify exact guidance text
+      expect(find.text('สแกนเพื่อชำระเงินเข้าบัญชีเจ้าของบิล'), findsOneWidget);
+    });
+
+    testWidgets('ShareableReceiptCard displays configure PromptPay button when not configured', (WidgetTester tester) async {
+      final bill = {
+        'id': 'bill-receipt-2',
+        'shop_name': 'Ramen Shop',
+        'sub_total': 300.0,
+      };
+      final summary = BillProgressHelper.calculate(bill);
+      bool configClicked = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: ShareableReceiptCard(
+                bill: bill,
+                summary: summary,
+                hostPromptPay: null,
+                isCurrentViewerOwner: true,
+                onConfigurePromptPay: () => configClicked = true,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('เจ้าของบิลยังไม่ได้ตั้งค่าพร้อมเพย์'), findsOneWidget);
+      expect(find.text('ตั้งค่า PromptPay'), findsOneWidget);
+      expect(find.byType(QrImageView), findsNothing);
+
+      await tester.tap(find.text('ตั้งค่า PromptPay'));
+      await tester.pump();
+      expect(configClicked, isTrue);
+    });
   });
 }

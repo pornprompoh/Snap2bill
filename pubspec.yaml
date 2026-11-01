@@ -91,9 +91,9 @@ flutter:
     - assets/fonts/
 
   fonts:
-    - family: Baitoey
+    - family: Itim
       fonts:
-        - asset: assets/fonts/Baitoey.ttf
+        - asset: assets/fonts/Itim-Regular.ttf
   
 flutter_launcher_icons:
   android: true

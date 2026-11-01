@@ -463,7 +463,6 @@ class _DetailScreenState extends State<DetailScreen> {
       hostPromptPayType: _hostPromptPayType,
       hostBankAccount: _hostBankAccountNumber,
       hostBankName: _hostBankName,
-      hostBankAccountName: _hostBankAccountName,
       hostName: _hostName,
       isCurrentViewerOwner: _isCurrentUserOwner,
       onPromptPayUpdated: (promptPay, promptPayType, hostName) {

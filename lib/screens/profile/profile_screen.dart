@@ -74,7 +74,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _selectedBank = thaiBanks.first;
     }
     _bankAccountController.text = profile?.bankAccountNumber ?? '';
-    _bankAccountNameController.text = profile?.bankAccountName ?? '';
+    _bankAccountNameController.text =
+        profile?.bankAccountName ?? (profile?.displayName ?? '');
   }
 
   void _beginEditing(UserModel? profile) {
@@ -116,9 +117,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       name: _nameController.text.trim(),
       promptPayNumber: promptPayNumber.isEmpty ? null : promptPayNumber,
       promptPayType: promptPayNumber.isEmpty ? null : _promptPayType,
-      bankName: _selectedBank,
+      bankName: bankAccountNumber.isEmpty ? null : (_selectedBank ?? thaiBanks.first),
       bankAccountNumber: bankAccountNumber.isEmpty ? null : bankAccountNumber,
-      bankAccountName: bankAccountName.isEmpty ? null : bankAccountName,
+      bankAccountName: bankAccountNumber.isEmpty
+          ? null
+          : (bankAccountName.isEmpty ? _nameController.text.trim() : bankAccountName),
     );
 
     if (!mounted) return;
@@ -252,14 +255,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 textCapitalization: TextCapitalization.words,
                                 textInputAction: TextInputAction.next,
                                 decoration: const InputDecoration(
-                                  labelText: 'ชื่อผู้ใช้ในแอป (Username / Display Name)',
-                                  hintText: 'เช่น Ying, Mook, Somchai',
-                                  helperText: 'ชื่อที่ใช้แสดงในแอป ห้องหารบิล และประวัติบิล (ไม่เกี่ยวกับชื่อบัญชีธนาคาร)',
-                                  prefixIcon: Icon(Icons.person_outline_rounded),
+                                  labelText: 'Display Name',
+                                  prefixIcon: Icon(Icons.badge_outlined),
                                 ),
                                 validator: (value) =>
                                     value == null || value.trim().isEmpty
-                                    ? 'กรุณากรอกชื่อผู้ใช้ที่ต้องการแสดงในแอป'
+                                    ? 'กรุณากรอกชื่อที่ต้องการแสดง'
                                     : null,
                               ),
                               const SizedBox(height: AppConstants.paddingL),
@@ -394,9 +395,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 textCapitalization: TextCapitalization.words,
                                 textInputAction: TextInputAction.done,
                                 decoration: const InputDecoration(
-                                  labelText: 'ชื่อบัญชีธนาคาร (ชื่อ-นามสกุลจริง)',
+                                  labelText: 'ชื่อบัญชีธนาคาร',
                                   prefixIcon: Icon(Icons.person_pin_outlined),
-                                  helperText: 'ชื่อจริงที่จะแสดงตอนขึ้น QR Code ให้สแกนจ่ายเงิน (ไม่เกี่ยวกับชื่อในแอป)',
+                                  helperText: 'ชื่อ-นามสกุล เจ้าของบัญชี',
                                 ),
                               ),
                               const SizedBox(height: AppConstants.paddingL),
@@ -440,7 +441,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                'ชื่อผู้ใช้ในแอป (Username)',
+                                'Display Name',
                                 style: TextStyle(
                                   color: AppColors.gray,
                                   fontSize: 12,

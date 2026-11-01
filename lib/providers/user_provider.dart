@@ -51,19 +51,15 @@ class UserProvider with ChangeNotifier {
       final trimmedBankName = bankName?.trim();
       final trimmedBankAccountName = bankAccountName?.trim();
 
-      final paymentInfo = Map<String, dynamic>.from(_currentUser?.paymentInfo ?? {});
+      final paymentInfo = <String, dynamic>{};
       if (trimmedPromptPayNumber != null && trimmedPromptPayNumber.isNotEmpty) {
         paymentInfo['type'] = promptPayType;
         paymentInfo['number'] = trimmedPromptPayNumber;
       }
-      if (trimmedBankName != null && trimmedBankName.isNotEmpty) {
-        paymentInfo['bank_name'] = trimmedBankName;
-      }
       if (trimmedBankAccountNumber != null && trimmedBankAccountNumber.isNotEmpty) {
+        paymentInfo['bank_name'] = trimmedBankName ?? 'ธนาคารทั่วไป';
         paymentInfo['bank_account_number'] = trimmedBankAccountNumber;
-      }
-      if (trimmedBankAccountName != null && trimmedBankAccountName.isNotEmpty) {
-        paymentInfo['bank_account_name'] = trimmedBankAccountName;
+        paymentInfo['bank_account_name'] = trimmedBankAccountName ?? name;
       }
 
       _currentUser = await _dbService.updateUserProfile(

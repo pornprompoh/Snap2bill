@@ -742,12 +742,11 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         icon: const Icon(Icons.send_outlined, size: 18),
                         label: const Text('ส่งแจ้งเตือนทวงเงินเข้า LINE (สะกิด)'),
                         onPressed: () {
-                          final accountHolderName = _hostBankAccountName?.trim().isNotEmpty == true ? _hostBankAccountName!.trim() : _hostName;
                           final bankInfo = _hasValidBankTransfer
-                              ? '\n🏦 บัญชีธนาคาร: ${_hostBankName ?? ''} เลขบัญชี $_hostBankAccountNumber ($accountHolderName)'
+                              ? '\n🏦 บัญชีธนาคาร: ${_hostBankName ?? ''} เลขบัญชี $_hostBankAccountNumber ($_hostName)'
                               : '';
                           final promptPayInfo = _hasValidPromptPay
-                              ? '\n💳 พร้อมเพย์: $_hostPromptPay ($accountHolderName)'
+                              ? '\n💳 พร้อมเพย์: $_hostPromptPay ($_hostName)'
                               : '';
                           final reminder = '👋 สวัสดี $memberName!\n'
                               '🍲 ยอดหารบิลร้าน $shopName ของคุณคือ ${AppFormatters.formatCurrency(amount)}'
@@ -1306,12 +1305,11 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                     return '- $name: ฿$amt ${isPaid ? "(จ่ายแล้ว ✓)" : "(รอโอน ⏳)"}';
                                   })
                                   .join('\n');
-                              final accountHolderName = _hostBankAccountName?.trim().isNotEmpty == true ? _hostBankAccountName!.trim() : _hostName;
                               final bankInfo = _hasValidBankTransfer
-                                  ? '\n🏦 บัญชีธนาคาร: ${_hostBankName ?? ""} เลขบัญชี $_hostBankAccountNumber ($accountHolderName)'
+                                  ? '\n🏦 บัญชีธนาคาร: ${_hostBankName ?? ""} เลขบัญชี $_hostBankAccountNumber ($_hostName)'
                                   : '';
                               final promptPayInfo = _hasValidPromptPay
-                                  ? '\n💳 พร้อมเพย์: $_hostPromptPay ($accountHolderName)'
+                                  ? '\n💳 พร้อมเพย์: $_hostPromptPay ($_hostName)'
                                   : '';
                               final msg = '🍲 สรุปยอดค่าอาหารร้าน "$shopName" 🍲\n'
                                   'ยอดรวมทั้งโต๊ะ: ${AppFormatters.formatCurrency(billTotal)} บาท\n\n'

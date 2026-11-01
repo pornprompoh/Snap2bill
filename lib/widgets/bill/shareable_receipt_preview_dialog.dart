@@ -24,7 +24,6 @@ class ShareableReceiptPreviewDialog extends StatefulWidget {
   final String? hostPromptPayType;
   final String? hostBankAccount;
   final String? hostBankName;
-  final String? hostBankAccountName;
   final String? hostName;
   final bool isCurrentViewerOwner;
   final void Function(String promptPay, String promptPayType, String? hostName)? onPromptPayUpdated;
@@ -37,7 +36,6 @@ class ShareableReceiptPreviewDialog extends StatefulWidget {
     this.hostPromptPayType,
     this.hostBankAccount,
     this.hostBankName,
-    this.hostBankAccountName,
     this.hostName,
     this.isCurrentViewerOwner = true,
     this.onPromptPayUpdated,
@@ -51,7 +49,6 @@ class ShareableReceiptPreviewDialog extends StatefulWidget {
     String? hostPromptPayType,
     String? hostBankAccount,
     String? hostBankName,
-    String? hostBankAccountName,
     String? hostName,
     bool isCurrentViewerOwner = true,
     void Function(String promptPay, String promptPayType, String? hostName)? onPromptPayUpdated,
@@ -70,7 +67,6 @@ class ShareableReceiptPreviewDialog extends StatefulWidget {
           hostPromptPayType: hostPromptPayType,
           hostBankAccount: hostBankAccount,
           hostBankName: hostBankName,
-          hostBankAccountName: hostBankAccountName,
           hostName: hostName,
           isCurrentViewerOwner: isCurrentViewerOwner,
           onPromptPayUpdated: onPromptPayUpdated,
@@ -95,7 +91,6 @@ class _ShareableReceiptPreviewDialogState
   late String? _currentHostPromptPayType;
   late String? _currentHostBankAccount;
   late String? _currentHostBankName;
-  late String? _currentHostBankAccountName;
   late String? _currentHostName;
 
   @override
@@ -105,7 +100,6 @@ class _ShareableReceiptPreviewDialogState
     _currentHostPromptPayType = widget.hostPromptPayType ?? 'phone';
     _currentHostBankAccount = widget.hostBankAccount;
     _currentHostBankName = widget.hostBankName;
-    _currentHostBankAccountName = widget.hostBankAccountName;
     _currentHostName = widget.hostName;
 
     _checkAndLoadHostPromptPay();
@@ -150,11 +144,6 @@ class _ShareableReceiptPreviewDialogState
               if (dName != null && dName.isNotEmpty) {
                 _currentHostName = dName;
               }
-              final bName = profile['bank_account_name']?.toString().trim() ??
-                  paymentInfo?['bank_account_name']?.toString().trim();
-              if (bName != null && bName.isNotEmpty) {
-                _currentHostBankAccountName = bName;
-              }
             });
           }
         }
@@ -167,7 +156,7 @@ class _ShareableReceiptPreviewDialogState
   Future<void> _showPromptPayConfigDialog() async {
     String selectedType = _currentHostPromptPayType ?? 'phone';
     final numberController = TextEditingController(text: _currentHostPromptPay ?? '');
-    final nameController = TextEditingController(text: _currentHostBankAccountName ?? '');
+    final nameController = TextEditingController(text: _currentHostName ?? '');
     String? errorText;
 
     await showDialog(
@@ -241,13 +230,12 @@ class _ShareableReceiptPreviewDialogState
                     },
                   ),
                   const SizedBox(height: 14),
-                  const Text('ชื่อบัญชีธนาคาร (ชื่อ-นามสกุลจริง)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  const Text('ชื่อบัญชี / ชื่อเจ้าของบิล', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: nameController,
                     decoration: InputDecoration(
-                      hintText: 'เช่น วิชญาพร เนียมเที่ยง',
-                      helperText: 'ชื่อจริงที่จะแสดงตอนขึ้น QR Code (ไม่เกี่ยวกับชื่อในแอป)',
+                      hintText: 'เช่น สมชาย ใจดี',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     ),
@@ -284,16 +272,7 @@ class _ShareableReceiptPreviewDialogState
                         'promptpay_type': selectedType,
                       };
                       if (newName != null) {
-                        final profile = await Supabase.instance.client
-                            .from('profiles')
-                            .select('payment_info')
-                            .eq('id', currentUserId)
-                            .maybeSingle();
-                        final currentPaymentInfo = profile != null && profile['payment_info'] is Map
-                            ? Map<String, dynamic>.from(profile['payment_info'] as Map)
-                            : <String, dynamic>{};
-                        currentPaymentInfo['bank_account_name'] = newName;
-                        updateData['payment_info'] = currentPaymentInfo;
+                        updateData['display_name'] = newName;
                       }
                       await Supabase.instance.client.from('profiles').update(updateData).eq('id', currentUserId);
                     }
@@ -305,7 +284,7 @@ class _ShareableReceiptPreviewDialogState
                           : <String, dynamic>{};
                       receipt['promptpay_number'] = target;
                       receipt['promptpay_type'] = selectedType;
-                      if (newName != null) receipt['host_bank_account_name'] = newName;
+                      if (newName != null) receipt['host_name'] = newName;
                       await Supabase.instance.client.from('bills').update({
                         'receipt_json': receipt,
                       }).eq('id', billId);
@@ -319,7 +298,7 @@ class _ShareableReceiptPreviewDialogState
                     setState(() {
                       _currentHostPromptPay = target;
                       _currentHostPromptPayType = selectedType;
-                      if (newName != null) _currentHostBankAccountName = newName;
+                      if (newName != null) _currentHostName = newName;
                       _statusMessage = 'ตั้งค่า PromptPay และสร้าง QR Code สำเร็จแล้ว ✅';
                       _statusColor = AppColors.tealGreen;
                     });
@@ -632,7 +611,6 @@ class _ShareableReceiptPreviewDialogState
                       hostPromptPayType: _currentHostPromptPayType,
                       hostBankAccount: _currentHostBankAccount,
                       hostBankName: _currentHostBankName,
-                      hostBankAccountName: _currentHostBankAccountName,
                       hostName: _currentHostName,
                       isCurrentViewerOwner: widget.isCurrentViewerOwner,
                       onConfigurePromptPay: _showPromptPayConfigDialog,

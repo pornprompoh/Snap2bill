@@ -403,13 +403,13 @@ class _DetailScreenState extends State<DetailScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.green.shade50,
+                        color: AppColors.lightGreen,
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.green.shade300, width: 2),
+                        border: Border.all(color: AppColors.tealGreen, width: 2),
                       ),
                       child: const Icon(
                         Icons.check_circle_rounded,
-                        color: Color(0xFF00AA5B),
+                        color: AppColors.tealGreen,
                         size: 48,
                       ),
                     ),
@@ -419,35 +419,35 @@ class _DetailScreenState extends State<DetailScreen> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF008A4B),
+                        color: AppColors.tealGreen,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'ยอดชำระของ ${member.name} ได้รับการชำระเงินแล้ว',
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      style: const TextStyle(fontSize: 12, color: AppColors.gray),
                     ),
                     const SizedBox(height: 12),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF7FAF8),
+                        color: AppColors.lightGreen.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.green.shade100),
+                        border: Border.all(color: AppColors.tealGreen.withValues(alpha: 0.3)),
                       ),
                       child: Column(
                         children: [
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('ยอดชำระ', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                              const Text('ยอดชำระ', style: TextStyle(color: AppColors.gray, fontSize: 12)),
                               Text(
                                 '${AppFormatters.formatCurrency(member.amount)} ฿',
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800,
-                                  color: Color(0xFF00AA5B),
+                                  color: AppColors.tealGreen,
                                 ),
                               ),
                             ],
@@ -456,7 +456,7 @@ class _DetailScreenState extends State<DetailScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('ผู้รับเงิน', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                              const Text('ผู้รับเงิน', style: TextStyle(fontSize: 11, color: AppColors.gray)),
                               Text('$_hostName ($_hostPromptPay)', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                             ],
                           ),
@@ -464,8 +464,8 @@ class _DetailScreenState extends State<DetailScreen> {
                           const Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('สถานะ', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                              Text('ชำระเงินแล้ว ✅', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF00AA5B))),
+                              Text('สถานะ', style: TextStyle(fontSize: 11, color: AppColors.gray)),
+                              Text('ชำระเงินแล้ว ✅', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.tealGreen)),
                             ],
                           ),
                         ],
@@ -531,20 +531,20 @@ class _DetailScreenState extends State<DetailScreen> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.blue.withValues(alpha: 0.08),
+                          color: AppColors.lightPink.withValues(alpha: 0.35),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+                          border: Border.all(color: AppColors.pink.withValues(alpha: 0.3)),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Row(
                               children: [
-                                Icon(Icons.account_balance, size: 16, color: Colors.blue),
+                                Icon(Icons.account_balance, size: 16, color: AppColors.pink),
                                 SizedBox(width: 6),
                                 Text(
                                   'ทางเลือกโอนด้วยเลขบัญชีธนาคาร',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue),
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.pink),
                                 ),
                               ],
                             ),
@@ -579,20 +579,20 @@ class _DetailScreenState extends State<DetailScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.blue.withValues(alpha: 0.08),
+                        color: AppColors.lightPink.withValues(alpha: 0.35),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+                        border: Border.all(color: AppColors.pink.withValues(alpha: 0.3)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Row(
                             children: [
-                              Icon(Icons.account_balance, size: 18, color: Colors.blue),
+                              Icon(Icons.account_balance, size: 18, color: AppColors.pink),
                               SizedBox(width: 8),
                               Text(
                                 'โอนด้วยเลขบัญชีธนาคาร',
-                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.blue),
+                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.pink),
                               ),
                             ],
                           ),
@@ -808,8 +808,15 @@ class _DetailScreenState extends State<DetailScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(12),
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? AppColors.darkCardBackground
+                    : AppColors.paleYellow,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? AppColors.darkBorder
+                      : AppColors.primaryOrange.withValues(alpha: 0.3),
+                ),
               ),
               child: Column(
                 children: [
@@ -818,7 +825,7 @@ class _DetailScreenState extends State<DetailScreen> {
                     _buildSummaryRow('Service Charge', serviceCharge),
                   if (vatAmount > 0) _buildSummaryRow('VAT', vatAmount),
                   if (discount > 0)
-                    _buildSummaryRow('ส่วนลด', -discount, color: Colors.red),
+                    _buildSummaryRow('ส่วนลด', -discount, color: AppColors.error),
                   const Divider(),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -835,7 +842,7 @@ class _DetailScreenState extends State<DetailScreen> {
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: Colors.green,
+                          color: AppColors.tealGreen,
                         ),
                       ),
                     ],

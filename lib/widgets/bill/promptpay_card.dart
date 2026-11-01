@@ -196,13 +196,13 @@ class _PromptPayCardState extends State<PromptPayCard> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.green.shade50,
+                color: AppColors.lightGreen,
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.green.shade300, width: 2),
+                border: Border.all(color: AppColors.tealGreen, width: 2),
               ),
               child: const Icon(
                 Icons.check_circle_rounded,
-                color: Color(0xFF00AA5B),
+                color: AppColors.tealGreen,
                 size: 56,
               ),
             ),
@@ -212,13 +212,13 @@ class _PromptPayCardState extends State<PromptPayCard> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF008A4B),
+                color: AppColors.tealGreen,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               'ยอดชำระของ ${widget.selectedUserName} ได้รับการบันทึกแล้ว',
-              style: const TextStyle(fontSize: 13, color: Colors.grey),
+              style: const TextStyle(fontSize: 13, color: AppColors.gray),
             ),
             const SizedBox(height: 16),
             Container(
@@ -227,20 +227,20 @@ class _PromptPayCardState extends State<PromptPayCard> {
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.green.shade100),
+                border: Border.all(color: AppColors.tealGreen.withValues(alpha: 0.3)),
               ),
               child: Column(
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('ยอดชำระสุทธิ', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                      const Text('ยอดชำระสุทธิ', style: TextStyle(color: AppColors.gray, fontSize: 13)),
                       Text(
                         '${AppFormatters.formatCurrency(widget.amount)} ฿',
                         style: const TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF00AA5B),
+                          color: AppColors.tealGreen,
                         ),
                       ),
                     ],

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import 'home_screen.dart';
 import 'bill/scan_screen.dart';
-import 'friends/friend_list_screen.dart';
 import 'profile/profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -18,124 +17,119 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _pages = [
     const HomeScreen(),
     const ScanScreen(),
-    const FriendListScreen(),
     const ProfileScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final navBg = isDark ? AppColors.darkSurface : AppColors.surface;
-    final navBorder = isDark ? AppColors.darkBorder : AppColors.border;
+    final navBg = isDark ? AppColors.darkSurface : AppColors.white;
+    final navBorder = isDark ? AppColors.darkBorder : const Color(0xFFD6D6D6);
 
     return Scaffold(
+      extendBody: true,
       body: IndexedStack(index: _currentIndex, children: _pages),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: navBg,
-          border: Border(
-            top: BorderSide(color: navBorder, width: 0.8),
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          margin: const EdgeInsets.only(left: 24, right: 24, bottom: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: navBg,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: navBorder, width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-              blurRadius: 16,
-              offset: const Offset(0, -4),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          top: false,
-          child: SizedBox(
-            height: 64,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildNavItem(0, Icons.home_rounded, Icons.home_outlined, 'หน้าหลัก', isDark),
-                _buildCenterScanItem(1, isDark),
-                _buildNavItem(2, Icons.people_rounded, Icons.people_outline_rounded, 'เพื่อนในตี้', isDark),
-                _buildNavItem(3, Icons.person_rounded, Icons.person_outline_rounded, 'โปรไฟล์', isDark),
-              ],
-            ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildNavItem(
+                index: 0,
+                icon: Icons.history_rounded,
+                label: 'ประวัติบิล',
+                isDark: isDark,
+              ),
+              _buildNavItem(
+                index: 1,
+                icon: Icons.document_scanner_outlined,
+                label: 'แสกน',
+                isDark: isDark,
+              ),
+              _buildNavItem(
+                index: 2,
+                icon: Icons.person_outline_rounded,
+                label: 'โปรไฟล์',
+                isDark: isDark,
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildNavItem(int index, IconData selectedIcon, IconData unselectedIcon, String label, bool isDark) {
+  Widget _buildNavItem({
+    required int index,
+    required IconData icon,
+    required String label,
+    required bool isDark,
+  }) {
     final isSelected = _currentIndex == index;
-    final unselectedColor = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final labelColor = isSelected
+        ? (isDark ? AppColors.darkTextPrimary : AppColors.black)
+        : (isDark ? AppColors.darkTextSecondary : AppColors.gray);
 
     return InkWell(
       onTap: () => setState(() => _currentIndex = index),
       borderRadius: BorderRadius.circular(16),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              isSelected ? selectedIcon : unselectedIcon,
-              color: isSelected ? AppColors.primary : unselectedColor,
-              size: 22,
-            ),
+            // Active pink pill container or inactive icon (Matching reference image)
+            if (isSelected)
+              Container(
+                width: 58,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AppColors.pink,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  icon,
+                  color: AppColors.white,
+                  size: 20,
+                ),
+              )
+            else
+              SizedBox(
+                height: 32,
+                child: Center(
+                  child: Icon(
+                    icon,
+                    color: isDark ? AppColors.darkTextSecondary : AppColors.black,
+                    size: 24,
+                  ),
+                ),
+              ),
             const SizedBox(height: 3),
             Text(
               label,
               style: TextStyle(
                 fontSize: 11,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? AppColors.primary : unselectedColor,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+                color: labelColor,
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildCenterScanItem(int index, bool isDark) {
-    final isSelected = _currentIndex == index;
-    return InkWell(
-      onTap: () => setState(() => _currentIndex = index),
-      borderRadius: BorderRadius.circular(20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              gradient: isSelected
-                  ? const LinearGradient(
-                      colors: [Color(0xFFE26A82), Color(0xFFD95D77)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    )
-                  : null,
-              color: isSelected
-                  ? null
-                  : (isDark ? AppColors.darkCardBackground : AppColors.secondary),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.qr_code_scanner_rounded,
-              color: isSelected
-                  ? Colors.white
-                  : (isDark ? AppColors.secondary : AppColors.primary),
-              size: 20,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            'สแกนบิล',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              color: isSelected ? AppColors.primary : (isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
-            ),
-          ),
-        ],
       ),
     );
   }

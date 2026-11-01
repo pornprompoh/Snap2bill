@@ -318,20 +318,20 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
   Color _getDishColor(int index) {
     const colors = [
-      AppColors.blossomPink,
-      AppColors.blushPink,
-      AppColors.warmCream,
-      AppColors.butterPeach,
+      AppColors.lightPink,
+      AppColors.paleYellow,
+      AppColors.lightGreen,
+      AppColors.lightPink,
     ];
     return colors[index % colors.length];
   }
 
   Color _getDishIconColor(int index) {
     const colors = [
-      AppColors.primary,
-      Color(0xFFBD4560),
-      Color(0xFFD97706),
-      AppColors.primaryDark,
+      AppColors.pink,
+      AppColors.primaryOrange,
+      AppColors.tealGreen,
+      AppColors.pink,
     ];
     return colors[index % colors.length];
   }

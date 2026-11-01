@@ -289,13 +289,13 @@ class ClaimItemCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF0FDF4),
+                        color: AppColors.lightGreen.withValues(alpha: 0.35),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFBBF7D0)),
+                        border: Border.all(color: AppColors.tealGreen.withValues(alpha: 0.3)),
                       ),
                       child: Text(
                         'หารร่วมกัน ${sharedUsers.length} คน (คนละ ${AppFormatters.formatCurrency(sharedPerUser)})',
-                        style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Color(0xFF166534)),
+                        style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: AppColors.tealGreen),
                       ),
                     ),
                 ],

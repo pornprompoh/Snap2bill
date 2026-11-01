@@ -581,8 +581,8 @@ class _LobbyScreenState extends State<LobbyScreen> {
               const SizedBox(height: 8),
               _buildActionCard(
                 icon: Icons.person_add_alt_1_rounded,
-                iconBg: AppColors.butterPeach,
-                iconColor: AppColors.primary,
+                iconBg: AppColors.paleYellow,
+                iconColor: AppColors.primaryOrange,
                 title: 'เพิ่มชื่อเพื่อนเองด้วยมือ',
                 subtitle: 'เจ้ามือกรอกชื่อและเลือกจานแทนเพื่อนได้',
                 trailingIcon: Icons.add_rounded,
@@ -639,12 +639,12 @@ class _LobbyScreenState extends State<LobbyScreen> {
                   children: [
                     CircleAvatar(
                       radius: 18,
-                      backgroundColor: isHostUser ? AppColors.secondary : const Color(0xFFF0FDF4),
+                      backgroundColor: isHostUser ? AppColors.paleYellow : AppColors.lightGreen,
                       child: Text(
                         userName.isNotEmpty ? userName[0].toUpperCase() : '?',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: isHostUser ? AppColors.primary : AppColors.success,
+                          color: isHostUser ? AppColors.primaryOrange : AppColors.tealGreen,
                         ),
                       ),
                     ),

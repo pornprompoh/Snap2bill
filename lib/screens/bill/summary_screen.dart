@@ -500,13 +500,13 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.green.shade50,
+                        color: AppColors.lightGreen,
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.green.shade300, width: 2),
+                        border: Border.all(color: AppColors.tealGreen, width: 2),
                       ),
                       child: const Icon(
                         Icons.check_circle_rounded,
-                        color: Color(0xFF00AA5B),
+                        color: AppColors.tealGreen,
                         size: 48,
                       ),
                     ),
@@ -516,35 +516,35 @@ class _SummaryScreenState extends State<SummaryScreen> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF008A4B),
+                        color: AppColors.tealGreen,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'ยอดชำระของ $memberName บันทึกเรียบร้อย',
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      style: const TextStyle(fontSize: 12, color: AppColors.gray),
                     ),
                     const SizedBox(height: 12),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF7FAF8),
+                        color: AppColors.lightGreen.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.green.shade100),
+                        border: Border.all(color: AppColors.tealGreen.withValues(alpha: 0.3)),
                       ),
                       child: Column(
                         children: [
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('ยอดชำระ', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                              const Text('ยอดชำระ', style: TextStyle(color: AppColors.gray, fontSize: 12)),
                               Text(
                                 '${AppFormatters.formatCurrency(amount)} ฿',
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800,
-                                  color: Color(0xFF00AA5B),
+                                  color: AppColors.tealGreen,
                                 ),
                               ),
                             ],
@@ -553,7 +553,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('ผู้รับเงิน', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                              const Text('ผู้รับเงิน', style: TextStyle(fontSize: 11, color: AppColors.gray)),
                               Text('$_hostName ($_hostPromptPay)', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                             ],
                           ),
@@ -561,8 +561,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           const Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('สถานะ', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                              Text('ชำระเงินแล้ว ✅', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF00AA5B))),
+                              Text('สถานะ', style: TextStyle(fontSize: 11, color: AppColors.gray)),
+                              Text('ชำระเงินแล้ว ✅', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.tealGreen)),
                             ],
                           ),
                         ],
@@ -1077,13 +1077,13 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           Container(
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF0FDF4),
+                              color: AppColors.lightGreen,
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: const Color(0xFF86EFAC)),
+                              border: Border.all(color: AppColors.tealGreen.withValues(alpha: 0.3)),
                             ),
                             child: const Row(
                               children: [
-                                Icon(Icons.celebration_rounded, color: Color(0xFF16A34A), size: 24),
+                                Icon(Icons.celebration_rounded, color: AppColors.tealGreen, size: 24),
                                 SizedBox(width: 10),
                                 Expanded(
                                   child: Column(
@@ -1091,12 +1091,12 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                     children: [
                                       Text(
                                         '🎉 ทุกคนชำระเงินครบ 100% แล้ว!',
-                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Color(0xFF166534)),
+                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: AppColors.tealGreen),
                                       ),
                                       SizedBox(height: 2),
                                       Text(
                                         'ยอดเงินครบตามบิลแล้ว เจ้าของบิลสามารถกดปิดบิลเสร็จสิ้นได้เลย',
-                                        style: TextStyle(fontSize: 11, color: Color(0xFF15803D)),
+                                        style: TextStyle(fontSize: 11, color: AppColors.tealGreen),
                                       ),
                                     ],
                                   ),

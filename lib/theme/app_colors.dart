@@ -1,46 +1,100 @@
 import 'package:flutter/material.dart';
 
+/// 🎨 Snap2Bill Design System Color Palette & Tokens
+///
+/// Strictly conforms to the requested Design System specification:
+/// - Black: #000000 (100%)
+/// - White: #FFFFFF (100%)
+/// - Gray: #757575 (100%)
+/// - Primary Orange: #E37A51 (100%)
+/// - Teal Green: #047E69 (100%)
+/// - Pink: #F76DB7 (100%)
+/// - Light Pink: #FFD5EC (100%)
+/// - Black Overlay: #000000 (68% Opacity)
+/// - Pale Yellow: #FFF9D4 (100%)
+/// - Linear Gradient: Teal Gradient (#047E69 -> #0B9E84)
+/// - Dark Overlay: #111010 (28% Opacity)
+/// - Light Green: #B6F7C1 (100%)
+/// - Yellow: #FFC800 (100%)
+/// - White Overlay 24%: #FFFFFF (24% Opacity)
+/// - White Overlay 7%: #FFFFFF (7% Opacity)
 class AppColors {
-  // 🌸 The 4 Signature Theme Colors (พาเลตต์หลัก 4 สีละมุนตามสั่ง)
-  static const Color blossomPink = Color(0xFFFFCED8); // #FFCED8 ชมพูดอกซากุระละมุน
-  static const Color blushPink = Color(0xFFFFDDDD);   // #FFDDDD ชมพูบลัชพาสเทล
-  static const Color warmCream = Color(0xFFFFF4DE);   // #FFF4DE ครีมวานิลลาอบอุ่น
-  static const Color butterPeach = Color(0xFFFFE8C4); // #FFE8C4 พีชเนยละมุน
+  // --- 1. Core Palette Tokens ---
+  static const Color black = Color(0xFF000000);
+  static const Color white = Color(0xFFFFFFFF);
+  static const Color gray = Color(0xFF757575);
+  static const Color primaryOrange = Color(0xFFE37A51);
+  static const Color tealGreen = Color(0xFF047E69);
+  static const Color pink = Color(0xFFF76DB7);
+  static const Color lightPink = Color(0xFFFFD5EC);
+  static const Color paleYellow = Color(0xFFFFF9D4);
+  static const Color lightGreen = Color(0xFFB6F7C1);
+  static const Color yellow = Color(0xFFFFC800);
 
-  // Brand Primary & Accents (คุมโทนให้เข้ากับ FFCED8 และตัวหนังสือคมชัดอ่านง่าย)
-  static const Color primary = Color(0xFFD95D77);     // โทน Rose Berry ที่ดึงจาก FFCED8 อ่านง่าย ไม่แสบตา
-  static const Color primaryDark = Color(0xFFBD4560);
-  static const Color primaryLight = Color(0xFFFFCED8);// #FFCED8
-  static const Color secondary = Color(0xFFFFDDDD);   // #FFDDDD
-  static const Color accent = Color(0xFFFFE8C4);      // #FFE8C4
+  // --- 2. Overlays ---
+  /// Black with 68% opacity
+  static const Color blackOverlay = Color(0xAD000000);
+  /// Dark with 28% opacity (#111010)
+  static const Color darkOverlay = Color(0x47111010);
+  /// White with 24% opacity
+  static const Color whiteOverlay24 = Color(0x3DFFFFFF);
+  /// White with 7% opacity
+  static const Color whiteOverlay7 = Color(0x12FFFFFF);
+
+  // --- 3. Gradients ---
+  static const LinearGradient tealGradient = LinearGradient(
+    colors: [Color(0xFF047E69), Color(0xFF0B9E84)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient pinkGradient = LinearGradient(
+    colors: [Color(0xFFF76DB7), Color(0xFFE65C9E)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  // --- 4. Role-based & Semantic Aliases ---
+  static const Color primary = pink;                // #F76DB7
+  static const Color primaryDark = Color(0xFFD44C93);
+  static const Color primaryLight = lightPink;       // #FFD5EC
+  static const Color secondary = tealGreen;         // #047E69
+  static const Color accent = primaryOrange;        // #E37A51
 
   // Neutral Background & Surface
-  static const Color background = Color(0xFFFFFBF7); // รองพื้นครีมละมุน สบายตา อิงจาก #FFF4DE
-  static const Color surface = Color(0xFFFFFFFF);
-  static const Color cardBackground = Color(0xFFFFFFFF);
-  static const Color border = Color(0xFFF2E3E3);      // เส้นขอบสีพาสเทลอ่อน
+  static const Color background = white;             // Clean crisp white
+  static const Color surface = white;
+  static const Color cardBackground = white;
+  static const Color border = Color(0xFFE8E8E8);     // Subtle gray border
+  static const Color divider = Color(0xFFEEEEEE);
 
-  // Typography (สีตัวหนังสือโทนอบอุ่น อ่านง่าย สบายตา)
-  static const Color textPrimary = Color(0xFF2E2427); // น้ำตาลเอสเปรสโซเข้ม ไม่ดำกระด้าง
-  static const Color textSecondary = Color(0xFF7A6E71);
-  static const Color textMuted = Color(0xFFA69B9E);
+  // Typography
+  static const Color textPrimary = black;            // #000000
+  static const Color textSecondary = gray;          // #757575
+  static const Color textMuted = gray;              // #757575
 
-  // Semantics & Status (คงสีแดงและเขียวตามหลักสากล UX)
-  static const Color success = Color(0xFF10B981);     // เขียวมิ้นต์ (จ่ายแล้ว/สำเร็จ)
-  static const Color successLight = Color(0xFFECFDF5);
-  static const Color warning = Color(0xFFF59E0B);     // ส้มอำพัน (รอชำระ)
-  static const Color warningLight = Color(0xFFFFFBEB);
-  static const Color error = Color(0xFFEF4444);       // แดง (ลบ/แจ้งเตือนข้อผิดพลาด)
-  static const Color errorLight = Color(0xFFFEF2F2);
-  static const Color info = Color(0xFF8B5CF6);        // ม่วงลาเวนเดอร์พาสเทล
-  static const Color infoLight = Color(0xFFF5F3FF);
-  static const Color lineGreen = Color(0xFF06C755);   // สีเขียวแอป LINE
+  // Status & Semantics
+  static const Color success = tealGreen;            // #047E69 (Teal Green)
+  static const Color successLight = lightGreen;      // #B6F7C1 (Light Green)
+  static const Color warning = primaryOrange;        // #E37A51 (Primary Orange)
+  static const Color warningLight = paleYellow;      // #FFF9D4 (Pale Yellow)
+  static const Color error = primaryOrange;          // #E37A51
+  static const Color errorLight = lightPink;         // #FFD5EC
+  static const Color info = tealGreen;
+  static const Color infoLight = lightPink;
+  static const Color lineGreen = Color(0xFF06C755);  // LINE brand green
 
-  // Dark Mode Colors
-  static const Color darkBackground = Color(0xFF161314);
-  static const Color darkSurface = Color(0xFF201B1D);
-  static const Color darkCardBackground = Color(0xFF282225);
-  static const Color darkBorder = Color(0xFF382F33);
-  static const Color darkTextPrimary = Color(0xFFF7F2F4);
-  static const Color darkTextSecondary = Color(0xFFA89CA0);
+  // Backward compatibility aliases
+  static const Color blossomPink = lightPink;
+  static const Color blushPink = lightPink;
+  static const Color warmCream = paleYellow;
+  static const Color butterPeach = paleYellow;
+
+  // Dark Mode Tokens
+  static const Color darkBackground = Color(0xFF121212);
+  static const Color darkSurface = Color(0xFF1E1E1E);
+  static const Color darkCardBackground = Color(0xFF242424);
+  static const Color darkBorder = Color(0xFF383838);
+  static const Color darkTextPrimary = white;
+  static const Color darkTextSecondary = Color(0xFFA0A0A0);
 }

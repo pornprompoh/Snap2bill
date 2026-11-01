@@ -11,6 +11,7 @@ import 'package:snap2bill/utils/formatters.dart';
 import 'package:snap2bill/widgets/bill/shareable_receipt_card.dart';
 import 'package:snap2bill/widgets/bill/claim_item_card.dart';
 import 'package:snap2bill/utils/menu_icon_helper.dart';
+import 'package:snap2bill/services/ocr_service.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 void main() {
@@ -673,6 +674,99 @@ void main() {
       expect(summary.unpaidCount, equals(1));
       expect(summary.totalPayingCount, equals(1));
       expect(summary.isSettled, isFalse); // MUST be false!
+    });
+  });
+
+  group('AI Scan Receipt Filtering Tests (> 0 Baht Rule)', () {
+    test('OcrService.validateAndNormalizeReceipt filters out 0-baht items, freebies, privileges and keeps valid dishes', () {
+      final rawAiReceipt = {
+        'shop_name': 'Haidilao',
+        'is_vat_included': true,
+        'vat_amount': 0,
+        'service_charge': 0,
+        'discount': 0,
+        'final_total': 300.0,
+        'total_amount': 300.0,
+        'items': [
+          {'item_name': 'ซูชิแซลมอน', 'qty': 1, 'unit_price': 120.0, 'total_price': 120.0},
+          {'item_name': 'ราเมน', 'qty': 1, 'unit_price': 180.0, 'total_price': 180.0},
+          {'item_name': 'น้ำเปล่า', 'qty': 1, 'unit_price': 0.0, 'total_price': 0.0}, // Free water
+          {'item_name': 'ของแถม', 'qty': 1, 'unit_price': 0.0, 'total_price': 0.0}, // Giveaway
+          {'item_name': 'ส่วนลดสมาชิก', 'qty': 1, 'unit_price': 0.0, 'total_price': 0.0}, // Member discount remark
+          {'item_name': 'สิทธิ์แลกซื้อ', 'qty': 3, 'unit_price': 0.0, 'total_price': 0.0}, // Privileges
+          {'item_name': 'AMB สิทธิ์แลกซื้อ', 'qty': 3, 'unit_price': 0.0, 'total_price': 0.0}, // Privileges
+          {'item_name': 'รายการที่ไม่มีราคา', 'qty': 1, 'unit_price': null, 'total_price': null}, // No price
+          {'item_name': '', 'qty': 1, 'unit_price': 50.0, 'total_price': 50.0}, // Empty name
+        ],
+      };
+
+      final normalized = OcrService.validateAndNormalizeReceipt(rawAiReceipt);
+      final items = normalized['items'] as List<dynamic>;
+
+      // Only the 2 valid dishes with price > 0 must remain
+      expect(items.length, equals(2));
+      expect(items[0]['item_name'], equals('ซูชิแซลมอน'));
+      expect(items[0]['total_price'], equals(120.0));
+      expect(items[1]['item_name'], equals('ราเมน'));
+      expect(items[1]['total_price'], equals(180.0));
+
+      // 0-baht items must NEVER exist
+      final allNames = items.map((e) => e['item_name']?.toString()).toList();
+      expect(allNames.contains('น้ำเปล่า'), isFalse);
+      expect(allNames.contains('ของแถม'), isFalse);
+      expect(allNames.contains('ส่วนลดสมาชิก'), isFalse);
+      expect(allNames.contains('สิทธิ์แลกซื้อ'), isFalse);
+      expect(allNames.contains('AMB สิทธิ์แลกซื้อ'), isFalse);
+      expect(allNames.contains('รายการที่ไม่มีราคา'), isFalse);
+
+      // Reconciled sub_total and final_total remain intact
+      expect(normalized['sub_total'], equals(300.0));
+      expect(normalized['final_total'], equals(300.0));
+    });
+
+    test('OcrService.validateAndNormalizeReceipt throws FormatException when no positive price items exist', () {
+      final zeroOnlyReceipt = {
+        'shop_name': 'Test Shop',
+        'is_vat_included': true,
+        'final_total': 0.0,
+        'items': [
+          {'item_name': 'ของแถม', 'qty': 1, 'unit_price': 0.0, 'total_price': 0.0},
+          {'item_name': 'สิทธิ์แลกซื้อ', 'qty': 2, 'unit_price': 0.0, 'total_price': 0.0},
+        ],
+      };
+
+      expect(
+        () => OcrService.validateAndNormalizeReceipt(zeroOnlyReceipt),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('Receipt items filtering strips 0-baht and unpriced items matching user screenshot', () {
+      final receiptData = {
+        'shop_name': 'MK Restaurant',
+        'is_vat_included': true,
+        'final_total': 175.0,
+        'total_amount': 175.0,
+        'items': [
+          {'item_name': 'H ข้าวโพดหวานตัดท่อ', 'qty': 1, 'unit_price': 22.0, 'total_price': 22.0},
+          {'item_name': 'H ข้าวหอมมะลิหุงสุก', 'qty': 1, 'unit_price': 15.0, 'total_price': 15.0},
+          {'item_name': 'H น้ำดื่มเพียวไลฟ์ 15', 'qty': 2, 'unit_price': 69.0, 'total_price': 138.0},
+          {'item_name': 'สิทธิ์แลกซื้อ', 'qty': 3, 'unit_price': 0.0, 'total_price': 0.0},
+          {'item_name': 'AMB สิทธิ์แลกซื้อ', 'qty': 3, 'unit_price': 0.0, 'total_price': 0.0},
+        ],
+      };
+
+      final normalized = OcrService.validateAndNormalizeReceipt(receiptData);
+      final items = normalized['items'] as List<dynamic>;
+
+      expect(items.length, equals(3));
+      expect(items[0]['item_name'], equals('H ข้าวโพดหวานตัดท่อ'));
+      expect(items[1]['item_name'], equals('H ข้าวหอมมะลิหุงสุก'));
+      expect(items[2]['item_name'], equals('H น้ำดื่มเพียวไลฟ์ 15'));
+
+      final names = items.map((e) => e['item_name']).toList();
+      expect(names.contains('สิทธิ์แลกซื้อ'), isFalse);
+      expect(names.contains('AMB สิทธิ์แลกซื้อ'), isFalse);
     });
   });
 }

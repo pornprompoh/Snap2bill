@@ -68,7 +68,15 @@ class _ReviewScreenState extends State<ReviewScreen> {
     _enableSc = _sc > 0;
 
     final aiItems = widget.receiptData['items'] as List<dynamic>? ?? [];
-    _items = aiItems.map((e) => Map<String, dynamic>.from(e)).toList();
+    _items = aiItems
+        .map((e) => Map<String, dynamic>.from(e))
+        .where((item) {
+          final price = double.tryParse((item['unit_price'] ?? item['price'] ?? 0).toString()) ?? 0.0;
+          final total = double.tryParse((item['total_price'] ?? 0).toString()) ?? 0.0;
+          final name = (item['name'] ?? item['item_name'])?.toString().trim() ?? '';
+          return name.isNotEmpty && (price > 0 || total > 0);
+        })
+        .toList();
   }
 
   double _calculateSubtotal() {
@@ -232,8 +240,15 @@ class _ReviewScreenState extends State<ReviewScreen> {
               if (rawName.isEmpty) return;
               final qty = int.tryParse(qtyCtrl.text) ?? 1;
               final unitPrice = double.tryParse(priceCtrl.text) ?? 0.0;
+              if (unitPrice <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('กรุณาระบุราคาที่มากกว่า 0 บาท')),
+                );
+                return;
+              }
               final updatedItem = {
                 'item_name': rawName,
+                'name': rawName,
                 'qty': qty,
                 'unit_price': unitPrice,
                 'total_price': qty * unitPrice,
@@ -276,6 +291,14 @@ class _ReviewScreenState extends State<ReviewScreen> {
     updatedReceiptData['service_charge'] = _sc;
     updatedReceiptData['discount'] = _discount;
     updatedReceiptData['split_model'] = _splitModel;
+
+    // กรองเฉพาะรายการที่มีราคามากกว่า 0 บาทก่อนส่งต่อไปยัง Lobby และ Claim Items
+    _items = _items.where((item) {
+      final unitPrice = double.tryParse((item['unit_price'] ?? item['price'] ?? 0).toString()) ?? 0.0;
+      final totalPrice = double.tryParse((item['total_price'] ?? 0).toString()) ?? 0.0;
+      final name = (item['name'] ?? item['item_name'])?.toString().trim() ?? '';
+      return name.isNotEmpty && (unitPrice > 0 || totalPrice > 0);
+    }).toList();
 
     double subTotal = 0;
     for (var item in _items) {

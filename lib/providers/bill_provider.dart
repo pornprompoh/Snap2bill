@@ -55,8 +55,9 @@ class BillProvider with ChangeNotifier {
         if (id.isNotEmpty) id: 0,
     };
     var totalMenuValue = 0.0;
+    final validItems = items.where((it) => it.price > 0 && it.itemName.trim().isNotEmpty);
 
-    for (final item in items) {
+    for (final item in validItems) {
       totalMenuValue += item.price * item.quantity;
       final personalClaims = item.userQuantities.isNotEmpty
           ? item.userQuantities

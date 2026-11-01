@@ -1,9 +1,11 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../repositories/local_bill_repository.dart';
 import '../routes/app_routes.dart';
+import '../services/camera_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/formatters.dart';
 import '../widgets/bill_card.dart';
@@ -38,10 +40,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _pickImageAndScan(ImageSource source) async {
     try {
-      final picker = ImagePicker();
-      final picked = await picker.pickImage(source: source);
-      if (picked != null) {
-        final bytes = await picked.readAsBytes();
+      Uint8List? bytes;
+      if (source == ImageSource.camera) {
+        bytes = await CameraService.captureReceiptPhoto(context);
+      } else {
+        final picker = ImagePicker();
+        final picked = await picker.pickImage(source: ImageSource.gallery);
+        if (picked != null) {
+          bytes = await picked.readAsBytes();
+        }
+      }
+      if (bytes != null) {
         if (!mounted) return;
         Navigator.pushNamed(context, AppRoutes.loading, arguments: bytes);
       }

@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../routes/app_routes.dart';
+import '../../services/camera_service.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/custom_button.dart';
 
@@ -17,9 +18,16 @@ class _ScanScreenState extends State<ScanScreen> {
   final ImagePicker _picker = ImagePicker();
 
   Future<void> _pickImage(ImageSource source) async {
-    final pickedFile = await _picker.pickImage(source: source);
-    if (pickedFile != null) {
-      final imageBytes = await pickedFile.readAsBytes();
+    Uint8List? imageBytes;
+    if (source == ImageSource.camera) {
+      imageBytes = await CameraService.captureReceiptPhoto(context);
+    } else {
+      final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+      if (pickedFile != null) {
+        imageBytes = await pickedFile.readAsBytes();
+      }
+    }
+    if (imageBytes != null) {
       setState(() {
         _imageBytes = imageBytes;
       });

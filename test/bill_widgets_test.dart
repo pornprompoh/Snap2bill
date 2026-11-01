@@ -97,7 +97,7 @@ void main() {
 
       expect(find.textContaining('คุณเจ้าของห้อง'), findsWidgets);
       expect(find.textContaining('0812345678'), findsWidgets);
-      expect(find.textContaining('320.50'), findsWidgets);
+      expect(find.textContaining('321'), findsWidgets);
 
       await tester.pumpWidget(const SizedBox());
     });
@@ -201,7 +201,7 @@ void main() {
       );
 
       expect(find.text('ข้าวผัดต้มยำกุ้ง'), findsOneWidget);
-      expect(find.textContaining('95.00'), findsOneWidget);
+      expect(find.textContaining('95'), findsOneWidget);
       expect(find.byIcon(Icons.rice_bowl_rounded), findsOneWidget);
 
       // Tap + button to increment

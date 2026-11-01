@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../utils/formatters.dart';
 import '../utils/bill_progress_helper.dart';
 
 class InAppNotificationItem {
@@ -125,7 +126,7 @@ class InAppNotificationService {
         senderName: senderName,
         amount: member.amount,
         title: '📢 สะกิดเตือนค่าอาหาร: $shopName',
-        message: 'คุณมียอดค้างชำระ ฿${member.amount.toStringAsFixed(2)} '
+        message: 'คุณมียอดค้างชำระ ${AppFormatters.formatCurrency(member.amount)} '
             'ของตี้ "$shopName" จาก $senderName รบกวนโอนเงินพร้อมแนบสลิปด้วยเน้อ 🙏',
         createdAt: now,
         isRead: false,

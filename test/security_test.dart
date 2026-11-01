@@ -57,10 +57,10 @@ void main() {
     });
 
     test('verifies currency formatter handles overflow, decimals and zero safely', () {
-      expect(AppFormatters.formatCurrency(0), '0.00 ฿');
-      expect(AppFormatters.formatCurrency(1234.5), '1,234.50 ฿');
-      expect(AppFormatters.formatCurrency(9999999.99), '9,999,999.99 ฿');
-      expect(AppFormatters.formatCurrency(-100), '-100.00 ฿');
+      expect(AppFormatters.formatCurrency(0), '0 ฿');
+      expect(AppFormatters.formatCurrency(1234.5), '1,235 ฿');
+      expect(AppFormatters.formatCurrency(9999999.99), '10,000,000 ฿');
+      expect(AppFormatters.formatCurrency(-100), '-100 ฿');
     });
 
     test('verifies bill date formatter handles edge dates safely', () {

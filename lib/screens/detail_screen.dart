@@ -215,15 +215,12 @@ class _DetailScreenState extends State<DetailScreen> {
       currentUserId = currentAuthUser?.id ?? '';
       currentEmailPrefix = currentAuthUser?.email?.split('@').first ?? '';
     } catch (_) {}
-    final isViewerOwner = _isCurrentUserOwner;
 
     bool checkIsOwner(String mid, String mName) {
-      if (ownerId.isNotEmpty && mid == ownerId) return true;
-      if (isViewerOwner) {
-        if (currentUserId.isNotEmpty && mid == currentUserId) return true;
-        if (currentEmailPrefix.isNotEmpty && (mid == currentEmailPrefix || mName == currentEmailPrefix)) return true;
-        if (_hostName.isNotEmpty && (mName == _hostName || mid == _hostName)) return true;
-      }
+      if (ownerId.isNotEmpty && (mid == ownerId || mName == ownerId)) return true;
+      if (currentUserId.isNotEmpty && mid == currentUserId) return true;
+      if (currentEmailPrefix.isNotEmpty && (mid == currentEmailPrefix || mName == currentEmailPrefix)) return true;
+      if (_hostName.isNotEmpty && (mName == _hostName || mid == _hostName)) return true;
       return false;
     }
 
@@ -528,7 +525,7 @@ class _DetailScreenState extends State<DetailScreen> {
                             children: [
                               const Text('ยอดหารส่วนตัว', style: TextStyle(color: AppColors.gray, fontSize: 12)),
                               Text(
-                                '${AppFormatters.formatCurrency(member.amount)} ฿',
+                                AppFormatters.formatCurrency(member.amount),
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800,
@@ -599,7 +596,7 @@ class _DetailScreenState extends State<DetailScreen> {
                             children: [
                               const Text('ยอดชำระ', style: TextStyle(color: AppColors.gray, fontSize: 12)),
                               Text(
-                                '${AppFormatters.formatCurrency(member.amount)} ฿',
+                                AppFormatters.formatCurrency(member.amount),
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800,
@@ -679,7 +676,7 @@ class _DetailScreenState extends State<DetailScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'สแกนจ่ายได้ทันที ยอด ฿${member.amount.toStringAsFixed(2)}',
+                      'สแกนจ่ายได้ทันที ยอด ${AppFormatters.formatCurrency(member.amount)}',
                       style: const TextStyle(fontSize: 12, color: AppColors.success, fontWeight: FontWeight.bold),
                     ),
                     if (_hostBankAccountNumber.isNotEmpty) ...[
@@ -813,7 +810,7 @@ class _DetailScreenState extends State<DetailScreen> {
                               ? '\n💳 พร้อมเพย์: $_hostPromptPay ($_hostName)'
                               : '';
                           final reminder = '👋 สวัสดี ${member.name}!\n'
-                              '🍲 ยอดหารบิลร้าน $shopName ของคุณคือ ฿${member.amount.toStringAsFixed(2)}'
+                              '🍲 ยอดหารบิลร้าน $shopName ของคุณคือ ${AppFormatters.formatCurrency(member.amount)}'
                               '$promptPayInfo$bankInfo\n'
                               '✨ โอนแล้วรบกวนส่งสลิปด้วยน้า ขอบคุณครับ/ค่ะ 🙏';
                           SharePlus.instance.share(

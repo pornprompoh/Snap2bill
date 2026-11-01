@@ -27,11 +27,46 @@ class _HomeScreenState extends State<HomeScreen> {
   late Future<List<Map<String, dynamic>>> _billsFuture;
   bool _isCheckingRoom = false;
   String _historyFilter = 'unpaid'; // 'unpaid', 'completed', 'all'
+  RealtimeChannel? _realtimeBillsChannel;
 
   @override
   void initState() {
     super.initState();
     _billsFuture = _fetchMyBills();
+    _setupRealtimeBillsSubscription();
+  }
+
+  void _setupRealtimeBillsSubscription() {
+    try {
+      _realtimeBillsChannel = _supabase.channel('public:realtime_bills_home')
+        ..onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'bills',
+          callback: (_) {
+            if (mounted) _refreshBills();
+          },
+        )
+        ..onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'bill_participants',
+          callback: (_) {
+            if (mounted) _refreshBills();
+          },
+        )
+        ..subscribe();
+    } catch (e) {
+      debugPrint('Realtime bills subscription error: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_realtimeBillsChannel != null) {
+      _supabase.removeChannel(_realtimeBillsChannel!);
+    }
+    super.dispose();
   }
 
   Future<void> _refreshBills() async {
@@ -884,7 +919,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           totalPayingCount: summary.totalPayingCount,
                           paidCount: summary.paidCount,
                           unpaidCount: summary.unpaidCount,
-                          averagePerPerson: summary.averagePerPerson,
+                          averagePerPerson: summary.equalPerPerson,
+                          isEqualSplit: summary.isEqualSplit,
                           onTap: () async {
                             await Navigator.pushNamed(
                               context,

@@ -775,7 +775,7 @@ class _PromptPayCardState extends State<PromptPayCard> {
                   ),
                   onPressed: () {
                     Clipboard.setData(
-                      ClipboardData(text: widget.amount.toStringAsFixed(2)),
+                      ClipboardData(text: widget.amount.ceil().toString()),
                     );
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(

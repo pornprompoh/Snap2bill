@@ -211,7 +211,9 @@ class ShareableReceiptCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            'ตกคนละ ${AppFormatters.formatCurrency(s.averagePerPerson)}',
+                            s.isEqualSplit && s.equalPerPerson != null
+                                ? 'ตกคนละ ${AppFormatters.formatCurrency(s.equalPerPerson!)}'
+                                : 'หารตามรายการจริง',
                             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
                           ),
                         ],

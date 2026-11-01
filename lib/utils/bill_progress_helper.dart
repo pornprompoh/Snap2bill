@@ -30,6 +30,8 @@ class BillProgressSummary {
   final int unpaidCount;
   final int percentage; // 0 to 100
   final double averagePerPerson;
+  final double? equalPerPerson;
+  final bool isEqualSplit;
   final bool isSettled;
   final List<BillParticipantStatus> unpaidMembers;
   final List<BillParticipantStatus> allMembers;
@@ -44,6 +46,8 @@ class BillProgressSummary {
     required this.unpaidCount,
     required this.percentage,
     required this.averagePerPerson,
+    this.equalPerPerson,
+    this.isEqualSplit = false,
     required this.isSettled,
     required this.unpaidMembers,
     required this.allMembers,
@@ -57,7 +61,9 @@ class BillProgressSummary {
 
   String get waitingText => unpaidCount > 0 ? 'รออีก $unpaidCount คน' : 'ครบแล้ว 🎉';
 
-  String get formattedAverage => AppFormatters.formatCurrency(averagePerPerson);
+  String get formattedAverage => equalPerPerson != null
+      ? AppFormatters.formatCurrency(equalPerPerson!)
+      : AppFormatters.formatCurrency(averagePerPerson);
 }
 
 class BillProgressHelper {
@@ -287,17 +293,43 @@ class BillProgressHelper {
     final paidCount = payingMembers.where((m) => m.isPaid).length;
     final unpaidCount = totalPayingCount - paidCount;
 
+    // Requirement 2:
+    // เปอร์เซ็นต์ความคืบหน้า = (จำนวนผู้เข้าร่วมที่ชำระเงินแล้ว ÷ จำนวนผู้เข้าร่วมทั้งหมดที่ไม่รวมเจ้าของ) × 100
+    // หากสร้างบิลใหม่และยังไม่มีใครชำระเงิน ให้แสดง 0%
     final int percentage;
     if (totalPayingCount == 0) {
-      // Solo bill or no other paying members
       percentage = 100;
     } else {
       percentage = ((paidCount / totalPayingCount) * 100).round();
     }
 
-    final billStatus = bill['status']?.toString().toLowerCase() ?? '';
-    final isExplicitlyCompleted = {'completed', 'paid', 'settled', 'cleared'}.contains(billStatus);
-    final isSettled = totalPayingCount == 0 || (totalPayingCount > 0 && unpaidCount == 0) || isExplicitlyCompleted;
+    // Requirement 4:
+    // หากผู้เข้าร่วมทุกคนมียอดเงินที่ต้องชำระเท่ากัน ให้แสดงข้อความ "ตกคนละ X บาท"
+    // หากผู้เข้าร่วมแต่ละคนมียอดเงินไม่เท่ากัน ไม่ต้องแสดงข้อความยอดเฉลี่ยต่อคน
+    // ตรวจสอบความเท่ากันของยอดเงินก่อนปัดเศษ เพื่อไม่ให้ยอดที่แตกต่างกันถูกแสดงเป็นยอดเดียวกันโดยไม่ถูกต้อง
+    bool isEqualSplit = false;
+    double? equalPerPerson;
+    if (allMembers.length > 1) {
+      final firstRawAmount = allMembers.first.amount;
+      final allEqual = allMembers.every((m) => (m.amount - firstRawAmount).abs() < 0.01);
+      if (allEqual && firstRawAmount > 0) {
+        isEqualSplit = true;
+        equalPerPerson = firstRawAmount.ceilToDouble();
+      }
+    } else if (allMembers.length == 1 && allMembers.first.amount > 0) {
+      isEqualSplit = true;
+      equalPerPerson = allMembers.first.amount.ceilToDouble();
+    }
+
+    // Requirement 1:
+    // หากยังมีผู้เข้าร่วมค้างชำระอยู่ (unpaidCount > 0) ต้องไม่แสดงบิลในแท็บ "สำเร็จ" โดยเด็ดขาด
+    // สำเร็จ (Completed): แสดงเฉพาะบิลที่ผู้เข้าร่วมทุกคนชำระเงินครบถ้วนแล้ว (unpaidCount == 0)
+    final bool isSettled;
+    if (totalPayingCount > 0) {
+      isSettled = unpaidCount == 0;
+    } else {
+      isSettled = true;
+    }
 
     final unpaidMembers = payingMembers.where((m) => !m.isPaid).toList();
 
@@ -311,6 +343,8 @@ class BillProgressHelper {
       unpaidCount: unpaidCount,
       percentage: percentage,
       averagePerPerson: averagePerPerson,
+      equalPerPerson: equalPerPerson,
+      isEqualSplit: isEqualSplit,
       isSettled: isSettled,
       unpaidMembers: unpaidMembers,
       allMembers: allMembers,

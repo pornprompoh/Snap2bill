@@ -7,6 +7,7 @@ import 'package:snap2bill/widgets/custom_button.dart';
 import 'package:snap2bill/widgets/bill/member_summary_list.dart';
 import 'package:snap2bill/utils/bill_progress_helper.dart';
 import 'package:snap2bill/utils/promptpay_helper.dart';
+import 'package:snap2bill/utils/formatters.dart';
 import 'package:snap2bill/widgets/bill/shareable_receipt_card.dart';
 import 'package:snap2bill/widgets/bill/claim_item_card.dart';
 import 'package:snap2bill/utils/menu_icon_helper.dart';
@@ -39,7 +40,7 @@ void main() {
       expect(find.text('25 ต.ค. 2026'), findsOneWidget);
 
       // Verify that formatted price with THB is displayed
-      expect(find.textContaining('1,250.50'), findsOneWidget);
+      expect(find.textContaining('1,251'), findsOneWidget);
 
       // Tap on the card
       await tester.tap(find.byType(BillCard));
@@ -379,6 +380,7 @@ void main() {
               paidCount: 1,
               unpaidCount: 1,
               averagePerPerson: 250.0,
+              isEqualSplit: true,
             ),
           ),
         ),
@@ -386,9 +388,9 @@ void main() {
 
       // Verify shop name
       expect(find.text('Shabu Shabu Buffet'), findsOneWidget);
-      // Verify price and average per person
-      expect(find.text('750.00 ฿'), findsOneWidget);
-      expect(find.text('ตกคนละ 250.00 ฿'), findsOneWidget);
+      // Verify price and average per person (Ceiling integer)
+      expect(find.text('750 ฿'), findsOneWidget);
+      expect(find.text('ตกคนละ 250 ฿'), findsOneWidget);
       // Verify collection progress text
       expect(find.text('เก็บเงินแล้ว 50%'), findsOneWidget);
       expect(find.text('จ่ายแล้ว 1/2 คน'), findsOneWidget);
@@ -464,8 +466,8 @@ void main() {
       expect(find.text('สชิโร่ (SUSHIRO)'), findsOneWidget);
 
       // Verify total and split amount
-      expect(find.text('500.00 ฿'), findsOneWidget);
-      expect(find.text('ตกคนละ 250.00 ฿'), findsOneWidget);
+      expect(find.text('500 ฿'), findsOneWidget);
+      expect(find.text('ตกคนละ 250 ฿'), findsOneWidget);
 
       // Verify member breakdown
       expect(find.text('เจ้าของ 👑'), findsOneWidget);
@@ -584,6 +586,93 @@ void main() {
       // Verify Sushi has set_meal icon and Ramen has ramen_dining icon
       expect(find.byIcon(Icons.set_meal_rounded), findsOneWidget);
       expect(find.byIcon(Icons.ramen_dining_rounded), findsOneWidget);
+    });
+  });
+
+  group('Bill Management, Ceiling Round Up & Equal Split Tests', () {
+    test('Requirement 5: ceiling round up always rounds fractions to next integer without decimals', () {
+      // 100 ÷ 3 = 33.33 -> 34 บาท/คน
+      expect(AppFormatters.formatCurrency(100 / 3), equals('34 ฿'));
+      // 101 ÷ 3 = 33.67 -> 34 บาท/คน
+      expect(AppFormatters.formatCurrency(101 / 3), equals('34 ฿'));
+      // 99 ÷ 2 = 49.50 -> 50 บาท/คน
+      expect(AppFormatters.formatCurrency(99 / 2), equals('50 ฿'));
+      // 120 ÷ 4 = 30.00 -> 30 บาท/คน
+      expect(AppFormatters.formatCurrency(120 / 4), equals('30 ฿'));
+      // 100 ÷ 6 = 16.67 -> 17 บาท/คน
+      expect(AppFormatters.formatCurrency(100 / 6), equals('17 ฿'));
+      // 199 ÷ 3 = 66.33 -> 67 บาท/คน
+      expect(AppFormatters.formatCurrency(199 / 3), equals('67 ฿'));
+    });
+
+    testWidgets('Requirement 4: BillCard hides average per person when members pay unequal amounts',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: BillCard(
+              shopName: 'Sushi Bar',
+              totalAmount: 500.0,
+              dateText: '2026-11-01',
+              status: 'pending',
+              memberCount: 3,
+              totalPayingCount: 2,
+              paidCount: 0,
+              unpaidCount: 2,
+              averagePerPerson: null,
+              isEqualSplit: false, // Unequal amounts: member 1 paid 80+34=114, member 2 paid 160+34=194
+            ),
+          ),
+        ),
+      );
+
+      // Verify total price is displayed
+      expect(find.text('500 ฿'), findsOneWidget);
+      // Verify "ตกคนละ" text is NOT rendered because amounts are unequal
+      expect(find.textContaining('ตกคนละ'), findsNothing);
+    });
+
+    testWidgets('Requirement 4: BillCard displays average per person when members pay equal amounts',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: BillCard(
+              shopName: 'Sushi Bar',
+              totalAmount: 500.0,
+              dateText: '2026-11-01',
+              status: 'pending',
+              memberCount: 2,
+              totalPayingCount: 1,
+              paidCount: 0,
+              unpaidCount: 1,
+              averagePerPerson: 250.0,
+              isEqualSplit: true, // Both pay 250.0
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('500 ฿'), findsOneWidget);
+      expect(find.text('ตกคนละ 250 ฿'), findsOneWidget);
+    });
+
+    test('Requirement 1: bill with unpaid member is never settled even if marked completed in raw status', () {
+      final bill = {
+        'id': 'bill_pending_test',
+        'shop_name': 'Sushi Shop',
+        'owner_id': 'owner_1',
+        'status': 'completed', // mistakenly has completed in raw DB field
+        'bill_participants': [
+          {'profile_id': 'owner_1', 'amount_owed': 114.0, 'status': 'paid'},
+          {'profile_id': 'friend_1', 'amount_owed': 194.0, 'status': 'pending'}, // Still unpaid!
+        ],
+      };
+
+      final summary = BillProgressHelper.calculate(bill);
+      expect(summary.unpaidCount, equals(1));
+      expect(summary.totalPayingCount, equals(1));
+      expect(summary.isSettled, isFalse); // MUST be false!
     });
   });
 }

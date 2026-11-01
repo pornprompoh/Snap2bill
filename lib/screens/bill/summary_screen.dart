@@ -378,6 +378,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
             'bill_id': newBillId,
             'profile_id': uid,
             'amount_owed': amount,
+            'status': 'pending',
           });
         }
       });
@@ -891,10 +892,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
     // Requirement 2: เปอร์เซ็นต์ความคืบหน้า = (ผู้ชำระแล้ว / ผู้เข้าร่วมทั้งหมดไม่รวมเจ้าของ) * 100
     // หากสร้างบิลใหม่และยังไม่มีใครชำระเงิน ให้แสดง 0%
     final int progressPercentage = totalPayingCount == 0
-        ? 100
+        ? 0
         : ((paidCount / totalPayingCount) * 100).round();
     final progressValue = totalPayingCount == 0
-        ? 1.0
+        ? 0.0
         : (paidCount / totalPayingCount).clamp(0.0, 1.0);
 
     final totalPayingExpectedAmount = nonHostPayingIds.fold<double>(

@@ -65,7 +65,7 @@ class BillCard extends StatelessWidget {
     final effectivePaid = paidCount ?? (effectiveTotalPaying - unpaidCount).clamp(0, effectiveTotalPaying);
     final progress = effectiveTotalPaying > 0
         ? (effectivePaid / effectiveTotalPaying).clamp(0.0, 1.0)
-        : 1.0;
+        : 0.0;
     final int percentage = (progress * 100).round();
 
     return Container(
@@ -199,7 +199,7 @@ class BillCard extends StatelessWidget {
                 ),
 
                 // Active progress bar if bill has active collection
-                if (!_isSettled && unpaidCount > 0) ...[
+                if (!_isSettled) ...[
                   const SizedBox(height: 10),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),

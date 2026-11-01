@@ -385,6 +385,30 @@ void main() {
       expect(summary.isSettled, isFalse);
     });
 
+    test('percentage: 0% new, 50% one of two paid, 100% all paid (owner excluded)', () {
+      Map<String, dynamic> bill(String a, String b) => {
+            'id': 'bp',
+            'owner_id': 'owner',
+            'sub_total': 300.0,
+            'bill_participants': [
+              {'profile_id': 'owner', 'status': 'pending', 'amount_owed': 100.0},
+              {'profile_id': 'a', 'status': a, 'amount_owed': 100.0},
+              {'profile_id': 'b', 'status': b, 'amount_owed': 100.0},
+            ],
+          };
+      final none = BillProgressHelper.calculate(bill('pending', 'pending'));
+      expect(none.percentage, equals(0));
+      expect(none.isSettled, isFalse);
+      final half = BillProgressHelper.calculate(bill('paid', 'pending'));
+      expect(half.percentage, equals(50));
+      expect(half.paidCount, equals(1));
+      expect(half.totalPayingCount, equals(2));
+      expect(half.isSettled, isFalse);
+      final all = BillProgressHelper.calculate(bill('paid', 'paid'));
+      expect(all.percentage, equals(100));
+      expect(all.isSettled, isTrue);
+    });
+
     testWidgets('BillCard renders progress bar, percentage, and average price',
         (WidgetTester tester) async {
       await tester.pumpWidget(

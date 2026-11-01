@@ -62,4 +62,3 @@ void main() {
     expect(user.bankAccountName, 'นายสมชาย รวยมาก');
   });
 }
-

@@ -117,11 +117,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       name: _nameController.text.trim(),
       promptPayNumber: promptPayNumber.isEmpty ? null : promptPayNumber,
       promptPayType: promptPayNumber.isEmpty ? null : _promptPayType,
-      bankName: bankAccountNumber.isEmpty ? null : (_selectedBank ?? thaiBanks.first),
+      bankName: bankAccountNumber.isEmpty
+          ? null
+          : (_selectedBank ?? thaiBanks.first),
       bankAccountNumber: bankAccountNumber.isEmpty ? null : bankAccountNumber,
       bankAccountName: bankAccountNumber.isEmpty
           ? null
-          : (bankAccountName.isEmpty ? _nameController.text.trim() : bankAccountName),
+          : (bankAccountName.isEmpty
+                ? _nameController.text.trim()
+                : bankAccountName),
     );
 
     if (!mounted) return;
@@ -325,24 +329,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               Text(
                                 'ข้อมูลบัญชีธนาคาร (ทางเลือกเพิ่มเติม)',
                                 style: Theme.of(context).textTheme.titleSmall
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                                    ?.copyWith(fontWeight: FontWeight.w700),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 'ระบุเพื่อให้เพื่อนสามารถโอนผ่านเลขบัญชีธนาคารได้',
                                 style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(
-                                      color: AppColors.textSecondary,
-                                    ),
+                                    ?.copyWith(color: AppColors.textSecondary),
                               ),
                               const SizedBox(height: AppConstants.paddingS),
                               DropdownButtonFormField<String>(
                                 initialValue: _selectedBank ?? thaiBanks.first,
                                 decoration: const InputDecoration(
                                   labelText: 'ธนาคาร',
-                                  prefixIcon: Icon(Icons.account_balance_outlined),
+                                  prefixIcon: Icon(
+                                    Icons.account_balance_outlined,
+                                  ),
                                 ),
                                 isExpanded: true,
                                 items: thaiBanks.map((bank) {
@@ -372,7 +374,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 decoration: const InputDecoration(
                                   labelText: 'เลขที่บัญชีธนาคาร',
                                   prefixIcon: Icon(Icons.numbers_outlined),
-                                  helperText: 'ระบุเลขที่บัญชี 10-15 หลัก (ไม่บังคับ)',
+                                  helperText:
+                                      'ระบุเลขที่บัญชี 10-15 หลัก (ไม่บังคับ)',
                                 ),
                               ),
                               const SizedBox(height: AppConstants.paddingS),
@@ -419,7 +422,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             color: Theme.of(context).colorScheme.surface,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
+                              color: Theme.of(
+                                context,
+                              ).dividerColor.withValues(alpha: 0.2),
                             ),
                           ),
                           child: Column(
@@ -440,9 +445,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     ? userProvider.currentUser!.displayName!
                                     : 'ยังไม่ได้ตั้งชื่อ',
                                 style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                                    ?.copyWith(fontWeight: FontWeight.w700),
                               ),
                               const SizedBox(height: AppConstants.paddingL),
                               Text(
@@ -511,7 +514,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             color: Theme.of(context).colorScheme.surface,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
+                              color: Theme.of(
+                                context,
+                              ).dividerColor.withValues(alpha: 0.2),
                             ),
                           ),
                           child: Column(
@@ -527,19 +532,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   const SizedBox(width: 8),
                                   Text(
                                     'โอนด้วยเลขบัญชีธนาคาร',
-                                    style: Theme.of(context).textTheme.titleSmall
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.w700,
-                                        ),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleSmall
+                                        ?.copyWith(fontWeight: FontWeight.w700),
                                   ),
                                 ],
                               ),
                               const Divider(height: 20),
-                              if (userProvider.currentUser?.hasBankTransfer == true) ...[
+                              if (userProvider.currentUser?.hasBankTransfer ==
+                                  true) ...[
                                 Text(
                                   'ธนาคาร',
                                   style: Theme.of(context).textTheme.labelMedium
-                                      ?.copyWith(color: AppColors.textSecondary),
+                                      ?.copyWith(
+                                        color: AppColors.textSecondary,
+                                      ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
@@ -551,15 +559,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 Text(
                                   'เลขที่บัญชี',
                                   style: Theme.of(context).textTheme.labelMedium
-                                      ?.copyWith(color: AppColors.textSecondary),
+                                      ?.copyWith(
+                                        color: AppColors.textSecondary,
+                                      ),
                                 ),
                                 const SizedBox(height: 2),
                                 Row(
                                   children: [
                                     Expanded(
                                       child: Text(
-                                        userProvider.currentUser!.bankAccountNumber ?? '-',
-                                        style: Theme.of(context).textTheme.titleMedium
+                                        userProvider
+                                                .currentUser!
+                                                .bankAccountNumber ??
+                                            '-',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium
                                             ?.copyWith(
                                               fontWeight: FontWeight.w700,
                                               letterSpacing: 0.5,
@@ -567,13 +582,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       ),
                                     ),
                                     IconButton(
-                                      icon: const Icon(Icons.copy_rounded, size: 18),
+                                      icon: const Icon(
+                                        Icons.copy_rounded,
+                                        size: 18,
+                                      ),
                                       tooltip: 'คัดลอกเลขบัญชี',
                                       onPressed: () {
-                                        final num = userProvider.currentUser!.bankAccountNumber;
+                                        final num = userProvider
+                                            .currentUser!
+                                            .bankAccountNumber;
                                         if (num != null && num.isNotEmpty) {
-                                          Clipboard.setData(ClipboardData(text: num));
-                                          _showMessage('คัดลอกเลขบัญชีแล้ว', AppColors.success);
+                                          Clipboard.setData(
+                                            ClipboardData(text: num),
+                                          );
+                                          _showMessage(
+                                            'คัดลอกเลขบัญชีแล้ว',
+                                            AppColors.success,
+                                          );
                                         }
                                       },
                                     ),
@@ -583,11 +608,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 Text(
                                   'ชื่อบัญชี',
                                   style: Theme.of(context).textTheme.labelMedium
-                                      ?.copyWith(color: AppColors.textSecondary),
+                                      ?.copyWith(
+                                        color: AppColors.textSecondary,
+                                      ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  userProvider.currentUser!.bankAccountName ?? '-',
+                                  userProvider.currentUser!.bankAccountName ??
+                                      '-',
                                   style: Theme.of(context).textTheme.bodyMedium
                                       ?.copyWith(fontWeight: FontWeight.w500),
                                 ),
@@ -595,14 +623,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 Text(
                                   'ยังไม่ได้ตั้งค่าเลขบัญชีธนาคาร',
                                   style: Theme.of(context).textTheme.bodyMedium
-                                      ?.copyWith(color: AppColors.textSecondary),
+                                      ?.copyWith(
+                                        color: AppColors.textSecondary,
+                                      ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
                                   'กด "แก้ไขโปรไฟล์" ด้านล่างเพื่อเพิ่มทางเลือกโอนด้วยเลขบัญชีธนาคาร',
                                   style: Theme.of(context).textTheme.bodySmall
                                       ?.copyWith(
-                                        color: AppColors.textSecondary.withValues(alpha: 0.8),
+                                        color: AppColors.textSecondary
+                                            .withValues(alpha: 0.8),
                                       ),
                                 ),
                               ],
@@ -621,7 +652,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 color: Theme.of(context).colorScheme.surface,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
+                                  color: Theme.of(
+                                    context,
+                                  ).dividerColor.withValues(alpha: 0.2),
                                 ),
                               ),
                               child: SwitchListTile.adaptive(
@@ -637,19 +670,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 title: Text(
                                   'โหมดมืด (Dark Mode)',
                                   style: Theme.of(context).textTheme.titleSmall
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                                      ?.copyWith(fontWeight: FontWeight.w600),
                                 ),
                                 subtitle: Text(
                                   themeProvider.isDarkMode
                                       ? 'เปิดใช้งานธีมมืด สบายตา'
                                       : 'เปิดใช้งานธีมสว่าง คมชัด',
                                   style: Theme.of(context).textTheme.bodySmall
-                                      ?.copyWith(color: AppColors.textSecondary),
+                                      ?.copyWith(
+                                        color: AppColors.textSecondary,
+                                      ),
                                 ),
                                 value: themeProvider.isDarkMode,
-                                activeTrackColor: AppColors.primary.withValues(alpha: 0.5),
+                                activeTrackColor: AppColors.primary.withValues(
+                                  alpha: 0.5,
+                                ),
                                 activeThumbColor: AppColors.primary,
                                 onChanged: (_) => themeProvider.toggleTheme(),
                               ),

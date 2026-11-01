@@ -21,7 +21,8 @@ class UserModel {
 
   String? get bankName => paymentInfo?['bank_name']?.toString();
 
-  String? get bankAccountNumber => paymentInfo?['bank_account_number']?.toString();
+  String? get bankAccountNumber =>
+      paymentInfo?['bank_account_number']?.toString();
 
   String? get bankAccountName => paymentInfo?['bank_account_name']?.toString();
 

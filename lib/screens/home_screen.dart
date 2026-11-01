@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../repositories/local_bill_repository.dart';
 import '../routes/app_routes.dart';
@@ -9,6 +8,10 @@ import '../services/camera_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/formatters.dart';
 import '../widgets/bill_card.dart';
+import '../utils/bill_progress_helper.dart';
+import '../services/in_app_notification_service.dart';
+import '../widgets/bill/poke_reminder_dialog.dart';
+import '../widgets/bill/notification_center_dialog.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -64,22 +67,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _pokeFriends(Map<String, dynamic>? bill) async {
-    final shopName = bill?['shop_name'] ?? 'ตี้อาหารของเรา';
-    final amount = bill != null
-        ? (double.tryParse(
-              (bill['total_amount'] ?? bill['sub_total'])?.toString() ?? '0',
-            ) ??
-            0.0)
-        : 0.0;
-    final message = '📢 สะกิดเตือนเพื่อนตี้ "$shopName" จ้า!\n'
-        '🍲 ${amount > 0 ? "ยอดบิลรวม ฿${amount.toStringAsFixed(2)} " : ""}ยังมียอดค้างชำระอยู่น้า\n'
-        '📲 ใครยังไม่ได้โอนเงิน รบกวนเปิด Snap2Bill โอนเงินพร้อมส่งสลิปด้วยเน้อ ขอบคุณครับ/ค่ะ 🙏✨';
-    await SharePlus.instance.share(
-      ShareParams(
-        title: 'สะกิดเตือนเพื่อนหารบิล',
-        text: message,
-      ),
-    );
+    if (bill == null) return;
+    await PokeReminderDialog.show(context, bill: bill);
   }
 
   Future<List<Map<String, dynamic>>> _fetchMyBills() async {
@@ -91,24 +80,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
       final ownedBills = await _supabase
           .from('bills')
-          .select()
+          .select('*, bill_participants(*)')
           .eq('owner_id', userId);
 
       final participated = await _supabase
           .from('bill_participants')
-          .select('bills(*)')
+          .select('bills(*, bill_participants(*))')
           .eq('profile_id', userId);
 
       final Map<String, Map<String, dynamic>> uniqueBills = {};
 
       for (var b in ownedBills) {
-        uniqueBills[b['id'].toString()] = b;
+        uniqueBills[b['id'].toString()] = Map<String, dynamic>.from(b);
       }
 
       for (var p in participated) {
         if (p['bills'] != null) {
           final b = p['bills'] as Map<String, dynamic>;
-          uniqueBills[b['id'].toString()] = b;
+          uniqueBills[b['id'].toString()] = Map<String, dynamic>.from(b);
         }
       }
 
@@ -246,8 +235,20 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   bool _isBillSettled(Map<String, dynamic> bill) {
-    final status = bill['status']?.toString().toLowerCase() ?? '';
-    return const {'paid', 'settled', 'cleared', 'completed'}.contains(status);
+    final summary = BillProgressHelper.calculate(bill);
+    if (summary.isSettled && bill['status'] != 'completed' && bill['id'] != null) {
+      // Auto-sync status to completed in background if all members paid
+      () async {
+        try {
+          await _supabase
+              .from('bills')
+              .update({'status': 'completed'})
+              .eq('id', bill['id']);
+          bill['status'] = 'completed';
+        } catch (_) {}
+      }();
+    }
+    return summary.isSettled;
   }
 
   @override
@@ -273,6 +274,50 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         actions: [
+          // Notification Bell
+          ValueListenableBuilder<int>(
+            valueListenable: InAppNotificationService.instance.unreadCount,
+            builder: (context, unread, child) {
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.notifications_none_rounded, color: textPrimary, size: 26),
+                    tooltip: 'การแจ้งเตือน',
+                    onPressed: () async {
+                      await NotificationCenterDialog.show(
+                        context,
+                        currentUserId: _supabase.auth.currentUser?.id,
+                      );
+                      _refreshBills();
+                    },
+                  ),
+                  if (unread > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: AppColors.pink,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                        child: Text(
+                          '$unread',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
           // Friends button (Matching mockup top right)
           IconButton(
             icon: Icon(Icons.people_alt_outlined, color: textPrimary, size: 26),
@@ -306,8 +351,10 @@ class _HomeScreenState extends State<HomeScreen> {
             final now = DateTime.now();
             final currentMonthPrefix = '${now.year}-${now.month.toString().padLeft(2, '0')}';
 
+            final completedCount = bills.where((b) => _isBillSettled(b)).length;
+
             for (final b in bills) {
-              final amount = double.tryParse((b['total_amount'] ?? b['sub_total'])?.toString() ?? '0') ?? 0.0;
+              final amount = BillProgressHelper.extractBillTotal(b);
               final isSettled = _isBillSettled(b);
               final createdAt = b['created_at']?.toString() ?? '';
 
@@ -739,7 +786,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         Expanded(
                           child: _buildFilterTab(
                             key: 'completed',
-                            title: 'เสร็จสิ้น ($recoveredMonthlyCount)',
+                            title: 'เสร็จสิ้น ($completedCount)',
                             icon: Icons.check_circle_outline_rounded,
                             isDark: isDark,
                           ),
@@ -747,7 +794,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         Expanded(
                           child: _buildFilterTab(
                             key: 'all',
-                            title: 'ทั้งหมด',
+                            title: 'ทั้งหมด (${bills.length})',
                             icon: Icons.check_rounded,
                             isDark: isDark,
                           ),
@@ -825,27 +872,34 @@ class _HomeScreenState extends State<HomeScreen> {
                       itemCount: filteredBills.length,
                       itemBuilder: (context, index) {
                         final bill = filteredBills[index];
-                        final shopName = bill['shop_name'] ?? 'ไม่ระบุชื่อร้าน';
-                        final totalAmount = double.tryParse(
-                              (bill['total_amount'] ?? bill['sub_total'])?.toString() ?? '0',
-                            ) ??
-                            0.0;
+                        final summary = BillProgressHelper.calculate(bill);
                         final date = bill['created_at']?.toString().split('T')[0] ?? '';
-                        final isSettled = _isBillSettled(bill);
 
                         return BillCard(
-                          shopName: shopName,
-                          totalAmount: totalAmount,
+                          shopName: summary.shopName,
+                          totalAmount: summary.totalAmount,
                           dateText: date,
-                          status: isSettled ? 'completed' : 'pending',
-                          memberCount: 4,
-                          unpaidCount: isSettled ? 0 : 1,
-                          onTap: () => Navigator.pushNamed(
-                            context,
-                            AppRoutes.detail,
-                            arguments: bill,
-                          ),
-                          onRemind: !isSettled ? () => _pokeFriends(bill) : null,
+                          status: summary.isSettled ? 'completed' : 'pending',
+                          memberCount: summary.totalMembers,
+                          totalPayingCount: summary.totalPayingCount,
+                          paidCount: summary.paidCount,
+                          unpaidCount: summary.unpaidCount,
+                          averagePerPerson: summary.averagePerPerson,
+                          onTap: () async {
+                            await Navigator.pushNamed(
+                              context,
+                              AppRoutes.detail,
+                              arguments: bill,
+                            );
+                            _refreshBills();
+                          },
+                          onRemind: !summary.isSettled
+                              ? () => PokeReminderDialog.show(
+                                    context,
+                                    bill: bill,
+                                    summary: summary,
+                                  )
+                              : null,
                         );
                       },
                     ),

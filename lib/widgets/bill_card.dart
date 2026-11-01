@@ -9,6 +9,9 @@ class BillCard extends StatelessWidget {
   final String status;
   final int memberCount;
   final int unpaidCount;
+  final int? totalPayingCount;
+  final int? paidCount;
+  final double? averagePerPerson;
   final String? unpaidMemberName;
   final double? collectedAmount;
   final String? splitType;
@@ -23,6 +26,9 @@ class BillCard extends StatelessWidget {
     this.status = 'pending',
     this.memberCount = 4,
     this.unpaidCount = 0,
+    this.totalPayingCount,
+    this.paidCount,
+    this.averagePerPerson,
     this.unpaidMemberName,
     this.collectedAmount,
     this.splitType,
@@ -52,10 +58,13 @@ class BillCard extends StatelessWidget {
     final statusTextColor = _isSettled ? AppColors.tealGreen : AppColors.primaryOrange;
     final statusLabel = _isSettled ? 'ชำระเสร็จสิ้น' : 'รอเพื่อนโอน';
 
-    final safeCollected = collectedAmount ?? (_isSettled ? totalAmount : totalAmount * 0.7);
-    final progress = totalAmount > 0
-        ? (safeCollected / totalAmount).clamp(0.0, 1.0)
+    // Calculate real paying members count (excluding owner)
+    final effectiveTotalPaying = totalPayingCount ?? (memberCount > 1 ? memberCount - 1 : 1);
+    final effectivePaid = paidCount ?? (effectiveTotalPaying - unpaidCount).clamp(0, effectiveTotalPaying);
+    final progress = effectiveTotalPaying > 0
+        ? (effectivePaid / effectiveTotalPaying).clamp(0.0, 1.0)
         : 1.0;
+    final int percentage = (progress * 100).round();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -85,7 +94,7 @@ class BillCard extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Receipt Icon in Light Pink Container (Matching mockup reference)
+                    // Receipt Icon in Light Pink Container
                     Container(
                       width: 48,
                       height: 48,
@@ -146,24 +155,42 @@ class BillCard extends StatelessWidget {
                       ),
                     ),
 
-                    // Amount & Chevron
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
+                    // Amount & Chevron & Average per person
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(
-                          AppFormatters.formatCurrency(totalAmount),
-                          style: TextStyle(
-                            color: textPrim,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 17.5,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              totalAmount > 0
+                                  ? AppFormatters.formatCurrency(totalAmount)
+                                  : 'ยังไม่มีข้อมูลยอดบิล',
+                              style: TextStyle(
+                                color: totalAmount > 0 ? textPrim : textSec,
+                                fontWeight: FontWeight.w800,
+                                fontSize: totalAmount > 0 ? 17.5 : 12.5,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              color: textSec,
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                        if (totalAmount > 0 && averagePerPerson != null && averagePerPerson! > 0) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            'ตกคนละ ${AppFormatters.formatCurrency(averagePerPerson!)}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: textSec,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 4),
-                        Icon(
-                          Icons.chevron_right_rounded,
-                          color: textSec,
-                          size: 22,
-                        ),
+                        ],
                       ],
                     ),
                   ],
@@ -186,15 +213,48 @@ class BillCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'เก็บได้ ${(progress * 100).toStringAsFixed(0)}%',
+                        'เก็บเงินแล้ว $percentage%',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textSec),
+                      ),
+                      Text(
+                        'จ่ายแล้ว $effectivePaid/$effectiveTotalPaying คน',
                         style: TextStyle(fontSize: 12, color: textSec),
                       ),
                       Text(
                         'รออีก $unpaidCount คน',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: AppColors.primaryOrange,
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else if (_isSettled && effectiveTotalPaying > 0) ...[
+                  const SizedBox(height: 10),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: 1.0,
+                      backgroundColor: isDark ? AppColors.darkBorder : const Color(0xFFEEEEEE),
+                      color: AppColors.tealGreen,
+                      minHeight: 4,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'เก็บเงินแล้ว 100%',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textSec),
+                      ),
+                      Text(
+                        'จ่ายครบแล้ว $effectiveTotalPaying/$effectiveTotalPaying คน',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.tealGreen,
                         ),
                       ),
                     ],

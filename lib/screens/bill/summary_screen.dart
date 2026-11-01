@@ -345,12 +345,18 @@ class _SummaryScreenState extends State<SummaryScreen> {
           ) ??
           calculatedTotal;
 
+      // ตรวจสอบว่ามีผู้ที่ต้องชำระเงินนอกจากเจ้าของหรือไม่
+      final nonOwnerPayingCount = userTotalsForDB.keys.where((uid) => uid != userId).length;
+      final initialStatus = nonOwnerPayingCount == 0 ? 'completed' : 'pending';
+
       final insertedBill = await supabase
           .from('bills')
           .insert({
             'owner_id': userId,
             'shop_name': widget.receiptData['shop_name'] ?? 'ไม่ระบุชื่อร้าน',
             'sub_total': finalTotal,
+            'total_amount': finalTotal,
+            'status': initialStatus,
             'image_url': imageUrl,
             'receipt_json': {
               ...widget.receiptData,

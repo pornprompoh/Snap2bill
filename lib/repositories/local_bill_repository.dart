@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../database/app_database.dart';
+import '../utils/bill_progress_helper.dart';
 
 class LocalBillRepository {
   final AppDatabase _db;
@@ -16,7 +17,7 @@ class LocalBillRepository {
     for (final b in rawBills) {
       final id = b['id']?.toString() ?? '';
       if (id.isEmpty) continue;
-      final total = double.tryParse(b['total_amount']?.toString() ?? '0') ?? 0.0;
+      final total = BillProgressHelper.extractBillTotal(b);
       final receiptJsonStr = b['receipt_json'] != null
           ? (b['receipt_json'] is String
               ? b['receipt_json'] as String

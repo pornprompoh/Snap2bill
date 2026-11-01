@@ -11,6 +11,8 @@ import '../services/receipt_share_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/formatters.dart';
 import '../widgets/bill/member_summary_list.dart';
+import '../utils/bill_progress_helper.dart';
+import '../widgets/bill/poke_reminder_dialog.dart';
 
 class DetailScreen extends StatefulWidget {
   final Map<String, dynamic> billData;
@@ -311,8 +313,23 @@ class _DetailScreenState extends State<DetailScreen> {
             .eq('profile_id', member.id);
       }
 
+      final updatedMembers = await _loadMemberSummary();
+      final nonOwnerPaying = updatedMembers.where((m) => !m.isOwner).toList();
+      final allPayingSettled = nonOwnerPaying.isNotEmpty && nonOwnerPaying.every((m) => m.isPaid);
+      final newBillStatus = allPayingSettled ? 'completed' : 'pending';
+
+      try {
+        await Supabase.instance.client
+            .from('bills')
+            .update({'status': newBillStatus})
+            .eq('id', billId);
+        widget.billData['status'] = newBillStatus;
+      } catch (e) {
+        debugPrint('Error updating bill status: $e');
+      }
+
       setState(() {
-        _membersFuture = _loadMemberSummary();
+        _membersFuture = Future.value(updatedMembers);
       });
 
       if (mounted) {
@@ -853,6 +870,7 @@ class _DetailScreenState extends State<DetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final billSummary = BillProgressHelper.calculate(widget.billData);
     final shopName = widget.billData['shop_name'] ?? 'ไม่ระบุชื่อร้าน';
     final createdAt =
         widget.billData['created_at']?.toString().split('T')[0] ?? '';
@@ -883,6 +901,21 @@ class _DetailScreenState extends State<DetailScreen> {
       appBar: AppBar(
         title: const Text('รายละเอียดบิลย้อนหลัง'),
         actions: [
+          if (_isCurrentUserOwner)
+            IconButton(
+              icon: const Icon(Icons.notifications_active_outlined, color: AppColors.primaryOrange),
+              tooltip: 'สะกิดเตือนเพื่อน',
+              onPressed: () {
+                PokeReminderDialog.show(
+                  context,
+                  bill: widget.billData,
+                  hostPromptPay: _hostPromptPay,
+                  hostBankAccount: _hostBankAccountNumber,
+                  hostBankName: _hostBankName,
+                  hostName: _hostName,
+                );
+              },
+            ),
           IconButton(
             icon: _isSharing
                 ? const SizedBox(
@@ -961,13 +994,31 @@ class _DetailScreenState extends State<DetailScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      Text(
-                        AppFormatters.formatCurrency(totalAmount),
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.tealGreen,
-                        ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            totalAmount > 0
+                                ? AppFormatters.formatCurrency(totalAmount)
+                                : 'ยังไม่มีข้อมูลยอดบิล',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.tealGreen,
+                            ),
+                          ),
+                          if (totalAmount > 0 && billSummary.averagePerPerson > 0) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              'ตกคนละ ${AppFormatters.formatCurrency(billSummary.averagePerPerson)}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),

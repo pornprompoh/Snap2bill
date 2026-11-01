@@ -5,6 +5,7 @@ import 'package:snap2bill/providers/bill_provider.dart';
 import 'package:snap2bill/widgets/bill_card.dart';
 import 'package:snap2bill/widgets/custom_button.dart';
 import 'package:snap2bill/widgets/bill/member_summary_list.dart';
+import 'package:snap2bill/utils/bill_progress_helper.dart';
 
 void main() {
   group('BillCard Widget Tests (Week 1 & 2)', () {
@@ -283,6 +284,128 @@ void main() {
       // User B: 400 + 30 = 430
       expect(shares['user_a'], closeTo(230.0, 0.01));
       expect(shares['user_b'], closeTo(430.0, 0.01));
+    });
+  });
+
+  group('BillProgressHelper and Progress Calculation Unit Tests', () {
+    test('calculates 50% for 3 members (1 owner, 2 friends) with 1 paid and 1 unpaid', () {
+      final billData = {
+        'id': 'bill_test_1',
+        'shop_name': 'Sushi Express',
+        'owner_id': 'owner_ying',
+        'sub_total': 750.0,
+        'bill_participants': [
+          {'profile_id': 'owner_ying', 'status': 'paid', 'amount_owed': 250.0},
+          {'profile_id': 'friend_mook', 'status': 'paid', 'amount_owed': 250.0},
+          {'profile_id': 'friend_unseen', 'status': 'pending', 'amount_owed': 250.0},
+        ],
+      };
+
+      final summary = BillProgressHelper.calculate(billData);
+
+      expect(summary.totalMembers, equals(3));
+      expect(summary.totalPayingCount, equals(2)); // Owner excluded
+      expect(summary.paidCount, equals(1));
+      expect(summary.unpaidCount, equals(1));
+      expect(summary.percentage, equals(50));
+      expect(summary.isSettled, isFalse);
+      expect(summary.progressPercentageText, equals('เก็บเงินแล้ว 50%'));
+      expect(summary.paidCountText, equals('จ่ายแล้ว 1/2 คน'));
+      expect(summary.waitingText, equals('รออีก 1 คน'));
+      expect(summary.averagePerPerson, equals(250.0));
+    });
+
+    test('calculates 100% and settled when all non-owner friends pay', () {
+      final billData = {
+        'id': 'bill_test_2',
+        'shop_name': 'KFC',
+        'owner_id': 'owner_ying',
+        'sub_total': 500.0,
+        'bill_participants': [
+          {'profile_id': 'owner_ying', 'status': 'paid', 'amount_owed': 250.0},
+          {'profile_id': 'friend_mook', 'status': 'paid', 'amount_owed': 250.0},
+        ],
+      };
+
+      final summary = BillProgressHelper.calculate(billData);
+
+      expect(summary.totalMembers, equals(2));
+      expect(summary.totalPayingCount, equals(1));
+      expect(summary.paidCount, equals(1));
+      expect(summary.unpaidCount, equals(0));
+      expect(summary.percentage, equals(100));
+      expect(summary.isSettled, isTrue);
+      expect(summary.paidCountText, equals('จ่ายครบแล้ว 1/1 คน'));
+    });
+
+    test('handles solo bill without division by zero', () {
+      final billData = {
+        'id': 'bill_test_solo',
+        'shop_name': 'Starbucks',
+        'owner_id': 'owner_ying',
+        'sub_total': 150.0,
+        'bill_participants': [
+          {'profile_id': 'owner_ying', 'status': 'paid', 'amount_owed': 150.0},
+        ],
+      };
+
+      final summary = BillProgressHelper.calculate(billData);
+
+      expect(summary.totalMembers, equals(1));
+      expect(summary.totalPayingCount, equals(0));
+      expect(summary.paidCount, equals(0));
+      expect(summary.unpaidCount, equals(0));
+      expect(summary.percentage, equals(100));
+      expect(summary.isSettled, isTrue);
+    });
+
+    testWidgets('BillCard renders progress bar, percentage, and average price',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: BillCard(
+              shopName: 'Shabu Shabu Buffet',
+              totalAmount: 750.0,
+              dateText: '2026-11-01',
+              status: 'pending',
+              memberCount: 3,
+              totalPayingCount: 2,
+              paidCount: 1,
+              unpaidCount: 1,
+              averagePerPerson: 250.0,
+            ),
+          ),
+        ),
+      );
+
+      // Verify shop name
+      expect(find.text('Shabu Shabu Buffet'), findsOneWidget);
+      // Verify price and average per person
+      expect(find.text('750.00 ฿'), findsOneWidget);
+      expect(find.text('ตกคนละ 250.00 ฿'), findsOneWidget);
+      // Verify collection progress text
+      expect(find.text('เก็บเงินแล้ว 50%'), findsOneWidget);
+      expect(find.text('จ่ายแล้ว 1/2 คน'), findsOneWidget);
+      expect(find.text('รออีก 1 คน'), findsOneWidget);
+    });
+
+    testWidgets('BillCard displays placeholder text when totalAmount is zero',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: BillCard(
+              shopName: 'Unknown Shop',
+              totalAmount: 0.0,
+              dateText: '2026-11-01',
+              status: 'pending',
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('ยังไม่มีข้อมูลยอดบิล'), findsOneWidget);
     });
   });
 }

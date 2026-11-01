@@ -363,8 +363,26 @@ void main() {
       expect(summary.totalPayingCount, equals(0));
       expect(summary.paidCount, equals(0));
       expect(summary.unpaidCount, equals(0));
-      expect(summary.percentage, equals(100));
-      expect(summary.isSettled, isTrue);
+      expect(summary.percentage, equals(0));
+      expect(summary.isSettled, isFalse);
+    });
+
+    test('new bill with guest from sharers_json stays pending', () {
+      final summary = BillProgressHelper.calculate({
+        'id': 'b1',
+        'owner_id': 'owner',
+        'sub_total': 500.0,
+        'status': 'pending',
+        'sharers_json': {
+          '0': [
+            {'user_id': 'owner', 'user_name': 'o', 'quantity': 1},
+            {'user_id': 'guest_1', 'user_name': 'g', 'quantity': 1},
+          ],
+        },
+      });
+      expect(summary.totalPayingCount, equals(1));
+      expect(summary.paidCount, equals(0));
+      expect(summary.isSettled, isFalse);
     });
 
     testWidgets('BillCard renders progress bar, percentage, and average price',

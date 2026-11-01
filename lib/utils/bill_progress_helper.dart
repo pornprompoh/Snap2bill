@@ -204,7 +204,9 @@ class BillProgressHelper {
       if (val is Iterable) {
         for (final s in val) {
           if (s is Map) {
-            final sid = s['id']?.toString() ?? s['userId']?.toString();
+            final sid = s['id']?.toString() ??
+                s['userId']?.toString() ??
+                s['user_id']?.toString();
             if (sid != null && sid.isNotEmpty) memberIds.add(sid);
           } else if (s is String && s.isNotEmpty) {
             memberIds.add(s);
@@ -223,8 +225,12 @@ class BillProgressHelper {
       if (val is Iterable) {
         for (final s in val) {
           if (s is Map) {
-            final sid = s['id']?.toString() ?? s['userId']?.toString();
-            final sname = s['name']?.toString() ?? s['displayName']?.toString();
+            final sid = s['id']?.toString() ??
+                s['userId']?.toString() ??
+                s['user_id']?.toString();
+            final sname = s['name']?.toString() ??
+                s['displayName']?.toString() ??
+                s['user_name']?.toString();
             if (sid != null && sname != null && sname.isNotEmpty) {
               memberNames[sid] = sname;
             }
@@ -298,7 +304,8 @@ class BillProgressHelper {
     // หากสร้างบิลใหม่และยังไม่มีใครชำระเงิน ให้แสดง 0%
     final int percentage;
     if (totalPayingCount == 0) {
-      percentage = 100;
+      // ยังไม่มีผู้ต้องชำระ: ห้ามนับเป็นสำเร็จ ให้อยู่แท็บ "ยังไม่ครบ" (0%)
+      percentage = 0;
     } else {
       percentage = ((paidCount / totalPayingCount) * 100).round();
     }
@@ -325,11 +332,8 @@ class BillProgressHelper {
     // หากยังมีผู้เข้าร่วมค้างชำระอยู่ (unpaidCount > 0) ต้องไม่แสดงบิลในแท็บ "สำเร็จ" โดยเด็ดขาด
     // สำเร็จ (Completed): แสดงเฉพาะบิลที่ผู้เข้าร่วมทุกคนชำระเงินครบถ้วนแล้ว (unpaidCount == 0)
     final bool isSettled;
-    if (totalPayingCount > 0) {
-      isSettled = unpaidCount == 0;
-    } else {
-      isSettled = true;
-    }
+    // บิลใหม่ (ยังไม่มีผู้ชำระ) ต้องอยู่ "ยังไม่ครบ" เสมอ จนกว่าผู้เข้าร่วมทุกคนจ่ายครบ
+    isSettled = totalPayingCount > 0 && unpaidCount == 0;
 
     final unpaidMembers = payingMembers.where((m) => !m.isPaid).toList();
 

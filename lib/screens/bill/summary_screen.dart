@@ -345,9 +345,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
           ) ??
           calculatedTotal;
 
-      // ตรวจสอบว่ามีผู้ที่ต้องชำระเงินนอกจากเจ้าของหรือไม่
-      final nonOwnerPayingCount = userTotalsForDB.keys.where((uid) => uid != userId).length;
-      final initialStatus = nonOwnerPayingCount == 0 ? 'completed' : 'pending';
+      // บิลใหม่ต้องเริ่มที่ "ยังไม่ครบ" (pending) เสมอ
+      const initialStatus = 'pending';
 
       final insertedBill = await supabase
           .from('bills')

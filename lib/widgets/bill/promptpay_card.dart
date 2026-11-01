@@ -452,7 +452,7 @@ class _PromptPayCardState extends State<PromptPayCard> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'ชำระให้ ${widget.hostName}',
+                      'ชำระให้ ${(widget.bankAccountName != null && widget.bankAccountName!.trim().isNotEmpty) ? widget.bankAccountName!.trim() : widget.hostName}',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppColors.textSecondary,
                       ),

@@ -12,6 +12,7 @@ class ShareableReceiptCard extends StatelessWidget {
   final String? hostPromptPayType;
   final String? hostBankAccount;
   final String? hostBankName;
+  final String? hostBankAccountName;
   final String? hostName;
   final double? specificMemberAmount;
   final String? specificMemberName;
@@ -26,6 +27,7 @@ class ShareableReceiptCard extends StatelessWidget {
     this.hostPromptPayType,
     this.hostBankAccount,
     this.hostBankName,
+    this.hostBankAccountName,
     this.hostName,
     this.specificMemberAmount,
     this.specificMemberName,
@@ -450,7 +452,7 @@ class ShareableReceiptCard extends StatelessWidget {
 
                         // ชื่อเจ้าของบัญชีหรือชื่อผู้รับเงิน
                         Text(
-                          'ชื่อบัญชี: ${hostName?.isNotEmpty == true ? hostName! : "เจ้าของบิล"}',
+                          'ชื่อบัญชี: ${(hostBankAccountName != null && hostBankAccountName!.trim().isNotEmpty) ? hostBankAccountName!.trim() : (hostName?.isNotEmpty == true ? hostName! : "เจ้าของบิล")}',
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
@@ -552,7 +554,7 @@ class ShareableReceiptCard extends StatelessWidget {
                         if (hostBankAccount != null && hostBankAccount!.isNotEmpty) ...[
                           const SizedBox(height: 6),
                           Text(
-                            'โอนเข้าบัญชี: ${hostBankName ?? ""} $hostBankAccount (${hostName ?? ""})',
+                            'โอนเข้าบัญชี: ${hostBankName ?? ""} $hostBankAccount (${(hostBankAccountName != null && hostBankAccountName!.trim().isNotEmpty) ? hostBankAccountName!.trim() : (hostName ?? "")})',
                             style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF003D6B)),
                           ),
                         ],

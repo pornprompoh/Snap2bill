@@ -27,8 +27,6 @@ class ClaimItemCard extends StatelessWidget {
     required this.onToggleShared,
   });
 
-  IconData _getDishIcon(String name) => MenuIconHelper.getDishIcon(name);
-
   @override
   Widget build(BuildContext context) {
     final myClaimedQty = itemClaims[claimingUserId] ?? 0;
@@ -86,10 +84,11 @@ class ClaimItemCard extends StatelessWidget {
                     color: isSelected ? AppColors.secondary : AppColors.warmCream,
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Icon(
-                    _getDishIcon(itemName),
-                    color: isSelected ? AppColors.primary : AppColors.textPrimary,
-                    size: 22,
+                  child: Center(
+                    child: Text(
+                      MenuIconHelper.getDishEmoji(itemName),
+                      style: const TextStyle(fontSize: 22),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),

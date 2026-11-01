@@ -562,7 +562,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                             children: [
                               const Text('ยอดหารส่วนตัว', style: TextStyle(color: AppColors.gray, fontSize: 12)),
                               Text(
-                                '${AppFormatters.formatCurrency(amount)} ฿',
+                                AppFormatters.formatCurrency(amount),
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800,
@@ -633,7 +633,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                             children: [
                               const Text('ยอดชำระ', style: TextStyle(color: AppColors.gray, fontSize: 12)),
                               Text(
-                                '${AppFormatters.formatCurrency(amount)} ฿',
+                                AppFormatters.formatCurrency(amount),
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800,

@@ -323,24 +323,12 @@ class _ReviewScreenState extends State<ReviewScreen> {
     );
   }
 
-  IconData _getDishIcon(String name) => MenuIconHelper.getDishIcon(name);
-
   Color _getDishColor(int index) {
     const colors = [
       AppColors.lightPink,
       AppColors.paleYellow,
       AppColors.lightGreen,
       AppColors.lightPink,
-    ];
-    return colors[index % colors.length];
-  }
-
-  Color _getDishIconColor(int index) {
-    const colors = [
-      AppColors.pink,
-      AppColors.primaryOrange,
-      AppColors.tealGreen,
-      AppColors.pink,
     ];
     return colors[index % colors.length];
   }
@@ -597,10 +585,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
                                 color: _getDishColor(index),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: Icon(
-                                _getDishIcon(name),
-                                color: _getDishIconColor(index),
-                                size: 20,
+                              child: Center(
+                                child: Text(
+                                  MenuIconHelper.getDishEmoji(name),
+                                  style: const TextStyle(fontSize: 20),
+                                ),
                               ),
                             ),
                             const SizedBox(width: 12),

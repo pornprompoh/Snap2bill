@@ -12,6 +12,7 @@ import 'package:snap2bill/widgets/bill/shareable_receipt_card.dart';
 import 'package:snap2bill/widgets/bill/claim_item_card.dart';
 import 'package:snap2bill/utils/menu_icon_helper.dart';
 import 'package:snap2bill/services/ocr_service.dart';
+import 'package:snap2bill/screens/bill/personal_payment_details_screen.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 void main() {
@@ -584,9 +585,9 @@ void main() {
         ),
       );
 
-      // Verify Sushi has set_meal icon and Ramen has ramen_dining icon
-      expect(find.byIcon(Icons.set_meal_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.ramen_dining_rounded), findsOneWidget);
+      // Verify Sushi has sushi emoji and Ramen has ramen emoji
+      expect(find.text('🍣'), findsOneWidget);
+      expect(find.text('🍜'), findsOneWidget);
     });
   });
 
@@ -767,6 +768,256 @@ void main() {
       final names = items.map((e) => e['item_name']).toList();
       expect(names.contains('สิทธิ์แลกซื้อ'), isFalse);
       expect(names.contains('AMB สิทธิ์แลกซื้อ'), isFalse);
+    });
+  });
+
+  group('Personal Payment Details & Member Row Navigation Tests', () {
+    testWidgets('MemberSummaryList shows dish count, chevron, and triggers onMemberTap', (WidgetTester tester) async {
+      String? tappedMemberId;
+
+      final members = [
+        const MemberSummaryEntry(
+          id: 'user_1',
+          name: 'ฟิม (Guest)',
+          amount: 250.0,
+          itemsCount: 3,
+          isGuest: true,
+          dishes: [
+            MemberDishItem(
+              itemName: 'B Sushi',
+              quantity: 2,
+              unitPrice: 40.0,
+              totalPrice: 80.0,
+            ),
+          ],
+        ),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MemberSummaryList(
+              members: members,
+              onMemberTap: (id) => tappedMemberId = id,
+            ),
+          ),
+        ),
+      );
+
+      // Verify member name and formatted currency
+      expect(find.textContaining('ฟิม'), findsOneWidget);
+      expect(find.text('250 ฿'), findsOneWidget);
+      // Verify dish count subtitle
+      expect(find.text('3 รายการ'), findsOneWidget);
+      // Verify chevron icon
+      expect(find.byIcon(Icons.chevron_right_rounded), findsOneWidget);
+
+      // Tap row to trigger navigation callback
+      await tester.tap(find.textContaining('ฟิม'));
+      await tester.pump();
+      expect(tappedMemberId, equals('user_1'));
+    });
+
+    testWidgets('PersonalPaymentDetailsScreen renders member info, dishes with emoji, breakdown and PromptPay QR', (WidgetTester tester) async {
+      final testMember = const MemberSummaryEntry(
+        id: 'member_99',
+        name: 'สายกิน',
+        amount: 250.0,
+        itemsCount: 2,
+        dishes: [
+          MemberDishItem(
+            itemName: 'Sushi แซลมอน',
+            quantity: 2,
+            unitPrice: 40.0,
+            totalPrice: 80.0,
+          ),
+          MemberDishItem(
+            itemName: 'Ramen ซุปกระดูกหมู',
+            quantity: 1,
+            unitPrice: 120.0,
+            totalPrice: 120.0,
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PersonalPaymentDetailsScreen(
+              billData: const {
+                'id': 'bill_123',
+                'shop_name': 'Sushiro',
+                'receipt_json': {
+                  'sub_total': 200.0,
+                  'service_charge': 20.0,
+                  'vat_amount': 30.0,
+                  'final_total': 250.0,
+                },
+              },
+              member: testMember,
+              hostPromptPay: '0812345678',
+              hostPromptPayType: 'phone',
+              hostBankAccountNumber: '1234567890',
+              hostName: 'คุณเจ้าของ',
+              isCurrentViewerOwner: true,
+              receiptSubTotal: 200.0,
+              receiptVat: 30.0,
+              receiptServiceCharge: 20.0,
+            ),
+          ),
+        ),
+      );
+
+      // Verify participant header
+      expect(find.text('สายกิน'), findsWidgets);
+      // Verify isolated dishes
+      expect(find.text('Sushi แซลมอน'), findsOneWidget);
+      expect(find.text('Ramen ซุปกระดูกหมู'), findsOneWidget);
+      // Verify dish emojis
+      expect(find.text('🍣'), findsOneWidget);
+      expect(find.text('🍜'), findsOneWidget);
+      // Verify financial breakdown & Net Total
+      expect(find.text('ยอดเงินสุทธิที่ต้องชำระ'), findsOneWidget);
+      expect(find.text('250 ฿'), findsWidgets);
+      // Verify PromptPay QR section
+      expect(find.text('PromptPay QR Code'), findsOneWidget);
+      expect(find.textContaining('คุณเจ้าของ'), findsWidgets);
+      expect(find.textContaining('0812345678'), findsWidgets);
+      expect(find.byType(QrImageView), findsOneWidget);
+      // Verify action buttons
+      expect(find.text('บันทึก QR Code'), findsOneWidget);
+      expect(find.text('คัดลอกยอดเงิน'), findsOneWidget);
+      expect(find.textContaining('แนบหลักฐานการโอนเงิน'), findsOneWidget);
+
+      // Tap copy amount
+      await tester.ensureVisible(find.text('คัดลอกยอดเงิน'));
+      await tester.tap(find.text('คัดลอกยอดเงิน'));
+      await tester.pump();
+      expect(find.textContaining('คัดลอกยอดเงิน'), findsWidgets);
+    });
+
+    testWidgets('PersonalPaymentDetailsScreen renders paid state and suppresses slip upload', (WidgetTester tester) async {
+      final paidMember = const MemberSummaryEntry(
+        id: 'member_paid',
+        name: 'สายจ่ายไว',
+        amount: 300.0,
+        status: 'paid',
+        isPaid: true,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PersonalPaymentDetailsScreen(
+              billData: const {
+                'id': 'bill_456',
+                'shop_name': 'Mo-Mo-Paradise',
+              },
+              member: paidMember,
+              hostPromptPay: '0812345678',
+              hostBankAccountNumber: '1234567890',
+              hostName: 'เจ้าของบิล',
+              isCurrentViewerOwner: true,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('ชำระเงินสำเร็จเรียบร้อยแล้ว 🎉'), findsOneWidget);
+      expect(find.text('ชำระแล้ว'), findsWidgets);
+      // Slip upload button is suppressed
+      expect(find.textContaining('แนบหลักฐานการโอนเงิน'), findsNothing);
+    });
+
+    testWidgets('PersonalPaymentDetailsScreen renders reviewing state with owner approval and rejection buttons', (WidgetTester tester) async {
+      final reviewingMember = const MemberSummaryEntry(
+        id: 'member_rev',
+        name: 'เพื่อนกำลังจ่าย',
+        amount: 180.0,
+        status: 'reviewing',
+        isReviewing: true,
+        slipUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PersonalPaymentDetailsScreen(
+              billData: const {
+                'id': 'bill_789',
+                'shop_name': 'Haidilao',
+              },
+              member: reviewingMember,
+              hostPromptPay: '0812345678',
+              hostBankAccountNumber: '1234567890',
+              hostName: 'คุณเจ้าของ',
+              isCurrentViewerOwner: true,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('รอตรวจสอบ'), findsWidgets);
+      expect(find.text('ยืนยันชำระเงิน'), findsOneWidget);
+      expect(find.text('ปฏิเสธสลิป'), findsOneWidget);
+      expect(find.text('ดูรูป'), findsOneWidget);
+    });
+
+    testWidgets('PersonalPaymentDetailsScreen shows warning when host PromptPay is not set', (WidgetTester tester) async {
+      final member = const MemberSummaryEntry(
+        id: 'user_no_pp',
+        name: 'ต้นกล้า',
+        amount: 150.0,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PersonalPaymentDetailsScreen(
+              billData: const {'id': 'bill_no_pp'},
+              member: member,
+              hostPromptPay: '',
+              hostBankAccountNumber: '',
+              hostName: 'คุณเจ้าของ',
+              isCurrentViewerOwner: false,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.textContaining('เจ้าของบิลยังไม่ได้ตั้งค่าพร้อมเพย์'), findsOneWidget);
+      expect(find.byType(QrImageView), findsNothing);
+    });
+
+    test('MemberSummaryEntry and MemberDishItem model properties and copyWith', () {
+      const dish = MemberDishItem(
+        itemName: 'Salmon',
+        quantity: 2,
+        isShared: true,
+        totalSharers: 2,
+        unitPrice: 50.0,
+        totalPrice: 100.0,
+      );
+      expect(dish.itemName, 'Salmon');
+      expect(dish.isShared, isTrue);
+
+      const entry = MemberSummaryEntry(
+        id: 'e1',
+        name: 'Member 1',
+        amount: 100.0,
+      );
+      final copied = entry.copyWith(
+        name: 'Member Updated',
+        amount: 120.0,
+        status: 'paid',
+        itemsCount: 2,
+        dishes: [dish],
+      );
+      expect(copied.name, 'Member Updated');
+      expect(copied.amount, 120.0);
+      expect(copied.isPaid, isTrue);
+      expect(copied.itemsCount, 2);
+      expect(copied.dishes.length, 1);
     });
   });
 }

@@ -7,12 +7,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/bill_model.dart';
 import '../providers/bill_provider.dart';
-import '../services/receipt_share_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/formatters.dart';
 import '../widgets/bill/member_summary_list.dart';
 import '../utils/bill_progress_helper.dart';
 import '../widgets/bill/poke_reminder_dialog.dart';
+import '../widgets/bill/shareable_receipt_preview_dialog.dart';
 
 class DetailScreen extends StatefulWidget {
   final Map<String, dynamic> billData;
@@ -26,7 +26,6 @@ class DetailScreen extends StatefulWidget {
 class _DetailScreenState extends State<DetailScreen> {
   late Future<List<MemberSummaryEntry>> _membersFuture;
   final GlobalKey _receiptCaptureKey = GlobalKey();
-  bool _isSharing = false;
   String _hostPromptPay = '';
   String? _hostPromptPayType;
   String? _hostBankName;
@@ -207,7 +206,27 @@ class _DetailScreenState extends State<DetailScreen> {
 
     final ownerId = widget.billData['owner_id']?.toString() ??
         widget.billData['user_id']?.toString() ??
-        receipt['owner_id']?.toString();
+        receipt['owner_id']?.toString() ??
+        '';
+    String currentUserId = '';
+    String currentEmailPrefix = '';
+    try {
+      final currentAuthUser = Supabase.instance.client.auth.currentUser;
+      currentUserId = currentAuthUser?.id ?? '';
+      currentEmailPrefix = currentAuthUser?.email?.split('@').first ?? '';
+    } catch (_) {}
+    final isViewerOwner = _isCurrentUserOwner;
+
+    bool checkIsOwner(String mid, String mName) {
+      if (ownerId.isNotEmpty && mid == ownerId) return true;
+      if (isViewerOwner) {
+        if (currentUserId.isNotEmpty && mid == currentUserId) return true;
+        if (currentEmailPrefix.isNotEmpty && (mid == currentEmailPrefix || mName == currentEmailPrefix)) return true;
+        if (_hostName.isNotEmpty && (mName == _hostName || mid == _hostName)) return true;
+      }
+      return false;
+    }
+
     final receiptPaidStatuses = _asMap(receipt['paid_statuses']);
 
     final entriesById = <String, MemberSummaryEntry>{};
@@ -217,7 +236,7 @@ class _DetailScreenState extends State<DetailScreen> {
           namesById[id] ??
           profile?['display_name']?.toString() ??
           (id.startsWith('guest_') ? 'Guest' : 'เพื่อน');
-      final isOwner = ownerId != null && ownerId.isNotEmpty && id == ownerId;
+      final isOwner = checkIsOwner(id, name);
       entriesById[id] = MemberSummaryEntry(
         id: id,
         name: name,
@@ -233,10 +252,11 @@ class _DetailScreenState extends State<DetailScreen> {
       if (id.isEmpty) continue;
       final status = row['status']?.toString().toLowerCase();
       final existing = entriesById[id];
-      final isOwner = ownerId != null && ownerId.isNotEmpty && id == ownerId;
+      final name = existing?.name ?? namesById[id] ?? 'เพื่อน';
+      final isOwner = checkIsOwner(id, name);
       entriesById[id] = MemberSummaryEntry(
         id: id,
-        name: existing?.name ?? namesById[id] ?? 'เพื่อน',
+        name: name,
         amount:
             double.tryParse(row['amount_owed']?.toString() ?? '') ??
             existing?.amount ??
@@ -350,19 +370,17 @@ class _DetailScreenState extends State<DetailScreen> {
     }
   }
 
-  // 📤 จับภาพและแชร์สรุปบิลเข้า LINE / โซเชียล (Week 3 & 4 UI/UX)
-  Future<void> _shareReceiptImage(String shopName, double totalAmount) async {
-    if (_isSharing) return;
-    setState(() => _isSharing = true);
-    try {
-      await ReceiptShareService.shareReceipt(
-        boundaryKey: _receiptCaptureKey,
-        shopName: shopName,
-        totalAmount: totalAmount,
-      );
-    } finally {
-      if (mounted) setState(() => _isSharing = false);
-    }
+  // 📤 เปิดหน้าต่างสร้างและแชร์บิลสรุปสำเร็จรูป (Shareable Bill Summary)
+  void _openShareableReceiptDialog() {
+    ShareableReceiptPreviewDialog.show(
+      context,
+      bill: widget.billData,
+      hostPromptPay: _hostPromptPay,
+      hostPromptPayType: _hostPromptPayType,
+      hostBankAccount: _hostBankAccountNumber,
+      hostBankName: _hostBankName,
+      hostName: _hostName,
+    );
   }
 
   String _tlv(String tag, String value) {
@@ -917,15 +935,9 @@ class _DetailScreenState extends State<DetailScreen> {
               },
             ),
           IconButton(
-            icon: _isSharing
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.share_rounded),
-            tooltip: 'แชร์สรุปบิลเป็นรูปภาพเข้า LINE',
-            onPressed: () => _shareReceiptImage(shopName.toString(), totalAmount),
+            icon: const Icon(Icons.share_rounded),
+            tooltip: 'แชร์บิลสรุปสำเร็จรูป',
+            onPressed: _openShareableReceiptDialog,
           ),
         ],
       ),
@@ -1025,7 +1037,23 @@ class _DetailScreenState extends State<DetailScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.tealGreen,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 48),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                elevation: 0,
+              ),
+              icon: const Icon(Icons.receipt_long_rounded, size: 20),
+              label: const Text(
+                'สร้างและแชร์บิลสรุปสำเร็จรูป (รูปบิลใบเสร็จ)',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              onPressed: _openShareableReceiptDialog,
+            ),
+            const SizedBox(height: 20),
             const Text(
               'รายการที่สั่ง (รายละเอียด)',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),

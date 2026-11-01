@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'formatters.dart';
 
 class BillParticipantStatus {
@@ -87,6 +88,35 @@ class BillProgressHelper {
         if (val > 0) return val;
       }
     }
+
+    // Fallback: sum up items inside receipt_json['items']
+    final items = receipt['items'];
+    if (items is List) {
+      double itemsSum = 0.0;
+      for (final it in items) {
+        if (it is Map) {
+          final qty = int.tryParse((it['qty'] ?? it['quantity'] ?? 1).toString()) ?? 1;
+          final price = double.tryParse((it['unit_price'] ?? it['price'] ?? 0).toString()) ?? 0.0;
+          final total = double.tryParse((it['total_price'] ?? '').toString()) ?? (qty * price);
+          itemsSum += total;
+        }
+      }
+      if (itemsSum > 0) return itemsSum;
+    }
+
+    // Fallback: sum bill_participants amounts
+    final rawParticipants = bill['bill_participants'];
+    if (rawParticipants is List) {
+      double participantsSum = 0.0;
+      for (final p in rawParticipants) {
+        if (p is Map) {
+          final owed = double.tryParse(p['amount_owed']?.toString() ?? '') ?? 0.0;
+          participantsSum += owed;
+        }
+      }
+      if (participantsSum > 0) return participantsSum;
+    }
+
     return 0.0;
   }
 
@@ -200,8 +230,18 @@ class BillProgressHelper {
     final totalMembers = memberIds.isEmpty ? (ownerId.isNotEmpty ? 1 : 0) : memberIds.length;
     final averagePerPerson = totalMembers > 0 ? (totalAmount / totalMembers) : totalAmount;
 
+    String currentUserId = '';
+    String currentEmailPrefix = '';
+    try {
+      final currentAuthUser = Supabase.instance.client.auth.currentUser;
+      currentUserId = currentAuthUser?.id ?? '';
+      currentEmailPrefix = currentAuthUser?.email?.split('@').first ?? '';
+    } catch (_) {}
+
     for (final mid in memberIds) {
-      final isOwner = ownerId.isNotEmpty && mid == ownerId;
+      final isOwner = (ownerId.isNotEmpty && mid == ownerId) ||
+          (currentUserId.isNotEmpty && mid == currentUserId && (ownerId.isEmpty || ownerId == currentUserId)) ||
+          (currentEmailPrefix.isNotEmpty && mid == currentEmailPrefix && (ownerId.isEmpty || ownerId == currentUserId));
       final isGuest = mid.startsWith('guest_');
 
       // Determine payment status

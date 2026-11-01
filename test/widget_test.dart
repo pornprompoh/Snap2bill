@@ -6,6 +6,9 @@ import 'package:snap2bill/widgets/bill_card.dart';
 import 'package:snap2bill/widgets/custom_button.dart';
 import 'package:snap2bill/widgets/bill/member_summary_list.dart';
 import 'package:snap2bill/utils/bill_progress_helper.dart';
+import 'package:snap2bill/utils/promptpay_helper.dart';
+import 'package:snap2bill/widgets/bill/shareable_receipt_card.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 void main() {
   group('BillCard Widget Tests (Week 1 & 2)', () {
@@ -406,6 +409,99 @@ void main() {
       );
 
       expect(find.text('ยังไม่มีข้อมูลยอดบิล'), findsOneWidget);
+    });
+  });
+
+  group('PromptPayHelper and ShareableReceiptCard Unit & Widget Tests', () {
+    test('PromptPayHelper validates and generates standard EMVCo payload', () {
+      expect(PromptPayHelper.isValidTarget('0812345678'), isTrue);
+      expect(PromptPayHelper.isValidTarget('1234567890123'), isTrue);
+      expect(PromptPayHelper.isValidTarget('123'), isFalse);
+
+      final payload = PromptPayHelper.generatePayload('0812345678', amount: 250.0);
+      expect(payload, startsWith('000201'));
+      expect(payload, contains('A000000677010111'));
+      expect(payload, contains('0066812345678'));
+      expect(payload, contains('250.00'));
+      expect(payload.length, greaterThan(50));
+    });
+
+    testWidgets('ShareableReceiptCard renders authentic receipt with members and PromptPay QR',
+        (WidgetTester tester) async {
+      final billData = {
+        'id': 'bill_receipt_test',
+        'shop_name': 'สชิโร่ (SUSHIRO)',
+        'owner_id': 'owner_ying',
+        'sub_total': 500.0,
+        'created_at': '2026-11-01T14:30:00Z',
+        'bill_participants': [
+          {'profile_id': 'owner_ying', 'status': 'paid', 'amount_owed': 250.0},
+          {'profile_id': 'guest_film', 'status': 'pending', 'amount_owed': 250.0},
+        ],
+      };
+
+      final summary = BillProgressHelper.calculate(billData);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: ShareableReceiptCard(
+                bill: billData,
+                summary: summary,
+                hostPromptPay: '0812345678',
+                hostName: 'พรพรหม (หญิง)',
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Verify receipt title and shop
+      expect(find.text('SNAP2BILL RECEIPT'), findsOneWidget);
+      expect(find.text('สชิโร่ (SUSHIRO)'), findsOneWidget);
+
+      // Verify total and split amount
+      expect(find.text('500.00 ฿'), findsOneWidget);
+      expect(find.text('ตกคนละ 250.00 ฿'), findsOneWidget);
+
+      // Verify member breakdown
+      expect(find.text('เจ้าของ 👑'), findsOneWidget);
+      expect(find.text('รอจ่าย ⏳'), findsOneWidget);
+
+      // Verify PromptPay QR is rendered
+      expect(find.byType(QrImageView), findsOneWidget);
+      expect(find.textContaining('Thai QR Payment'), findsOneWidget);
+      expect(find.textContaining('ชื่อบัญชี: พรพรหม (หญิง)'), findsOneWidget);
+    });
+
+    testWidgets('ShareableReceiptCard shows notice when host PromptPay is not set',
+        (WidgetTester tester) async {
+      final billData = {
+        'id': 'bill_no_qr',
+        'shop_name': 'KFC',
+        'owner_id': 'owner_ying',
+        'sub_total': 200.0,
+      };
+
+      final summary = BillProgressHelper.calculate(billData);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: ShareableReceiptCard(
+                bill: billData,
+                summary: summary,
+                hostPromptPay: null,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('เจ้าของบิลยังไม่ได้ตั้งค่าพร้อมเพย์'), findsOneWidget);
+      expect(find.byType(QrImageView), findsNothing);
     });
   });
 }

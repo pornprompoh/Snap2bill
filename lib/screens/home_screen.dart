@@ -462,7 +462,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 Text(
                                   'ยอดค้างชำระ',
                                   style: TextStyle(
-                                    fontSize: 11.5,
+                                    fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                     color: isDark ? AppColors.white : AppColors.black,
                                   ),
@@ -471,7 +471,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 Text(
                                   AppFormatters.formatCurrency(unpaidTotal),
                                   style: TextStyle(
-                                    fontSize: 18,
+                                    fontSize: 19.5,
                                     fontWeight: FontWeight.w800,
                                     color: isDark ? AppColors.white : AppColors.black,
                                   ),
@@ -480,7 +480,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 Text(
                                   'รอเก็บ $unpaidCount บิล',
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: 12.5,
                                     color: isDark ? AppColors.darkTextSecondary : AppColors.gray,
                                   ),
                                 ),
@@ -512,7 +512,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 Text(
                                   'ทวงคืนสำเร็จเดือนนี้',
                                   style: TextStyle(
-                                    fontSize: 11.5,
+                                    fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                     color: isDark ? AppColors.white : AppColors.black,
                                   ),
@@ -521,7 +521,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 Text(
                                   AppFormatters.formatCurrency(recoveredMonthlyTotal),
                                   style: TextStyle(
-                                    fontSize: 18,
+                                    fontSize: 19.5,
                                     fontWeight: FontWeight.w800,
                                     color: isDark ? AppColors.white : AppColors.black,
                                   ),
@@ -530,7 +530,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 Text(
                                   'ปิดยอด $recoveredMonthlyCount บิล',
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: 12.5,
                                     color: isDark ? AppColors.darkTextSecondary : AppColors.gray,
                                   ),
                                 ),
@@ -674,9 +674,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       'คำแนะนำ: เพื่อให้ AI สแกนแม่นยำที่สุด ถ่ายในที่แสงสว่างเพียงพอ วางใบเสร็จให้เรียบแบน และถ่ายให้เห็นยอดรวมชัดเจน',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 10.5,
+                        fontSize: 12,
                         color: isDark ? const Color(0xFFF0D58C) : const Color(0xFF8A6200),
-                        height: 1.3,
+                        height: 1.35,
                       ),
                     ),
                   ),
@@ -693,7 +693,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       Text(
                         'ประวัติการหารบิล',
                         style: TextStyle(
-                          fontSize: 17,
+                          fontSize: 18.5,
                           fontWeight: FontWeight.w800,
                           color: textPrimary,
                         ),
@@ -701,7 +701,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       Text(
                         'ทั้งหมด ${bills.length} บิล',
                         style: TextStyle(
-                          fontSize: 11.5,
+                          fontSize: 13,
                           color: textSecondary,
                         ),
                       ),
@@ -770,7 +770,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               Text(
                                 'สะกิดเตือนเพื่อน',
                                 style: TextStyle(
-                                  fontSize: 11,
+                                  fontSize: 12.5,
                                   color: AppColors.gray,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -778,7 +778,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               SizedBox(width: 4),
                               Icon(
                                 Icons.notifications_active_rounded,
-                                size: 14,
+                                size: 16,
                                 color: AppColors.yellow,
                               ),
                             ],
@@ -889,7 +889,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   Text(
                     'มีเพื่อนสร้างห้องไว้แล้ว',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 15.5,
                       fontWeight: FontWeight.w700,
                       color: textPrimary,
                     ),
@@ -898,7 +898,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   Text(
                     'กรอกรหัส 6 หลักเพื่อเข้าร่วม',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 13,
                       color: textSecondary,
                     ),
                   ),
@@ -943,7 +943,7 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Icon(
               icon,
-              size: 13,
+              size: 14,
               color: isSelected
                   ? AppColors.pink
                   : (isDark ? AppColors.darkTextSecondary : AppColors.gray),
@@ -955,7 +955,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 12.5,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                   color: isSelected
                       ? AppColors.pink

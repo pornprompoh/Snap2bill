@@ -8,33 +8,33 @@ class AppTextStyles {
   static const TextStyle headline = TextStyle(
     fontFamily: fontFamily,
     color: AppColors.textPrimary,
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: FontWeight.w700,
-    height: 1.3,
+    height: 1.35,
     letterSpacing: -0.2,
   );
 
   static const TextStyle title = TextStyle(
     fontFamily: fontFamily,
     color: AppColors.textPrimary,
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: FontWeight.w600,
-    height: 1.3,
+    height: 1.35,
     letterSpacing: -0.1,
   );
 
   static const TextStyle body = TextStyle(
     fontFamily: fontFamily,
     color: AppColors.textPrimary,
-    fontSize: 15,
+    fontSize: 16.5,
     fontWeight: FontWeight.w400,
-    height: 1.5,
+    height: 1.45,
   );
 
   static const TextStyle caption = TextStyle(
     fontFamily: fontFamily,
     color: AppColors.textSecondary,
-    fontSize: 12,
+    fontSize: 13.5,
     fontWeight: FontWeight.w400,
     height: 1.4,
   );
@@ -45,12 +45,12 @@ class AppTextStyles {
     headlineSmall: title,
     titleLarge: title,
     titleMedium: body.copyWith(fontWeight: FontWeight.w600),
-    titleSmall: body.copyWith(fontSize: 14, fontWeight: FontWeight.w600),
+    titleSmall: body.copyWith(fontSize: 15.5, fontWeight: FontWeight.w600),
     bodyLarge: body,
-    bodyMedium: body.copyWith(fontSize: 14),
+    bodyMedium: body.copyWith(fontSize: 15.5),
     bodySmall: caption,
-    labelLarge: body.copyWith(fontWeight: FontWeight.w600),
+    labelLarge: body.copyWith(fontSize: 15.5, fontWeight: FontWeight.w600),
     labelMedium: caption.copyWith(fontWeight: FontWeight.w500),
-    labelSmall: caption.copyWith(fontSize: 11),
+    labelSmall: caption.copyWith(fontSize: 12.5),
   );
 }

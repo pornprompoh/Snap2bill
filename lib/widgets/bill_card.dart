@@ -111,7 +111,7 @@ class BillCard extends StatelessWidget {
                             style: TextStyle(
                               color: textPrim,
                               fontWeight: FontWeight.w700,
-                              fontSize: 15,
+                              fontSize: 16.5,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -122,13 +122,13 @@ class BillCard extends StatelessWidget {
                               dateText,
                               style: TextStyle(
                                 color: textSec,
-                                fontSize: 12,
+                                fontSize: 13.5,
                               ),
                             ),
                           const SizedBox(height: 4),
                           // Status Badge matching Reference Image
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
                             decoration: BoxDecoration(
                               color: statusBgColor,
                               borderRadius: BorderRadius.circular(6),
@@ -137,7 +137,7 @@ class BillCard extends StatelessWidget {
                               statusLabel,
                               style: TextStyle(
                                 color: statusTextColor,
-                                fontSize: 10.5,
+                                fontSize: 12,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -155,7 +155,7 @@ class BillCard extends StatelessWidget {
                           style: TextStyle(
                             color: textPrim,
                             fontWeight: FontWeight.w800,
-                            fontSize: 16,
+                            fontSize: 17.5,
                           ),
                         ),
                         const SizedBox(width: 4),
@@ -187,12 +187,12 @@ class BillCard extends StatelessWidget {
                     children: [
                       Text(
                         'เก็บได้ ${(progress * 100).toStringAsFixed(0)}%',
-                        style: TextStyle(fontSize: 10, color: textSec),
+                        style: TextStyle(fontSize: 12, color: textSec),
                       ),
                       Text(
                         'รออีก $unpaidCount คน',
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: AppColors.primaryOrange,
                         ),

@@ -11,10 +11,10 @@ class AppColors {
 
   // Brand Primary & Accents (คุมโทนให้เข้ากับ FFCED8 และตัวหนังสือคมชัดอ่านง่าย)
   static const Color primary = Color(
-    0xFFD95D77,
-  ); // โทน Rose Berry ที่ดึงจาก FFCED8 อ่านง่าย ไม่แสบตา
-  static const Color primaryDark = Color(0xFFBD4560);
-  static const Color primaryLight = Color(0xFFFFCED8); // #FFCED8
+    0xFFF76DB7,
+  ); // #F76DB7 Vibrant Pink จาก redesign reference
+  static const Color primaryDark = Color(0xFFE0529B);
+  static const Color primaryLight = Color(0xFFFFD5EC); // #FFD5EC
   static const Color secondary = Color(0xFFFFDDDD); // #FFDDDD
   static const Color accent = Color(0xFFFFE8C4); // #FFE8C4
 

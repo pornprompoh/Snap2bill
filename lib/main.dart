@@ -95,6 +95,14 @@ class MyApp extends StatelessWidget {
 
     return MaterialApp(
       title: 'Snap2Bill',
+      onGenerateTitle: (context) => 'Snap2Bill',
+      builder: (context, child) {
+        return Title(
+          title: 'Snap2Bill',
+          color: AppColors.primary,
+          child: child ?? const SizedBox(),
+        );
+      },
       navigatorKey: _navigatorKey,
       scaffoldMessengerKey: _scaffoldMessengerKey,
       themeMode: themeProvider.themeMode,

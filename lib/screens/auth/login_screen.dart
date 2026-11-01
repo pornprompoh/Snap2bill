@@ -367,13 +367,29 @@ class _LoginScreenState extends State<LoginScreen> {
                                 borderRadius: BorderRadius.circular(10),
                               ),
                             ),
-                            child: Text(
-                              'Google',
-                              style: TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w700,
-                                color: textPrim,
-                              ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Image.asset(
+                                  'assets/images/google_logo.png',
+                                  width: 18,
+                                  height: 18,
+                                  errorBuilder: (context, error, stackTrace) => const Icon(
+                                    Icons.g_mobiledata,
+                                    size: 20,
+                                    color: Colors.red,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Google',
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: textPrim,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -391,13 +407,24 @@ class _LoginScreenState extends State<LoginScreen> {
                                 borderRadius: BorderRadius.circular(10),
                               ),
                             ),
-                            child: Text(
-                              'Facebook',
-                              style: TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w700,
-                                color: textPrim,
-                              ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.facebook,
+                                  color: Color(0xFF1877F2),
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Facebook',
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: textPrim,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),

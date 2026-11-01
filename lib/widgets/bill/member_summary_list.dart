@@ -9,6 +9,7 @@ class MemberSummaryEntry {
   final double amount;
   final bool isPaid;
   final bool isGuest;
+  final bool isOwner;
   final String? subtitle;
 
   const MemberSummaryEntry({
@@ -17,6 +18,7 @@ class MemberSummaryEntry {
     required this.amount,
     this.isPaid = false,
     this.isGuest = false,
+    this.isOwner = false,
     this.subtitle,
   });
 
@@ -26,6 +28,7 @@ class MemberSummaryEntry {
     double? amount,
     bool? isPaid,
     bool? isGuest,
+    bool? isOwner,
     String? subtitle,
   }) {
     return MemberSummaryEntry(
@@ -34,6 +37,7 @@ class MemberSummaryEntry {
       amount: amount ?? this.amount,
       isPaid: isPaid ?? this.isPaid,
       isGuest: isGuest ?? this.isGuest,
+      isOwner: isOwner ?? this.isOwner,
       subtitle: subtitle ?? this.subtitle,
     );
   }
@@ -44,6 +48,7 @@ class MemberSummaryList extends StatelessWidget {
   final String? selectedMemberId;
   final ValueChanged<String>? onMemberTap;
   final ValueChanged<MemberSummaryEntry>? onStatusToggle;
+  final bool isCurrentViewerOwner;
 
   const MemberSummaryList({
     super.key,
@@ -51,6 +56,7 @@ class MemberSummaryList extends StatelessWidget {
     this.selectedMemberId,
     this.onMemberTap,
     this.onStatusToggle,
+    this.isCurrentViewerOwner = true,
   });
 
   @override
@@ -74,16 +80,23 @@ class MemberSummaryList extends StatelessWidget {
           ),
           onTap: onMemberTap == null ? null : () => onMemberTap!(member.id),
           leading: CircleAvatar(
-            backgroundColor: member.isPaid
-                ? Colors.green.shade50
-                : Colors.orange.shade50,
+            backgroundColor: member.isOwner
+                ? const Color(0xFFFEF3C7) // amber 100
+                : (member.isPaid
+                    ? Colors.green.shade50
+                    : Colors.orange.shade50),
             child: Icon(
-              member.isPaid
-                  ? Icons.check_circle_outline
-                  : Icons.pending_outlined,
-              color: member.isPaid
-                  ? Colors.green.shade700
-                  : Colors.orange.shade800,
+              member.isOwner
+                  ? Icons.star_rounded
+                  : (member.isPaid
+                      ? Icons.check_circle_outline
+                      : Icons.pending_outlined),
+              color: member.isOwner
+                  ? const Color(0xFFD97706) // amber 600
+                  : (member.isPaid
+                      ? Colors.green.shade700
+                      : Colors.orange.shade800),
+              size: member.isOwner ? 22 : null,
             ),
           ),
           title: Text.rich(
@@ -93,7 +106,16 @@ class MemberSummaryList extends StatelessWidget {
                   text: member.name,
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
-                if (member.isGuest)
+                if (member.isOwner)
+                  const TextSpan(
+                    text: ' (เจ้าของ)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFFD97706),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  )
+                else if (member.isGuest)
                   const TextSpan(
                     text: ' (Guest / จ่ายแทน)',
                     style: TextStyle(
@@ -119,14 +141,90 @@ class MemberSummaryList extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
-              InkWell(
-                onTap: onStatusToggle == null
-                    ? null
-                    : () => onStatusToggle!(member),
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+
+              // 1. เจ้าของรายการ: แสดงสถานะ "เจ้าของ" อย่างชัดเจน และไม่มีปุ่มชำระเงิน
+              if (member.isOwner)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFFBEB), // amber 50
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFFCD34D)), // amber 300
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.star_rounded, size: 13, color: Color(0xFFB45309)),
+                      SizedBox(width: 4),
+                      Text(
+                        'เจ้าของ',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFFB45309),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+
+              // 2. สมาชิกคนอื่นที่ไม่ใช่เจ้าของ:
+              // - หากผู้ดูคือเจ้าของ (isCurrentViewerOwner): สามารถกดสลับสถานะ "รอจ่าย" <-> "จ่ายแล้ว" ได้
+              // - หากผู้ดูไม่ใช่เจ้าของ: แสดงสถานะแบบ Read-Only ไม่สามารถกดเปลี่ยนสถานะได้
+              else if (isCurrentViewerOwner && onStatusToggle != null)
+                InkWell(
+                  onTap: () => onStatusToggle!(member),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: member.isPaid
+                          ? Colors.green.shade50
+                          : Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: member.isPaid
+                            ? Colors.green.shade300
+                            : Colors.orange.shade300,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          member.isPaid ? Icons.check_circle : Icons.schedule,
+                          size: 13,
+                          color: member.isPaid
+                              ? Colors.green.shade700
+                              : Colors.orange.shade800,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          member.isPaid ? 'จ่ายแล้ว' : 'รอจ่าย',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: member.isPaid
+                                ? Colors.green.shade700
+                                : Colors.orange.shade800,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        Icon(
+                          Icons.swap_horiz,
+                          size: 12,
+                          color: member.isPaid
+                              ? Colors.green.shade700
+                              : Colors.orange.shade800,
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                // Read-only สำหรับสมาชิกทั่วไปที่ไม่ใช่เจ้าของ
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: member.isPaid
                         ? Colors.green.shade50
@@ -159,20 +257,9 @@ class MemberSummaryList extends StatelessWidget {
                               : Colors.orange.shade800,
                         ),
                       ),
-                      if (onStatusToggle != null) ...[
-                        const SizedBox(width: 2),
-                        Icon(
-                          Icons.swap_horiz,
-                          size: 12,
-                          color: member.isPaid
-                              ? Colors.green.shade700
-                              : Colors.orange.shade800,
-                        ),
-                      ],
                     ],
                   ),
                 ),
-              ),
             ],
           ),
         );

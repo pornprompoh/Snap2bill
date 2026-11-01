@@ -203,6 +203,11 @@ class _DetailScreenState extends State<DetailScreen> {
       participantIds: participantIds,
     );
 
+    final ownerId = widget.billData['owner_id']?.toString() ??
+        widget.billData['user_id']?.toString() ??
+        receipt['owner_id']?.toString();
+    final receiptPaidStatuses = _asMap(receipt['paid_statuses']);
+
     final entriesById = <String, MemberSummaryEntry>{};
     for (final id in participantIds) {
       final profile = profilesById[id];
@@ -210,11 +215,14 @@ class _DetailScreenState extends State<DetailScreen> {
           namesById[id] ??
           profile?['display_name']?.toString() ??
           (id.startsWith('guest_') ? 'Guest' : 'เพื่อน');
+      final isOwner = ownerId != null && ownerId.isNotEmpty && id == ownerId;
       entriesById[id] = MemberSummaryEntry(
         id: id,
         name: name,
         amount: calculatedShares[id] ?? 0,
         isGuest: id.startsWith('guest_'),
+        isOwner: isOwner,
+        isPaid: isOwner ? true : (receiptPaidStatuses[id] == 'paid'),
       );
     }
 
@@ -223,6 +231,7 @@ class _DetailScreenState extends State<DetailScreen> {
       if (id.isEmpty) continue;
       final status = row['status']?.toString().toLowerCase();
       final existing = entriesById[id];
+      final isOwner = ownerId != null && ownerId.isNotEmpty && id == ownerId;
       entriesById[id] = MemberSummaryEntry(
         id: id,
         name: existing?.name ?? namesById[id] ?? 'เพื่อน',
@@ -230,16 +239,28 @@ class _DetailScreenState extends State<DetailScreen> {
             double.tryParse(row['amount_owed']?.toString() ?? '') ??
             existing?.amount ??
             0,
-        isPaid:
-            status == 'paid' ||
-            status == 'cleared' ||
-            status == 'settled',
+        isPaid: isOwner
+            ? true
+            : (status == 'paid' || status == 'cleared' || status == 'settled'),
         isGuest: false,
+        isOwner: isOwner,
       );
     }
 
     return entriesById.values.toList()
-      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      ..sort((a, b) {
+        if (a.isOwner) return -1;
+        if (b.isOwner) return 1;
+        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
+  }
+
+  bool get _isCurrentUserOwner {
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    final ownerId = widget.billData['owner_id']?.toString() ??
+        widget.billData['user_id']?.toString() ??
+        _asMap(widget.billData['receipt_json'])['owner_id']?.toString();
+    return currentUserId != null && ownerId != null && currentUserId == ownerId;
   }
 
   Map<String, dynamic> _asMap(Object? value) {
@@ -250,16 +271,45 @@ class _DetailScreenState extends State<DetailScreen> {
 
   // 💳 สลับสถานะชำระเงิน (Paid / Pending) และอัปเดตลง Supabase (Week 9 Cloud)
   Future<void> _handleStatusToggle(MemberSummaryEntry member) async {
+    if (member.isOwner) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('เจ้าของรายการไม่ต้องชำระเงินให้ตนเอง')),
+      );
+      return;
+    }
+
+    if (!_isCurrentUserOwner) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('เฉพาะเจ้าของรายการเท่านั้นที่มีสิทธิ์เปลี่ยนสถานะการชำระเงิน'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final billId = widget.billData['id']?.toString();
-    if (billId == null || member.isGuest) return;
+    if (billId == null) return;
 
     final newStatus = member.isPaid ? 'pending' : 'paid';
     try {
-      await Supabase.instance.client
-          .from('bill_participants')
-          .update({'status': newStatus})
-          .eq('bill_id', billId)
-          .eq('profile_id', member.id);
+      if (member.isGuest) {
+        final receipt = _asMap(widget.billData['receipt_json']);
+        final paidStatuses = _asMap(receipt['paid_statuses']);
+        paidStatuses[member.id] = newStatus;
+        receipt['paid_statuses'] = paidStatuses;
+        await Supabase.instance.client
+            .from('bills')
+            .update({'receipt_json': receipt})
+            .eq('id', billId);
+        widget.billData['receipt_json'] = receipt;
+      } else {
+        await Supabase.instance.client
+            .from('bill_participants')
+            .update({'status': newStatus})
+            .eq('bill_id', billId)
+            .eq('profile_id', member.id);
+      }
 
       setState(() {
         _membersFuture = _loadMemberSummary();
@@ -271,7 +321,7 @@ class _DetailScreenState extends State<DetailScreen> {
             content: Text(
               newStatus == 'paid'
                   ? 'อัปเดต: ${member.name} ชำระเงินแล้ว ✅'
-                  : 'อัปเดต: ${member.name} รอชำระเงิน ⏳',
+                  : 'อัปเดต: ${member.name} รอจ่าย ⏳',
             ),
             duration: const Duration(seconds: 2),
             backgroundColor: newStatus == 'paid' ? AppColors.success : AppColors.warning,
@@ -398,7 +448,78 @@ class _DetailScreenState extends State<DetailScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (member.isPaid) ...[
+                  if (member.isOwner) ...[
+                    // เจ้าของรายการ: แสดงบทบาทเจ้าของและยอดหารส่วนตัว โดยไม่ต้องชำระเงินให้ตนเอง
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF3C7),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFFD97706), width: 2),
+                      ),
+                      child: const Icon(
+                        Icons.star_rounded,
+                        color: Color(0xFFD97706),
+                        size: 48,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'เจ้าของรายการบิล 👑',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFB45309),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'ยอดส่วนตัวของ ${member.name} คำนวณตามสูตรเดิม',
+                      style: const TextStyle(fontSize: 12, color: AppColors.gray),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFBEB),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFFCD34D)),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('ยอดหารส่วนตัว', style: TextStyle(color: AppColors.gray, fontSize: 12)),
+                              Text(
+                                '${AppFormatters.formatCurrency(member.amount)} ฿',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFFB45309),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const Divider(height: 12),
+                          const Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('บทบาท', style: TextStyle(fontSize: 11, color: AppColors.gray)),
+                              Text('ผู้สร้าง / เจ้าของรายการ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFB45309))),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            '💡 เจ้าของมีส่วนร่วมในการหารค่าใช้จ่าย แต่ไม่ต้องชำระเงินให้ตนเอง',
+                            style: TextStyle(fontSize: 11, color: Color(0xFF78350F)),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else if (member.isPaid) ...[
                     // 🎉 Shopee-style Payment Success View
                     Container(
                       padding: const EdgeInsets.all(16),
@@ -635,82 +756,85 @@ class _DetailScreenState extends State<DetailScreen> {
                       child: const Text('ยังไม่ได้ระบุช่องทางรับเงินของเจ้าของบิล'),
                     ),
                   ],
-                  const SizedBox(height: 16),
+                  if (!member.isOwner) ...[
+                    const SizedBox(height: 16),
 
-                  // ปุ่มทวงเงินเข้า LINE (เฉพาะคนที่ยังไม่จ่าย)
-                  if (!member.isPaid) ...[
-                    FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF06C755),
-                        foregroundColor: Colors.white,
+                    // ปุ่มทวงเงินเข้า LINE (เฉพาะเจ้าของ และเฉพาะคนที่ยังไม่จ่าย)
+                    if (!member.isPaid && _isCurrentUserOwner) ...[
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF06C755),
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size(double.infinity, 44),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        icon: const Icon(Icons.send_outlined, size: 18),
+                        label: const Text('ส่งแจ้งเตือนทวงเงินเข้า LINE (สะกิด)'),
+                        onPressed: () {
+                          final bankInfo = _hostBankAccountNumber.isNotEmpty
+                              ? '\n🏦 บัญชีธนาคาร: ${_hostBankName ?? ''} เลขบัญชี $_hostBankAccountNumber ($_hostName)'
+                              : '';
+                          final promptPayInfo = _hostPromptPay.isNotEmpty
+                              ? '\n💳 พร้อมเพย์: $_hostPromptPay ($_hostName)'
+                              : '';
+                          final reminder = '👋 สวัสดี ${member.name}!\n'
+                              '🍲 ยอดหารบิลร้าน $shopName ของคุณคือ ฿${member.amount.toStringAsFixed(2)}'
+                              '$promptPayInfo$bankInfo\n'
+                              '✨ โอนแล้วรบกวนส่งสลิปด้วยน้า ขอบคุณครับ/ค่ะ 🙏';
+                          SharePlus.instance.share(
+                            ShareParams(
+                              title: 'ทวงเงินค่าอาหาร',
+                              text: reminder,
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+
+                    // ปุ่มแนบสลิปแจ้งโอน
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
                         minimumSize: const Size(double.infinity, 44),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      icon: const Icon(Icons.send_outlined, size: 18),
-                      label: const Text('ส่งแจ้งเตือนทวงเงินเข้า LINE (สะกิด)'),
-                      onPressed: () {
-                        final bankInfo = _hostBankAccountNumber.isNotEmpty
-                            ? '\n🏦 บัญชีธนาคาร: ${_hostBankName ?? ''} เลขบัญชี $_hostBankAccountNumber ($_hostName)'
-                            : '';
-                        final promptPayInfo = _hostPromptPay.isNotEmpty
-                            ? '\n💳 พร้อมเพย์: $_hostPromptPay ($_hostName)'
-                            : '';
-                        final reminder = '👋 สวัสดี ${member.name}!\n'
-                            '🍲 ยอดหารบิลร้าน $shopName ของคุณคือ ฿${member.amount.toStringAsFixed(2)}'
-                            '$promptPayInfo$bankInfo\n'
-                            '✨ โอนแล้วรบกวนส่งสลิปด้วยน้า ขอบคุณครับ/ค่ะ 🙏';
-                        SharePlus.instance.share(
-                          ShareParams(
-                            title: 'ทวงเงินค่าอาหาร',
-                            text: reminder,
-                          ),
-                        );
+                      icon: const Icon(Icons.receipt_long, size: 18),
+                      label: const Text('แนบสลิปแจ้งโอนเงิน'),
+                      onPressed: () async {
+                        final picker = ImagePicker();
+                        final file = await picker.pickImage(source: ImageSource.gallery);
+                        if (file != null && mounted) {
+                          await _handleStatusToggle(member);
+                          if (dialogCtx.mounted) {
+                            Navigator.pop(dialogCtx);
+                          }
+                        }
                       },
                     ),
-                    const SizedBox(height: 8),
-                  ],
+                    const SizedBox(height: 12),
 
-                  // ปุ่มแนบสลิปแจ้งโอน
-                  OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 44),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    icon: const Icon(Icons.receipt_long, size: 18),
-                    label: const Text('แนบสลิปแจ้งโอนเงิน'),
-                    onPressed: () async {
-                      final picker = ImagePicker();
-                      final file = await picker.pickImage(source: ImageSource.gallery);
-                      if (file != null && mounted) {
-                        await _handleStatusToggle(member);
-                        if (dialogCtx.mounted) {
-                          Navigator.pop(dialogCtx);
-                        }
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 12),
-
-                  // สลับสถานะจ่ายแล้ว / รอจ่าย
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        member.isPaid ? 'สถานะ: จ่ายแล้ว ✅' : 'สถานะ: รอชำระ ⏳',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: member.isPaid ? Colors.green : Colors.orange.shade800,
+                    // สลับสถานะจ่ายแล้ว / รอจ่าย (เฉพาะเจ้าของรายการเท่านั้นที่มีสิทธิ์เปลี่ยน)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          member.isPaid ? 'สถานะ: จ่ายแล้ว ✅' : 'สถานะ: รอชำระ ⏳',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: member.isPaid ? Colors.green : Colors.orange.shade800,
+                          ),
                         ),
-                      ),
-                      TextButton(
-                        onPressed: () async {
-                          await _handleStatusToggle(member);
-                          if (dialogCtx.mounted) Navigator.pop(dialogCtx);
-                        },
-                        child: Text(member.isPaid ? 'เปลี่ยนเป็นรอจ่าย' : 'เปลี่ยนเป็นจ่ายแล้ว'),
-                      ),
-                    ],
-                  ),
+                        if (_isCurrentUserOwner)
+                          TextButton(
+                            onPressed: () async {
+                              await _handleStatusToggle(member);
+                              if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                            },
+                            child: Text(member.isPaid ? 'เปลี่ยนเป็นรอจ่าย' : 'เปลี่ยนเป็นจ่ายแล้ว'),
+                          ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1033,6 +1157,7 @@ class _DetailScreenState extends State<DetailScreen> {
                 }
                 return MemberSummaryList(
                   members: snapshot.data!,
+                  isCurrentViewerOwner: _isCurrentUserOwner,
                   onMemberTap: (memberId) {
                     final member = snapshot.data!.firstWhere(
                       (m) => m.id == memberId,

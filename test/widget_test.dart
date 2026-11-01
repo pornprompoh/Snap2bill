@@ -132,6 +132,87 @@ void main() {
       expect(toggledMember, isNotNull);
       expect(toggledMember!.id, equals('user_1'));
     });
+
+    testWidgets('renders owner badge for owner and disables payment toggle button',
+        (WidgetTester tester) async {
+      bool toggleCalled = false;
+
+      final testMembers = [
+        const MemberSummaryEntry(
+          id: 'owner_1',
+          name: 'หญิง (เจ้าของ)',
+          amount: 250.0,
+          isOwner: true,
+        ),
+        const MemberSummaryEntry(
+          id: 'user_2',
+          name: 'ไข่มุก',
+          amount: 250.0,
+          isPaid: false,
+        ),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MemberSummaryList(
+              members: testMembers,
+              isCurrentViewerOwner: true,
+              onStatusToggle: (_) {
+                toggleCalled = true;
+              },
+            ),
+          ),
+        ),
+      );
+
+      // Verify that owner shows 'เจ้าของ' badge
+      expect(find.text('เจ้าของ'), findsWidgets);
+      // Owner should NOT have 'รอจ่าย' or 'จ่ายแล้ว'
+      expect(find.text('รอจ่าย'), findsOneWidget); // Only from user_2
+
+      // Tap owner row or owner badge should NOT trigger status toggle
+      await tester.tap(find.text('เจ้าของ').first);
+      await tester.pump();
+      expect(toggleCalled, isFalse);
+    });
+
+    testWidgets('regular members see read-only status when isCurrentViewerOwner is false',
+        (WidgetTester tester) async {
+      bool toggleCalled = false;
+
+      final testMembers = [
+        const MemberSummaryEntry(
+          id: 'user_2',
+          name: 'ไข่มุก',
+          amount: 250.0,
+          isPaid: false,
+        ),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MemberSummaryList(
+              members: testMembers,
+              isCurrentViewerOwner: false, // Viewer is not owner
+              onStatusToggle: (_) {
+                toggleCalled = true;
+              },
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('รอจ่าย'), findsOneWidget);
+      // Should not have swap icon
+      expect(find.byIcon(Icons.swap_horiz), findsNothing);
+
+      // Tapping should not trigger status toggle
+      await tester.tap(find.text('รอจ่าย'));
+      await tester.pump();
+      expect(toggleCalled, isFalse);
+    });
   });
 
   group('Bill Calculation Algorithm Unit Tests (Week 5 State & Logic)', () {

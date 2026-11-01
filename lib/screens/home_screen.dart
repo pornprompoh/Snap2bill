@@ -417,9 +417,12 @@ class _HomeScreenState extends State<HomeScreen> {
               return SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 840),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                     // Join Room Card
                     _buildJoinRoomCard(isDark, textPrimary, textSecondary),
                     const SizedBox(height: 20),
@@ -519,13 +522,18 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 60),
                   ],
                 ),
-              );
-            }
+              ),
+            ),
+          );
+        }
 
-            // --- VIEW B: ACTIVE CONTENT (Matching Image 3 Right & Image 4) ---
-            return SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        // --- VIEW B: ACTIVE CONTENT (Matching Image 3 Right & Image 4) ---
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 840),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -943,7 +951,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 80),
                 ],
               ),
-            );
+            ),
+          ),
+        );
           },
         ),
       ),

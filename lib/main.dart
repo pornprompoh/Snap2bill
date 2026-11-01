@@ -9,6 +9,7 @@ import 'providers/theme_provider.dart';
 import 'providers/user_provider.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_text_styles.dart';
+import 'theme/app_design_system.dart';
 import 'package:snap2bill/widgets/deep_link_handler.dart';
 
 final _navigatorKey = GlobalKey<NavigatorState>();
@@ -111,11 +112,38 @@ class MyApp extends StatelessWidget {
         colorScheme: lightColorScheme,
         textTheme: AppTextStyles.textTheme,
         scaffoldBackgroundColor: AppColors.background,
+        useMaterial3: true,
         appBarTheme: const AppBarTheme(
           backgroundColor: AppColors.background,
           foregroundColor: AppColors.textPrimary,
           surfaceTintColor: Colors.transparent,
           elevation: 0,
+        ),
+        cardTheme: CardThemeData(
+          color: AppColors.cardBackground,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: AppRadius.radiusLg,
+            side: const BorderSide(color: AppColors.border, width: 1.0),
+          ),
+          margin: EdgeInsets.zero,
+        ),
+        dialogTheme: DialogThemeData(
+          backgroundColor: AppColors.surface,
+          elevation: 4,
+          shape: RoundedRectangleBorder(borderRadius: AppRadius.radiusXl),
+        ),
+        bottomSheetTheme: const BottomSheetThemeData(
+          backgroundColor: AppColors.surface,
+          modalBackgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+        ),
+        chipTheme: ChipThemeData(
+          backgroundColor: AppColors.secondary.withValues(alpha: 0.1),
+          shape: RoundedRectangleBorder(borderRadius: AppRadius.radiusMd),
+          labelStyle: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w600),
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
@@ -135,18 +163,44 @@ class MyApp extends StatelessWidget {
           labelStyle: AppTextStyles.caption,
           hintStyle: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
         ),
-        useMaterial3: true,
       ),
       darkTheme: ThemeData(
         fontFamily: AppTextStyles.fontFamily,
         colorScheme: darkColorScheme,
         brightness: Brightness.dark,
         scaffoldBackgroundColor: AppColors.darkBackground,
+        useMaterial3: true,
         appBarTheme: const AppBarTheme(
           backgroundColor: AppColors.darkBackground,
           foregroundColor: AppColors.darkTextPrimary,
           surfaceTintColor: Colors.transparent,
           elevation: 0,
+        ),
+        cardTheme: CardThemeData(
+          color: AppColors.darkCardBackground,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: AppRadius.radiusLg,
+            side: const BorderSide(color: AppColors.darkBorder, width: 1.0),
+          ),
+          margin: EdgeInsets.zero,
+        ),
+        dialogTheme: DialogThemeData(
+          backgroundColor: AppColors.darkSurface,
+          elevation: 4,
+          shape: RoundedRectangleBorder(borderRadius: AppRadius.radiusXl),
+        ),
+        bottomSheetTheme: const BottomSheetThemeData(
+          backgroundColor: AppColors.darkSurface,
+          modalBackgroundColor: AppColors.darkSurface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+        ),
+        chipTheme: ChipThemeData(
+          backgroundColor: AppColors.darkBorder,
+          shape: RoundedRectangleBorder(borderRadius: AppRadius.radiusMd),
+          labelStyle: AppTextStyles.caption.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
@@ -164,7 +218,6 @@ class MyApp extends StatelessWidget {
             borderSide: const BorderSide(color: AppColors.secondary, width: 1.5),
           ),
         ),
-        useMaterial3: true,
       ),
       // OAuth returns to the app after Supabase has restored the session.
       initialRoute: Supabase.instance.client.auth.currentSession == null

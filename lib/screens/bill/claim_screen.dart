@@ -453,8 +453,11 @@ class _ClaimScreenState extends State<ClaimScreen> {
         elevation: 0,
         automaticallyImplyLeading: false,
       ),
-      body: Column(
-        children: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 780),
+          child: Column(
+            children: [
           // แถบด้านบน: Step + Shop Name + Real-time ticker
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -737,6 +740,8 @@ class _ClaimScreenState extends State<ClaimScreen> {
           ),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 }

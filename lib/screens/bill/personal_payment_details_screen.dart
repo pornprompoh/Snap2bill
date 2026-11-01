@@ -476,39 +476,44 @@ class _PersonalPaymentDetailsScreenState
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // ==========================================
-            // ส่วนที่ 1: ข้อมูลผู้เข้าร่วม (Participant Header)
-            // ==========================================
-            _buildParticipantHeaderCard(member),
-            const SizedBox(height: 16),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 680),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // ==========================================
+                // ส่วนที่ 1: ข้อมูลผู้เข้าร่วม (Participant Header)
+                // ==========================================
+                _buildParticipantHeaderCard(member),
+                const SizedBox(height: 16),
 
-            // ==========================================
-            // ส่วนที่ 2: รายการอาหารที่เลือก (Selected Dishes)
-            // ==========================================
-            _buildSelectedDishesCard(member),
-            const SizedBox(height: 16),
+                // ==========================================
+                // ส่วนที่ 2: รายการอาหารที่เลือก (Selected Dishes)
+                // ==========================================
+                _buildSelectedDishesCard(member),
+                const SizedBox(height: 16),
 
-            // ==========================================
-            // ส่วนที่ 3: สรุปยอดเงิน (Financial Breakdown)
-            // ==========================================
-            _buildFinancialBreakdownCard(member),
-            const SizedBox(height: 16),
+                // ==========================================
+                // ส่วนที่ 3: สรุปยอดเงิน (Financial Breakdown)
+                // ==========================================
+                _buildFinancialBreakdownCard(member),
+                const SizedBox(height: 16),
 
-            // ==========================================
-            // ส่วนที่ 4: QR Code สำหรับชำระเงิน (PromptPay QR)
-            // ==========================================
-            _buildPaymentQrCard(member, hasPromptPay, qrPayload),
-            const SizedBox(height: 16),
+                // ==========================================
+                // ส่วนที่ 4: QR Code สำหรับชำระเงิน (PromptPay QR)
+                // ==========================================
+                _buildPaymentQrCard(member, hasPromptPay, qrPayload),
+                const SizedBox(height: 16),
 
-            // ==========================================
-            // ส่วนที่ 5: ระบบแจ้งและยืนยันการชำระเงิน (Slip & Verification)
-            // ==========================================
-            _buildSlipAndVerificationCard(member),
-            const SizedBox(height: 24),
-          ],
+                // ==========================================
+                // ส่วนที่ 5: ระบบแจ้งและยืนยันการชำระเงิน (Slip & Verification)
+                // ==========================================
+                _buildSlipAndVerificationCard(member),
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
         ),
       ),
     );

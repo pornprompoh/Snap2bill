@@ -534,13 +534,16 @@ class _DetailScreenState extends State<DetailScreen> {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        child: RepaintBoundary(
-          key: _receiptCaptureKey,
-          child: Container(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760),
+            child: RepaintBoundary(
+              key: _receiptCaptureKey,
+              child: Container(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                 if (imageUrl != null && imageUrl.toString().isNotEmpty)
                   Center(
                     child: ClipRRect(
@@ -873,6 +876,8 @@ class _DetailScreenState extends State<DetailScreen> {
       ),
     ),
   ),
+),
+),
 );
   }
 

@@ -924,9 +924,12 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 780),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                         // Step Indicator Header
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1260,23 +1263,28 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     ),
                   ),
                 ),
+              ),
+            ),
 
-                // Sticky Bottom Action Bar
-                Container(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    border: const Border(top: BorderSide(color: AppColors.border)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, -4),
-                      ),
-                    ],
+            // Sticky Bottom Action Bar
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                border: const Border(top: BorderSide(color: AppColors.border)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, -4),
                   ),
-                  child: SafeArea(
-                    top: false,
+                ],
+              ),
+              child: SafeArea(
+                top: false,
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 780),
                     child: Row(
                       children: [
                         // ปุ่มแชร์บิลสรุปให้ทุกคนใน LINE (LINE Green)
@@ -1345,8 +1353,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     ),
                   ),
                 ),
-              ],
+              ),
             ),
+          ],
+        ),
     );
   }
 

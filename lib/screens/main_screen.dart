@@ -30,24 +30,27 @@ class _MainScreenState extends State<MainScreen> {
       extendBody: true,
       body: IndexedStack(index: _currentIndex, children: _pages),
       bottomNavigationBar: SafeArea(
-        child: Container(
-          margin: const EdgeInsets.only(left: 24, right: 24, bottom: 12),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: navBg,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: navBorder, width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 580),
+            child: Container(
+              margin: const EdgeInsets.only(left: 24, right: 24, bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: navBg,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: navBorder, width: 1.2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
               _buildNavItem(
                 index: 0,
                 icon: Icons.history_rounded,
@@ -70,7 +73,9 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 
   Widget _buildNavItem({

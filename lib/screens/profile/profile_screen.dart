@@ -168,59 +168,73 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Supabase.instance.client.auth.currentUser?.email ??
             'ไม่พบข้อมูลอีเมล';
 
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final cardBg = isDark ? AppColors.darkCardBackground : AppColors.white;
+
         return Scaffold(
-          appBar: AppBar(title: const Text('โปรไฟล์ส่วนตัว')),
-          body: Column(
-            children: [
-              if (userProvider.isLoading)
-                const LinearProgressIndicator(minHeight: 2),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(AppConstants.paddingM),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: AppConstants.paddingS),
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 30,
-                            backgroundColor: AppColors.primary.withValues(
-                              alpha: 0.12,
+          backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,
+          body: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (userProvider.isLoading)
+                  const LinearProgressIndicator(minHeight: 2),
+                Padding(
+                  padding: const EdgeInsets.only(left: 24, right: 24, top: 16, bottom: 8),
+                  child: Text(
+                    'โปรไฟล์ส่วนตัว',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                      color: isDark ? AppColors.white : AppColors.black,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 32,
+                              backgroundColor: AppColors.lightPink,
+                              child: const Icon(
+                                Icons.person_outline_rounded,
+                                size: 36,
+                                color: AppColors.pink,
+                              ),
                             ),
-                            child: const Icon(
-                              Icons.person_outline,
-                              size: 32,
-                              color: AppColors.primary,
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'ข้อมูลบัญชีของคุณ',
+                                    style: TextStyle(
+                                      color: isDark ? AppColors.white : AppColors.black,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    email,
+                                    style: const TextStyle(
+                                      color: AppColors.gray,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: AppConstants.paddingM),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'ข้อมูลบัญชีของคุณ',
-                                  style: Theme.of(context).textTheme.titleMedium
-                                      ?.copyWith(
-                                        color: AppColors.textPrimary,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  email,
-                                  style: Theme.of(context).textTheme.bodyMedium
-                                      ?.copyWith(
-                                        color: AppColors.textSecondary,
-                                      ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppConstants.paddingL),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
                       if (_isEditing) ...[
                         Form(
                           key: _formKey,
@@ -414,88 +428,79 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ] else ...[
                         Container(
-                          padding: const EdgeInsets.all(AppConstants.paddingM),
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.surface,
-                            borderRadius: BorderRadius.circular(12),
+                            color: cardBg,
+                            borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
+                              color: AppColors.pink.withValues(alpha: 0.7),
+                              width: 1.5,
                             ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
+                              const Text(
                                 'Display Name',
-                                style: Theme.of(context).textTheme.labelMedium
-                                    ?.copyWith(color: AppColors.textSecondary),
+                                style: TextStyle(
+                                  color: AppColors.gray,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                userProvider
-                                            .currentUser
-                                            ?.displayName
-                                            ?.isNotEmpty ==
-                                        true
+                                userProvider.currentUser?.displayName?.isNotEmpty == true
                                     ? userProvider.currentUser!.displayName!
                                     : 'ยังไม่ได้ตั้งชื่อ',
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                                style: TextStyle(
+                                  color: isDark ? AppColors.white : AppColors.black,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
-                              const SizedBox(height: AppConstants.paddingL),
-                              Text(
+                              const SizedBox(height: 24),
+                              const Text(
                                 'PromptPay',
-                                style: Theme.of(context).textTheme.labelMedium
-                                    ?.copyWith(color: AppColors.textSecondary),
+                                style: TextStyle(
+                                  color: AppColors.gray,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 4),
                               Row(
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      userProvider
-                                              .currentUser
-                                              ?.promptPayNumber ??
-                                          'ยังไม่ได้ตั้งค่า',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w600,
-                                          ),
+                                      userProvider.currentUser?.promptPayNumber?.isNotEmpty == true
+                                          ? userProvider.currentUser!.promptPayNumber!
+                                          : 'ยังไม่ได้ตั้งค่า',
+                                      style: TextStyle(
+                                        color: isDark ? AppColors.white : AppColors.black,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w800,
+                                      ),
                                     ),
                                   ),
-                                  if (userProvider
-                                              .currentUser
-                                              ?.promptPayNumber !=
-                                          null &&
-                                      userProvider
-                                          .currentUser!
-                                          .promptPayNumber!
-                                          .isNotEmpty)
+                                  if (userProvider.currentUser?.promptPayNumber != null &&
+                                      userProvider.currentUser!.promptPayNumber!.isNotEmpty)
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 10,
-                                        vertical: 6,
+                                        vertical: 4,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: AppColors.primary.withValues(
-                                          alpha: 0.1,
-                                        ),
+                                        color: AppColors.lightPink,
                                         borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(color: AppColors.pink, width: 1),
                                       ),
                                       child: Text(
-                                        _promptPayTypeLabel(
-                                          userProvider
-                                              .currentUser
-                                              ?.promptPayType,
-                                        ),
+                                        _promptPayTypeLabel(userProvider.currentUser?.promptPayType),
                                         style: const TextStyle(
-                                          color: AppColors.primary,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.black,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
                                         ),
                                       ),
                                     ),
@@ -657,18 +662,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           },
                         ),
                         const SizedBox(height: AppConstants.paddingL),
-                        CustomButton(
-                          text: 'แก้ไขโปรไฟล์',
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.tealGreen,
+                            foregroundColor: AppColors.white,
+                            elevation: 0,
+                            minimumSize: const Size(double.infinity, 50),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
                           onPressed: userProvider.isLoading
                               ? null
                               : () => _beginEditing(userProvider.currentUser),
+                          child: const Text(
+                            'แก้ไขโปรไฟล์',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                          ),
                         ),
-                        const SizedBox(height: AppConstants.paddingS),
-                        CustomButton(
-                          text: 'ออกจากระบบ',
-                          backgroundColor: AppColors.error,
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFD3455B),
+                            foregroundColor: AppColors.white,
+                            elevation: 0,
+                            minimumSize: const Size(double.infinity, 50),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
                           onPressed: () => _logout(context),
+                          child: const Text(
+                            'ออกจากระบบ',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                          ),
                         ),
+                        const SizedBox(height: 80),
                       ],
                     ],
                   ),
@@ -676,8 +705,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ],
           ),
-        );
-      },
-    );
+        ),
+      );
+    },
+  );
   }
 }

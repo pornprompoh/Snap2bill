@@ -1,8 +1,9 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../routes/app_routes.dart'; // นำเข้าระบบนำทาง
-import '../../widgets/custom_button.dart'; // นำเข้าปุ่มสำเร็จรูป
+import '../../routes/app_routes.dart';
+import '../../theme/app_colors.dart';
+import '../../widgets/custom_button.dart';
 
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
@@ -27,64 +28,122 @@ class _ScanScreenState extends State<ScanScreen> {
 
   void _goToLoadingScreen() {
     if (_imageBytes == null) return;
-
     Navigator.pushNamed(context, AppRoutes.loading, arguments: _imageBytes!);
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? AppColors.darkCardBackground : AppColors.white;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('ถ่ายรูปใบเสร็จ')),
-      body: Center(
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,
+      body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (_imageBytes != null)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.memory(
-                    _imageBytes!,
-                    height: 350,
-                    fit: BoxFit.cover,
-                  ),
-                )
-              else
-                Container(
-                  height: 350,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Center(child: Text('กรุณาเลือกรูปภาพใบเสร็จ')),
+              const SizedBox(height: 12),
+              Text(
+                'ถ่ายรูปใบเสร็จ',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  color: isDark ? AppColors.white : AppColors.black,
                 ),
-              const SizedBox(height: 20),
+              ),
+              const SizedBox(height: 24),
+
+              // กรอบรูปภาพใบเสร็จขอบมนเส้นสีชมพูตามแบบอ้างอิง
+              Container(
+                height: 380,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: cardBg,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: AppColors.pink.withValues(alpha: 0.7),
+                    width: 1.5,
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16.5),
+                  child: _imageBytes != null
+                      ? Image.memory(
+                          _imageBytes!,
+                          fit: BoxFit.contain,
+                          width: double.infinity,
+                          height: double.infinity,
+                        )
+                      : const Center(
+                          child: Text(
+                            'กรุณาเลือกรูปภาพใบเสร็จ',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.black,
+                            ),
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 28),
+
+              // ปุ่มเลือกรูป ถ่ายรูป & คลังภาพ ทรงแคปซูลสีชมพูอ่อนขอบชมพูตามแบบ
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.camera_alt),
-                    label: const Text('ถ่ายรูป'),
-                    onPressed: () => _pickImage(ImageSource.camera),
+                  _buildActionButton(
+                    label: 'ถ่ายรูป',
+                    onTap: () => _pickImage(ImageSource.camera),
                   ),
                   const SizedBox(width: 16),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.photo_library),
-                    label: const Text('คลังภาพ'),
-                    onPressed: () => _pickImage(ImageSource.gallery),
+                  _buildActionButton(
+                    label: 'คลังภาพ',
+                    onTap: () => _pickImage(ImageSource.gallery),
                   ),
                 ],
               ),
-              const SizedBox(height: 30),
-              if (_imageBytes != null)
-                // 🚀 เรียกใช้ชิ้นส่วน CustomButton ที่เราสร้างไว้
+
+              if (_imageBytes != null) ...[
+                const SizedBox(height: 28),
                 CustomButton(
-                  text: 'ให้ AI ช่วยอ่านบิล',
+                  text: 'ให้ AI ช่วยอ่านบิล ✨',
                   onPressed: _goToLoadingScreen,
                 ),
+              ],
+              const SizedBox(height: 80),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(24),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.lightPink,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: AppColors.pink,
+            width: 1.2,
+          ),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: AppColors.black,
           ),
         ),
       ),

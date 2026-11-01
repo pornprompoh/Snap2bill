@@ -2,13 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
 
-/// Central Material Design 3 design system for Snap2Bill.
-///
-/// Additive layer: it only adds tokens, responsive helpers and component
-/// themes on top of the existing [AppColors] / [AppTextStyles]. Change values
-/// here to restyle the whole app.
-
-/// Spacing scale (4dp grid).
+/// Material Design 3 design system tokens and component themes for Snap2Bill.
 class AppSpacing {
   static const double xs = 4;
   static const double sm = 8;
@@ -26,61 +20,9 @@ class AppRadius {
   static const double xl = 28;
 }
 
-/// Window size classes (Material 3 breakpoints).
-class AppBreakpoints {
-  static const double compact = 600; // phones
-  static const double medium = 840; // tablets
-  static const double expanded = 1200; // laptops / desktop
-
-  /// Max width of the main content column on large screens.
-  static const double maxContentWidth = 960;
-
-  /// Minimum touch target (Material guideline).
-  static const double minTouchTarget = 48;
-}
-
-enum AppWindowSize { compact, medium, expanded }
-
-class Responsive {
-  static AppWindowSize of(BuildContext context) =>
-      fromWidth(MediaQuery.sizeOf(context).width);
-
-  static AppWindowSize fromWidth(double width) {
-    if (width < AppBreakpoints.compact) return AppWindowSize.compact;
-    if (width < AppBreakpoints.medium) return AppWindowSize.medium;
-    return AppWindowSize.expanded;
-  }
-
-  static bool isCompact(BuildContext context) =>
-      of(context) == AppWindowSize.compact;
-
-  /// True when a navigation rail should replace the bottom bar.
-  static bool useRail(BuildContext context) =>
-      MediaQuery.sizeOf(context).width >= AppBreakpoints.medium;
-}
-
-/// Centers app content and limits its width on large screens so layouts
-/// never stretch edge-to-edge on desktop/tablet. No-op on phones.
-class ResponsiveCenter extends StatelessWidget {
-  final Widget child;
-  final double maxWidth;
-
-  const ResponsiveCenter({
-    super.key,
-    required this.child,
-    this.maxWidth = AppBreakpoints.maxContentWidth,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: maxWidth),
-        child: child,
-      ),
-    );
-  }
+/// Minimum touch target size (Material 3 guideline: 48dp).
+class AppTouchTarget {
+  static const double min = 48;
 }
 
 /// Builds Material 3 component themes on top of an existing [ThemeData].
@@ -95,7 +37,7 @@ class AppDesignSystem {
     final roundedLg = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppRadius.lg),
     );
-    const minSize = Size(AppBreakpoints.minTouchTarget, AppBreakpoints.minTouchTarget);
+    const minSize = Size(AppTouchTarget.min, AppTouchTarget.min);
 
     return base.copyWith(
       visualDensity: VisualDensity.standard,
@@ -152,7 +94,6 @@ class AppDesignSystem {
         backgroundColor: surface,
         surfaceTintColor: Colors.transparent,
         showDragHandle: true,
-        constraints: const BoxConstraints(maxWidth: AppBreakpoints.maxContentWidth),
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
         ),
@@ -186,12 +127,6 @@ class AppDesignSystem {
         backgroundColor: surface,
         surfaceTintColor: Colors.transparent,
         indicatorColor: AppColors.primaryLight,
-      ),
-      navigationRailTheme: NavigationRailThemeData(
-        backgroundColor: surface,
-        indicatorColor: AppColors.primaryLight,
-        selectedIconTheme: const IconThemeData(color: AppColors.primaryDark),
-        labelType: NavigationRailLabelType.all,
       ),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith(

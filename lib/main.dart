@@ -98,26 +98,10 @@ class MyApp extends StatelessWidget {
       title: 'Snap2Bill',
       onGenerateTitle: (context) => 'Snap2Bill',
       builder: (context, child) {
-        final media = MediaQuery.of(context);
         return Title(
           title: 'Snap2Bill',
           color: AppColors.primary,
-          // Responsive shell: centers content with a max width on tablet /
-          // desktop and clamps text scale so layouts never overflow.
-          child: ColoredBox(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            child: ResponsiveCenter(
-              child: MediaQuery(
-                data: media.copyWith(
-                  textScaler: media.textScaler.clamp(
-                    minScaleFactor: 0.85,
-                    maxScaleFactor: 1.3,
-                  ),
-                ),
-                child: child ?? const SizedBox(),
-              ),
-            ),
-          ),
+          child: child ?? const SizedBox(),
         );
       },
       navigatorKey: _navigatorKey,

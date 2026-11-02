@@ -50,8 +50,7 @@ class _DeepLinkHandlerState extends State<DeepLinkHandler> {
   String? _roomCodeFromUri(Uri uri) {
     final queryCode =
         uri.queryParameters['roomCode'] ??
-        uri.queryParameters['room_code'] ??
-        uri.queryParameters['code'];
+        uri.queryParameters['room_code'];
     if (queryCode != null && queryCode.isNotEmpty) return queryCode;
 
     final pathSegments = uri.pathSegments
@@ -70,10 +69,23 @@ class _DeepLinkHandlerState extends State<DeepLinkHandler> {
     return null;
   }
 
+  bool _isRoomLink(Uri uri) {
+    if (uri.scheme == 'snap2bill' && uri.host == 'join') {
+      return true;
+    }
+    if ((uri.scheme == 'http' || uri.scheme == 'https') &&
+        uri.host == 'join') {
+      return true;
+    }
+    return uri.queryParameters.containsKey('roomCode') ||
+        uri.queryParameters.containsKey('room_code');
+  }
+
   void _handleIncomingLink(Uri uri) {
     if (uri.scheme == 'snap2bill' && uri.host == 'login-callback') {
       return;
     }
+    if (!_isRoomLink(uri)) return;
 
     final roomCode = _roomCodeFromUri(uri);
     if (roomCode == null || !RegExp(r'^\d{6}$').hasMatch(roomCode)) {

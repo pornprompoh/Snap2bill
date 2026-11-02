@@ -373,6 +373,55 @@ class _DetailScreenState extends State<DetailScreen> {
     return const [];
   }
 
+  void _openReceiptFullView(String imageUrl) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(12),
+        child: SizedBox(
+          width: MediaQuery.sizeOf(context).width,
+          height: MediaQuery.sizeOf(context).height,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: InteractiveViewer(
+                  minScale: 0.8,
+                  maxScale: 5,
+                  child: Center(
+                    child: Image.network(
+                      imageUrl,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => const Icon(
+                        Icons.broken_image_outlined,
+                        color: Colors.white70,
+                        size: 64,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 0,
+                right: 0,
+                child: IconButton(
+                  tooltip: 'ปิดรูปภาพ',
+                  onPressed: () => Navigator.pop(dialogContext),
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: Colors.white,
+                    size: 30,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildReceiptImage(Object? rawImageUrl) {
     final imageUrl = rawImageUrl?.toString().trim() ?? '';
     final uri = Uri.tryParse(imageUrl);
@@ -385,15 +434,58 @@ class _DetailScreenState extends State<DetailScreen> {
       return _buildMissingReceiptImage();
     }
 
-    return Image.network(
-      imageUrl,
-      height: 300,
-      width: double.infinity,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) {
-        debugPrint('Receipt image failed to load: $imageUrl - $error');
-        return _buildMissingReceiptImage();
-      },
+    return Semantics(
+      button: true,
+      label: 'แตะเพื่อดูรูปใบเสร็จแบบเต็ม',
+      child: GestureDetector(
+        onTap: () => _openReceiptFullView(imageUrl),
+        child: Stack(
+          alignment: Alignment.bottomRight,
+          children: [
+            Image.network(
+              imageUrl,
+              height: 300,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                debugPrint('Receipt image failed to load: $imageUrl - $error');
+                return _buildMissingReceiptImage();
+              },
+            ),
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.zoom_in_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        'ดูรูปเต็ม',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

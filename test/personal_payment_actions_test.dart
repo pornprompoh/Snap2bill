@@ -1,10 +1,6 @@
-import 'dart:convert';
-
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,6 +12,9 @@ import 'package:snap2bill/widgets/bill/member_summary_list.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class _MockConnectivity extends Mock implements Connectivity {}
+class _MockSupabaseClient extends Mock implements SupabaseClient {}
+
+final _testClient = _MockSupabaseClient();
 
 Future<OfflineService> _offlineService() async {
   final connectivity = _MockConnectivity();
@@ -25,7 +24,10 @@ Future<OfflineService> _offlineService() async {
   when(
     () => connectivity.onConnectivityChanged,
   ).thenAnswer((_) => const Stream<List<ConnectivityResult>>.empty());
-  final service = OfflineService(connectivity: connectivity);
+  final service = OfflineService(
+    connectivity: connectivity,
+    client: _testClient,
+  );
   await service.start();
   return service;
 }
@@ -70,29 +72,11 @@ Widget _paymentPage(
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  late MockClient httpClient;
 
   setUpAll(() async {
     SharedPreferences.setMockInitialValues({});
     SharedPreferencesAsyncPlatform.instance =
         InMemorySharedPreferencesAsync.empty();
-    httpClient = MockClient((request) async {
-      return http.Response(
-        jsonEncode(
-          request.method == 'GET'
-              ? <Map<String, dynamic>>[]
-              : <Map<String, dynamic>>[],
-        ),
-        200,
-        request: request,
-      );
-    });
-
-    await Supabase.initialize(
-      url: 'https://payment-actions-test.supabase.co',
-      publishableKey: 'test-anon-key',
-      httpClient: httpClient,
-    );
   });
 
   setUp(() {
@@ -101,15 +85,15 @@ void main() {
         InMemorySharedPreferencesAsync.empty();
   });
 
-  testWidgets('approves a verified slip and records the payment status', (
+  testWidgets('approves a verified slip and notifies the parent', (
     tester,
   ) async {
+    print('start test');
     tester.view.physicalSize = const Size(800, 1400);
     tester.view.devicePixelRatio = 1;
     final offline = await _offlineService();
-    final billData = <String, dynamic>{
-      'receipt_json': <String, dynamic>{},
-    };
+    print('service started');
+    final billData = <String, dynamic>{'receipt_json': <String, dynamic>{}};
     final statusUpdates = <String>[];
     await tester.pumpWidget(
       _paymentPage(
@@ -120,25 +104,29 @@ void main() {
         onStatusChanged: (status, _) => statusUpdates.add(status),
       ),
     );
+    print('widget mounted');
 
     await tester.ensureVisible(find.text('ยืนยันชำระเงิน'));
+    print('button visible');
     await tester.tap(find.text('ยืนยันชำระเงิน'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
+    print('button handled');
 
     expect(statusUpdates, ['paid']);
     expect(find.text('ชำระเงินสำเร็จเรียบร้อยแล้ว 🎉'), findsOneWidget);
+    print('assertions passed');
     await tester.pumpWidget(const SizedBox.shrink());
+    print('widget removed');
     await offline.disposeService();
+    print('service disposed');
   });
 
   testWidgets('rejects a slip and allows it to be replaced', (tester) async {
     tester.view.physicalSize = const Size(800, 1400);
     tester.view.devicePixelRatio = 1;
     final offline = await _offlineService();
-    final billData = <String, dynamic>{
-      'receipt_json': <String, dynamic>{},
-    };
+    final billData = <String, dynamic>{'receipt_json': <String, dynamic>{}};
     final statusUpdates = <String>[];
     await tester.pumpWidget(
       _paymentPage(

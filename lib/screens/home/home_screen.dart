@@ -688,6 +688,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 12),
 
+                  /*
                   // 2. Hero Scan Card (Teal Green Linear Gradient)
                   Container(
                     width: double.infinity,
@@ -845,6 +846,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
+                  */
 
                   // 4. Join Room Card (Light Pink)
                   _buildJoinRoomCard(isDark, textPrimary, textSecondary),

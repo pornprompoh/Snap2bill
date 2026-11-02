@@ -8,6 +8,7 @@ import '../../../routes/app_routes.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_theme_colors.dart';
 import '../../../utils/formatters.dart';
+import '../../../utils/claim_selection_validator.dart';
 import '../../../widgets/bill/claim_item_card.dart';
 
 class ClaimScreen extends StatefulWidget {
@@ -437,6 +438,11 @@ class _ClaimScreenState extends State<ClaimScreen> {
       final name = (it['item_name'] ?? it['name'])?.toString().trim() ?? '';
       return name.isNotEmpty && (price > 0 || total > 0);
     }).toList();
+    final canProceed = ClaimSelectionValidator.isComplete(
+      items: items,
+      claimedItems: _claimedItems,
+      sharedItems: _sharedItems,
+    );
 
     // คำนวณยอดเงินของคนที่กำลังเลือกอยู่
     double currentClaimingTotal = 0.0;
@@ -797,38 +803,57 @@ class _ClaimScreenState extends State<ClaimScreen> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  ElevatedButton(
-                    onPressed: widget.isHost ? _hostTriggerSummary : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 14,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          widget.isHost
-                              ? 'สรุปยอดและเคลียร์บิล'
-                              : 'รอเจ้ามือสรุปยอด...',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      if (widget.isHost && !canProceed)
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 4),
+                          child: Text(
+                            'กรุณาเลือกอาหารให้ครบทุกหน่วยก่อน',
+                            style: TextStyle(
+                              color: AppColors.primaryOrange,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
-                        if (widget.isHost) ...[
-                          const SizedBox(width: 6),
-                          const Icon(Icons.arrow_forward_rounded, size: 18),
-                        ],
-                      ],
-                    ),
+                      ElevatedButton(
+                        onPressed: widget.isHost && canProceed
+                            ? _hostTriggerSummary
+                            : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 14,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              widget.isHost
+                                  ? 'สรุปยอดและเคลียร์บิล'
+                                  : 'รอเจ้ามือสรุปยอด...',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            if (widget.isHost) ...[
+                              const SizedBox(width: 6),
+                              const Icon(Icons.arrow_forward_rounded, size: 18),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

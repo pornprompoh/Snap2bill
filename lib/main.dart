@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // 🚀 นำเข้า dotenv
@@ -9,6 +11,8 @@ import 'providers/theme_provider.dart';
 import 'providers/user_provider.dart';
 import 'theme/app_theme.dart';
 import 'package:snap2bill/widgets/deep_link_handler.dart';
+import 'services/offline/offline_service.dart';
+import 'widgets/common/offline_status_banner.dart';
 
 final _navigatorKey = GlobalKey<NavigatorState>();
 final _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
@@ -26,9 +30,13 @@ void main() async {
         dotenv.env['SUPABASE_ANON_KEY']!, // ใช้ anonKey สำหรับ Supabase
   );
 
+  final offlineService = OfflineService();
+  unawaited(offlineService.start());
+
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider<OfflineService>.value(value: offlineService),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => ContactProvider()),
@@ -58,10 +66,12 @@ class MyApp extends StatelessWidget {
       title: 'Snap2Bill',
       onGenerateTitle: (context) => 'Snap2Bill',
       builder: (context, child) {
-        return Title(
-          title: 'Snap2Bill',
-          color: Theme.of(context).colorScheme.primary,
-          child: child ?? const SizedBox(),
+        return OfflineStatusBanner(
+          child: Title(
+            title: 'Snap2Bill',
+            color: Theme.of(context).colorScheme.primary,
+            child: child ?? const SizedBox(),
+          ),
         );
       },
       navigatorKey: _navigatorKey,

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
-import '../services/supabase_db_service.dart';
+import '../services/data/supabase_db_service.dart';
 
 class UserProvider with ChangeNotifier {
   final SupabaseDbService _dbService = SupabaseDbService();

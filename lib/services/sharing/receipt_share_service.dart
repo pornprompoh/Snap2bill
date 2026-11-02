@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:share_plus/share_plus.dart';
-import '../utils/formatters.dart';
+import '../../utils/formatters.dart';
 
 class ReceiptShareService {
   static Future<Uint8List?> captureWidget(GlobalKey boundaryKey) async {

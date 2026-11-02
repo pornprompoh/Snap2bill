@@ -10,7 +10,7 @@ import '../../../models/user_model.dart';
 import '../../../providers/bill_provider.dart';
 import '../../../providers/user_provider.dart';
 import '../../../routes/app_routes.dart';
-import '../../../services/supabase_storage_service.dart';
+import '../../../services/storage/supabase_storage_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../utils/formatters.dart';
 import '../../../widgets/bill/promptpay_card.dart';

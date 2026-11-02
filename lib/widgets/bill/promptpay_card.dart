@@ -6,7 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-import '../../services/qr_image_saver.dart';
+import '../../services/media/qr_image_saver.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/formatters.dart';
 

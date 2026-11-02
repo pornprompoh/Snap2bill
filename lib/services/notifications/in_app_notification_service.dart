@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../utils/formatters.dart';
-import '../utils/bill_progress_helper.dart';
+import '../../utils/formatters.dart';
+import '../../utils/bill_progress_helper.dart';
 
 class InAppNotificationItem {
   final String id;
@@ -194,4 +194,3 @@ class InAppNotificationService {
     }
   }
 }
-

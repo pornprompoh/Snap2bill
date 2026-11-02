@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../models/bill_model.dart';
 import '../models/user_model.dart';
 import 'contact_provider.dart';
-import '../services/supabase_db_service.dart';
+import '../services/data/supabase_db_service.dart';
 
 class BillProvider with ChangeNotifier {
   final SupabaseDbService _dbService = SupabaseDbService();

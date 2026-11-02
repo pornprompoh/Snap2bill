@@ -11,7 +11,7 @@ import 'package:snap2bill/utils/formatters.dart';
 import 'package:snap2bill/widgets/bill/shareable_receipt_card.dart';
 import 'package:snap2bill/widgets/bill/claim_item_card.dart';
 import 'package:snap2bill/utils/menu_icon_helper.dart';
-import 'package:snap2bill/services/ocr_service.dart';
+import 'package:snap2bill/services/media/ocr_service.dart';
 import 'package:snap2bill/screens/bill/personal_payment_details_screen.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 

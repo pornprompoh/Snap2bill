@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import '../../services/ocr_service.dart';
+import '../../services/media/ocr_service.dart';
 import '../../routes/app_routes.dart';
 
 import '../../widgets/common/shimmer_loading.dart';

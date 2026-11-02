@@ -5,7 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:web/web.dart' as web;
-import '../theme/app_colors.dart';
+import '../../theme/app_colors.dart';
 
 Future<Uint8List?> captureReceiptPhoto(BuildContext context) async {
   try {

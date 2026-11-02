@@ -6,7 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/bill_progress_helper.dart';
 import '../../utils/formatters.dart';
-import '../../services/in_app_notification_service.dart';
+import '../../services/notifications/in_app_notification_service.dart';
 
 class PokeReminderDialog extends StatefulWidget {
   final Map<String, dynamic> bill;

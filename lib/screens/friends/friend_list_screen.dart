@@ -7,7 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/contact_model.dart';
 import '../../models/user_model.dart';
 import '../../providers/contact_provider.dart';
-import '../../services/supabase_db_service.dart';
+import '../../services/data/supabase_db_service.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/constants.dart';
 import '../../widgets/common/custom_button.dart';

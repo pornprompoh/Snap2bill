@@ -2,7 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../routes/app_routes.dart';
-import '../../services/camera_service.dart';
+import '../../services/media/camera_service.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/common/custom_button.dart';
 

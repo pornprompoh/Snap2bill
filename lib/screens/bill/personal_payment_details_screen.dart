@@ -12,7 +12,7 @@ import '../../utils/formatters.dart';
 import '../../utils/menu_icon_helper.dart';
 import '../../utils/promptpay_helper.dart';
 import '../../widgets/bill/member_summary_list.dart';
-import '../../services/qr_image_saver.dart';
+import '../../services/media/qr_image_saver.dart';
 
 class PersonalPaymentDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> billData;

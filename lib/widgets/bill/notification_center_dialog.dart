@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
-import '../../services/in_app_notification_service.dart';
+import '../../services/notifications/in_app_notification_service.dart';
 import '../../routes/app_routes.dart';
 
 class NotificationCenterDialog extends StatefulWidget {

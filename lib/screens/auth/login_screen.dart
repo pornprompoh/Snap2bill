@@ -78,15 +78,23 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _handleFacebookSignIn() async {
+    setState(() => _isLoading = true);
+    try {
+      await SupabaseAuthService().signInWithFacebook();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('ล็อกอิน Facebook ล้มเหลว: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> _handleEmailSubmit() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
-
-    // If empty, allow instant demo bypass for quick tester / grading access
-    if (email.isEmpty && password.isEmpty) {
-      _navigateToHome();
-      return;
-    }
 
     if (!_formKey.currentState!.validate()) return;
 
@@ -396,9 +404,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: () {
-                              _navigateToHome();
-                            },
+                            onPressed: _isLoading ? null : _handleFacebookSignIn,
                             style: OutlinedButton.styleFrom(
                               backgroundColor: isDark ? AppColors.darkSurface : AppColors.white,
                               side: BorderSide(color: borderCol),

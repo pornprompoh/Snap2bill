@@ -205,36 +205,15 @@ class _DetailScreenState extends State<DetailScreen> {
         widget.billData['user_id']?.toString() ??
         receipt['owner_id']?.toString() ??
         '';
-    Map<String, dynamic>? ownerProfile;
-    if (ownerId.isNotEmpty) {
-      try {
-        ownerProfile = await Supabase.instance.client
-            .from('profiles')
-            .select('id, display_name, email')
-            .eq('id', ownerId)
-            .maybeSingle();
-      } catch (_) {}
-    }
-    final ownerDisplayName = ownerProfile?['display_name']?.toString().trim();
-    final ownerEmail = ownerProfile?['email']?.toString();
-    final ownerEmailPrefix = ownerEmail?.split('@').first;
-
     String currentUserId = '';
-    String currentEmailPrefix = '';
     try {
       final currentAuthUser = Supabase.instance.client.auth.currentUser;
       currentUserId = currentAuthUser?.id ?? '';
-      currentEmailPrefix = currentAuthUser?.email?.split('@').first ?? '';
     } catch (_) {}
 
-    bool checkIsOwner(String mid, String mName) {
-      if (ownerId.isNotEmpty && (mid == ownerId || mName == ownerId)) return true;
-      if (ownerDisplayName != null && ownerDisplayName.isNotEmpty && (mid == ownerDisplayName || mName == ownerDisplayName)) return true;
-      if (ownerEmailPrefix != null && ownerEmailPrefix.isNotEmpty && (mid == ownerEmailPrefix || mName == ownerEmailPrefix)) return true;
-      if (currentUserId.isNotEmpty && (mid == currentUserId || mName == currentUserId)) return true;
-      if (currentEmailPrefix.isNotEmpty && (mid == currentEmailPrefix || mName == currentEmailPrefix)) return true;
-      if (_hostName.isNotEmpty && (mName == _hostName || mid == _hostName)) return true;
-      return false;
+    bool checkIsOwner(String mid) {
+      if (ownerId.isNotEmpty) return mid == ownerId;
+      return currentUserId.isNotEmpty && mid == currentUserId;
     }
 
     final receiptPaidStatuses = _asMap(receipt['paid_statuses']);
@@ -243,16 +222,11 @@ class _DetailScreenState extends State<DetailScreen> {
     final entriesById = <String, MemberSummaryEntry>{};
     for (final id in participantIds) {
       final profile = profilesById[id];
-      final profileEmail = profile?['email']?.toString() ?? '';
-      final profileEmailPrefix = profileEmail.split('@').first;
       final name =
           namesById[id] ??
           profile?['display_name']?.toString() ??
           (id.startsWith('guest_') ? 'Guest' : 'เพื่อน');
-      final isOwner = checkIsOwner(id, name) ||
-          (ownerId.isNotEmpty && (id == ownerId || profileEmailPrefix == ownerId || profile?['id'] == ownerId)) ||
-          (currentUserId.isNotEmpty && (id == currentUserId || profile?['id'] == currentUserId)) ||
-          (currentEmailPrefix.isNotEmpty && (id == currentEmailPrefix || name == currentEmailPrefix || profileEmailPrefix == currentEmailPrefix));
+      final isOwner = checkIsOwner(id);
 
       // Extract this member's dishes
       final memberDishes = <MemberDishItem>[];

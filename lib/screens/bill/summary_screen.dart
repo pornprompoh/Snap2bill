@@ -488,6 +488,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
         builder: (dialogCtx, setDialogState) {
           final currentPaid = _isParticipantPaid(memberId);
           return AlertDialog(
+            scrollable: true,
             title: Row(
               children: [
                 CircleAvatar(
@@ -1366,4 +1367,3 @@ class _SummaryScreenState extends State<SummaryScreen> {
     );
   }
 }
-

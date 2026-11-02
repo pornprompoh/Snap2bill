@@ -54,6 +54,22 @@ class SupabaseAuthService {
     }
   }
 
+  Future<void> signInWithFacebook() async {
+    try {
+      final didLaunch = await _supabase.auth.signInWithOAuth(
+        OAuthProvider.facebook,
+        redirectTo: kIsWeb ? Uri.base.origin : 'snap2bill://login-callback/',
+      );
+
+      if (!didLaunch) {
+        throw 'ไม่สามารถเปิดหน้าล็อกอิน Facebook ได้';
+      }
+    } catch (e) {
+      debugPrint('เกิดข้อผิดพลาดในการล็อกอิน Facebook: $e');
+      rethrow;
+    }
+  }
+
   Future<void> signOut() async {
     if (!kIsWeb) {
       await _googleSignIn.signOut();

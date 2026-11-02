@@ -101,11 +101,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _pokeFriends(Map<String, dynamic>? bill) async {
-    if (bill == null) return;
-    await PokeReminderDialog.show(context, bill: bill);
-  }
-
   Future<List<Map<String, dynamic>>> _fetchMyBills() async {
     try {
       final userId = _supabase.auth.currentUser?.id;
@@ -838,45 +833,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-
-                  // 7. Poke Friend Reminder Button (Only shows on "unpaid" tab as in mockup)
-                  if (_historyFilter == 'unpaid' && unpaidCount > 0)
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(20),
-                        onTap: () => _pokeFriends(filteredBills.isNotEmpty ? filteredBills.first : null),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: isDark ? AppColors.darkSurface : AppColors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: isDark ? AppColors.darkBorder : const Color(0xFFD6D6D6),
-                            ),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                'สะกิดเตือนเพื่อน',
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  color: AppColors.gray,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              SizedBox(width: 4),
-                              Icon(
-                                Icons.notifications_active_rounded,
-                                size: 16,
-                                color: AppColors.yellow,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
 
                   const SizedBox(height: 8),
 

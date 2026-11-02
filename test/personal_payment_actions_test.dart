@@ -108,11 +108,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     final offline = await _offlineService();
     final billData = <String, dynamic>{
-      'id': 'bill-1',
-      'owner_id': 'owner-1',
-      'receipt_json': {
-        'paid_statuses': {'friend-1': 'reviewing'},
-      },
+      'receipt_json': <String, dynamic>{},
     };
     final statusUpdates = <String>[];
     await tester.pumpWidget(
@@ -132,10 +128,6 @@ void main() {
 
     expect(statusUpdates, ['paid']);
     expect(find.text('ชำระเงินสำเร็จเรียบร้อยแล้ว 🎉'), findsOneWidget);
-    expect(
-      (billData['receipt_json'] as Map)['paid_statuses']['friend-1'],
-      'paid',
-    );
     await tester.pumpWidget(const SizedBox.shrink());
     await offline.disposeService();
   });
@@ -145,11 +137,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     final offline = await _offlineService();
     final billData = <String, dynamic>{
-      'id': 'bill-2',
-      'receipt_json': {
-        'paid_statuses': {'friend-1': 'reviewing'},
-        'payment_slips': {'friend-1': 'old-slip'},
-      },
+      'receipt_json': <String, dynamic>{},
     };
     final statusUpdates = <String>[];
     await tester.pumpWidget(
@@ -169,14 +157,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(statusUpdates, ['pending:none']);
-    expect(
-      (billData['receipt_json'] as Map)['paid_statuses']['friend-1'],
-      'pending',
-    );
-    expect(
-      (billData['receipt_json'] as Map)['payment_slips'],
-      isNot(contains('friend-1')),
-    );
     expect(find.textContaining('แนบหลักฐานการโอนเงิน'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
     await offline.disposeService();

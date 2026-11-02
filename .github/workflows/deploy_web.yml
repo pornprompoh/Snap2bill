@@ -12,7 +12,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Java (prerequisite for tools)
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
@@ -24,12 +24,23 @@ jobs:
           channel: 'stable'
           cache: true
 
+      # ขั้นตอนที่เพิ่ม: สร้างไฟล์ .env เพื่อไม่ให้ติด Asset bundle error
+      - name: Create .env file
+        run: |
+          touch .env
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env
+          echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
+          echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> .env
+          echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env
+          echo "GOOGLE_SERVER_CLIENT_ID=${{ secrets.GOOGLE_SERVER_CLIENT_ID }}" >> .env
+
       - name: Install Dependencies
         run: flutter pub get
 
       - name: Build Web
         run: |
           flutter build web --release \
+            --no-wasm-dry-run \
             --dart-define=SUPABASE_URL="${{ secrets.SUPABASE_URL }}" \
             --dart-define=SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}" \
             --dart-define=GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" \

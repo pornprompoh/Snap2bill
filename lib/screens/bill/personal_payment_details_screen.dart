@@ -332,9 +332,7 @@ class _PersonalPaymentDetailsScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'ปฏิเสธสลิปแล้ว ผู้เข้าร่วมสามารถแนบสลิปใหม่ได้ ⚠️',
-            ),
+            content: Text('ปฏิเสธสลิปแล้ว ผู้เข้าร่วมสามารถแนบสลิปใหม่ได้ ⚠️'),
             backgroundColor: AppColors.warning,
           ),
         );
@@ -538,39 +536,22 @@ class _PersonalPaymentDetailsScreenState
             backgroundColor: member.isOwner
                 ? const Color(0xFFFEF3C7)
                 : (_isPaid
-                    ? Colors.green.shade50
-                    : (_isReviewing
-                        ? Colors.blue.shade50
-                        : Colors.orange.shade50)),
-            child: member.avatarUrl != null && member.avatarUrl!.isNotEmpty
+                      ? Colors.green.shade50
+                      : (_isReviewing
+                            ? Colors.blue.shade50
+                            : Colors.orange.shade50)),
+            child: _isValidImageUrl(member.avatarUrl)
                 ? ClipOval(
                     child: Image.network(
                       member.avatarUrl!,
                       width: 56,
                       height: 56,
                       fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          _buildMemberInitial(member),
                     ),
                   )
-                : (member.isOwner
-                    ? const Icon(
-                        Icons.star_rounded,
-                        color: Color(0xFFD97706),
-                        size: 30,
-                      )
-                    : Text(
-                        member.name.isNotEmpty
-                            ? member.name[0].toUpperCase()
-                            : '?',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: _isPaid
-                              ? Colors.green.shade700
-                              : (_isReviewing
-                                  ? Colors.blue.shade700
-                                  : Colors.orange.shade800),
-                        ),
-                      )),
+                : _buildMemberInitial(member),
           ),
           const SizedBox(width: 14),
           // Info
@@ -651,6 +632,31 @@ class _PersonalPaymentDetailsScreenState
           // Status Badge
           _buildStatusBadge(),
         ],
+      ),
+    );
+  }
+
+  bool _isValidImageUrl(String? value) {
+    final url = value?.trim();
+    if (url == null || url.isEmpty) return false;
+    final uri = Uri.tryParse(url);
+    return uri != null &&
+        (uri.scheme == 'http' || uri.scheme == 'https') &&
+        uri.host.isNotEmpty;
+  }
+
+  Widget _buildMemberInitial(MemberSummaryEntry member) {
+    if (member.isOwner) {
+      return const Icon(Icons.star_rounded, color: Color(0xFFD97706), size: 30);
+    }
+    return Text(
+      member.name.isNotEmpty ? member.name[0].toUpperCase() : '?',
+      style: TextStyle(
+        fontSize: 22,
+        fontWeight: FontWeight.bold,
+        color: _isPaid
+            ? Colors.green.shade700
+            : (_isReviewing ? Colors.blue.shade700 : Colors.orange.shade800),
       ),
     );
   }
@@ -785,10 +791,7 @@ class _PersonalPaymentDetailsScreenState
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 3,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: AppColors.secondary,
                   borderRadius: BorderRadius.circular(12),
@@ -999,7 +1002,11 @@ class _PersonalPaymentDetailsScreenState
         ),
         child: Row(
           children: [
-            Icon(Icons.check_circle_rounded, color: Colors.green.shade700, size: 36),
+            Icon(
+              Icons.check_circle_rounded,
+              color: Colors.green.shade700,
+              size: 36,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -1016,7 +1023,10 @@ class _PersonalPaymentDetailsScreenState
                   const SizedBox(height: 2),
                   Text(
                     'ยอด ${AppFormatters.formatCurrency(member.amount)} ได้รับการยืนยันแล้ว',
-                    style: TextStyle(fontSize: 12, color: Colors.green.shade900),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.green.shade900,
+                    ),
                   ),
                 ],
               ),
@@ -1074,10 +1084,7 @@ class _PersonalPaymentDetailsScreenState
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 3,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: Colors.amber.shade50,
                   borderRadius: BorderRadius.circular(10),
@@ -1246,7 +1253,11 @@ class _PersonalPaymentDetailsScreenState
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.copy, size: 18, color: AppColors.pink),
+                    icon: const Icon(
+                      Icons.copy,
+                      size: 18,
+                      color: AppColors.pink,
+                    ),
                     tooltip: 'คัดลอกเลขบัญชี',
                     onPressed: () {
                       Clipboard.setData(

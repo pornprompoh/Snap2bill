@@ -66,19 +66,25 @@ class ShareableReceiptCard extends StatelessWidget {
     final s = summary;
     final createdAt = bill['created_at']?.toString() ?? '';
     final rawImageUrl = bill['image_url']?.toString().trim();
-    final parsedImageUrl =
-        rawImageUrl == null ? null : Uri.tryParse(rawImageUrl);
-    final imageUrl = parsedImageUrl != null &&
+    final parsedImageUrl = rawImageUrl == null
+        ? null
+        : Uri.tryParse(rawImageUrl);
+    final imageUrl =
+        parsedImageUrl != null &&
             (parsedImageUrl.scheme == 'http' ||
                 parsedImageUrl.scheme == 'https') &&
             parsedImageUrl.host.isNotEmpty
         ? rawImageUrl
         : null;
-    final hasValidPromptPay = hostPromptPay != null && PromptPayHelper.isValidTarget(hostPromptPay!);
+    final hasValidPromptPay =
+        hostPromptPay != null && PromptPayHelper.isValidTarget(hostPromptPay!);
     final qrPayload = _promptPayPayload;
 
-    final double effectiveTargetAmount = specificMemberAmount ??
-        (s.unpaidMembers.isNotEmpty ? s.unpaidMembers.first.amount : s.averagePerPerson);
+    final double effectiveTargetAmount =
+        specificMemberAmount ??
+        (s.unpaidMembers.isNotEmpty
+            ? s.unpaidMembers.first.amount
+            : s.averagePerPerson);
 
     return Container(
       width: double.infinity,
@@ -116,7 +122,11 @@ class ShareableReceiptCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.receipt_long_rounded, size: 14, color: Color(0xFF94A3B8)),
+                    const Icon(
+                      Icons.receipt_long_rounded,
+                      size: 14,
+                      color: Color(0xFF94A3B8),
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       'SNAP2BILL RECEIPT',
@@ -158,11 +168,17 @@ class ShareableReceiptCard extends StatelessWidget {
                           color: Color(0xFF64748B),
                         ),
                       ),
-                      const Text(' • ', style: TextStyle(color: Color(0xFFCBD5E1))),
+                      const Text(
+                        ' • ',
+                        style: TextStyle(color: Color(0xFFCBD5E1)),
+                      ),
                     ],
                     Text(
                       createdAt.split('T')[0],
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF64748B),
+                      ),
                     ),
                   ],
                 ),
@@ -177,7 +193,8 @@ class ShareableReceiptCard extends StatelessWidget {
                       height: 90,
                       width: double.infinity,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                      errorBuilder: (context, error, stackTrace) =>
+                          const SizedBox.shrink(),
                     ),
                   ),
                 ],
@@ -202,7 +219,11 @@ class ShareableReceiptCard extends StatelessWidget {
                           const Expanded(
                             child: Text(
                               'ยอดรวมทั้งสิ้น (Total)',
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF78350F)),
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF78350F),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -223,7 +244,10 @@ class ShareableReceiptCard extends StatelessWidget {
                           Expanded(
                             child: Text(
                               'สมาชิก ${s.totalMembers} คน (ผู้ชำระจริง ${s.totalPayingCount} คน)',
-                              style: const TextStyle(fontSize: 11.5, color: Color(0xFF92400E)),
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                color: Color(0xFF92400E),
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -233,7 +257,11 @@ class ShareableReceiptCard extends StatelessWidget {
                             s.isEqualSplit && s.equalPerPerson != null
                                 ? 'ตกคนละ ${AppFormatters.formatCurrency(s.equalPerPerson!)}'
                                 : 'หารตามรายการจริง',
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF92400E),
+                            ),
                           ),
                         ],
                       ),
@@ -245,7 +273,9 @@ class ShareableReceiptCard extends StatelessWidget {
                         child: LinearProgressIndicator(
                           value: s.percentage / 100.0,
                           backgroundColor: const Color(0xFFFEF3C7),
-                          color: s.unpaidCount == 0 ? AppColors.tealGreen : AppColors.primaryOrange,
+                          color: s.unpaidCount == 0
+                              ? AppColors.tealGreen
+                              : AppColors.primaryOrange,
                           minHeight: 6,
                         ),
                       ),
@@ -256,7 +286,11 @@ class ShareableReceiptCard extends StatelessWidget {
                           Expanded(
                             child: Text(
                               '${s.progressPercentageText} (${s.paidCountText})',
-                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF78350F)),
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF78350F),
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -267,7 +301,9 @@ class ShareableReceiptCard extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: s.unpaidCount == 0 ? AppColors.tealGreen : const Color(0xFFC2410C),
+                              color: s.unpaidCount == 0
+                                  ? AppColors.tealGreen
+                                  : const Color(0xFFC2410C),
                             ),
                           ),
                         ],
@@ -308,17 +344,23 @@ class ShareableReceiptCard extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: isOwner
                                 ? const Color(0xFFFEF3C7)
-                                : (isPaid ? const Color(0xFFDCFCE7) : const Color(0xFFFFEDD5)),
+                                : (isPaid
+                                      ? const Color(0xFFDCFCE7)
+                                      : const Color(0xFFFFEDD5)),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
                             isOwner
                                 ? Icons.star_rounded
-                                : (isPaid ? Icons.check_rounded : Icons.access_time_rounded),
+                                : (isPaid
+                                      ? Icons.check_rounded
+                                      : Icons.access_time_rounded),
                             size: 14,
                             color: isOwner
                                 ? const Color(0xFFD97706)
-                                : (isPaid ? const Color(0xFF16A34A) : const Color(0xFFEA580C)),
+                                : (isPaid
+                                      ? const Color(0xFF16A34A)
+                                      : const Color(0xFFEA580C)),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -329,7 +371,9 @@ class ShareableReceiptCard extends StatelessWidget {
                             member.name,
                             style: TextStyle(
                               fontSize: 13,
-                              fontWeight: isOwner ? FontWeight.bold : FontWeight.w600,
+                              fontWeight: isOwner
+                                  ? FontWeight.bold
+                                  : FontWeight.w600,
                               color: const Color(0xFF1E293B),
                             ),
                             maxLines: 1,
@@ -343,33 +387,46 @@ class ShareableReceiptCard extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 13.5,
                             fontWeight: FontWeight.bold,
-                            color: isOwner ? const Color(0xFFB45309) : const Color(0xFF0F172A),
+                            color: isOwner
+                                ? const Color(0xFFB45309)
+                                : const Color(0xFF0F172A),
                           ),
                         ),
                         const SizedBox(width: 8),
 
                         // Status Badge
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: isOwner
                                 ? const Color(0xFFFEF3C7)
-                                : (isPaid ? const Color(0xFFDCFCE7) : const Color(0xFFFFEDD5)),
+                                : (isPaid
+                                      ? const Color(0xFFDCFCE7)
+                                      : const Color(0xFFFFEDD5)),
                             borderRadius: BorderRadius.circular(6),
                             border: Border.all(
                               color: isOwner
                                   ? const Color(0xFFFCD34D)
-                                  : (isPaid ? const Color(0xFF86EFAC) : const Color(0xFFFDBA74)),
+                                  : (isPaid
+                                        ? const Color(0xFF86EFAC)
+                                        : const Color(0xFFFDBA74)),
                             ),
                           ),
                           child: Text(
-                            isOwner ? 'เจ้าของ 👑' : (isPaid ? 'จ่ายแล้ว ✅' : 'รอจ่าย ⏳'),
+                            isOwner
+                                ? 'เจ้าของ 👑'
+                                : (isPaid ? 'จ่ายแล้ว ✅' : 'รอจ่าย ⏳'),
                             style: TextStyle(
                               fontSize: 10.5,
                               fontWeight: FontWeight.bold,
                               color: isOwner
                                   ? const Color(0xFFB45309)
-                                  : (isPaid ? const Color(0xFF15803D) : const Color(0xFFC2410C)),
+                                  : (isPaid
+                                        ? const Color(0xFF15803D)
+                                        : const Color(0xFFC2410C)),
                             ),
                           ),
                         ),
@@ -383,17 +440,26 @@ class ShareableReceiptCard extends StatelessWidget {
                 const SizedBox(height: 16),
 
                 // 4. PromptPay QR Code Payment Section
-                if (hasValidPromptPay && qrPayload != null && qrPayload.isNotEmpty) ...[
+                if (hasValidPromptPay &&
+                    qrPayload != null &&
+                    qrPayload.isNotEmpty) ...[
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFF003D6B).withValues(alpha: 0.18)),
+                      border: Border.all(
+                        color: const Color(0xFF003D6B).withValues(alpha: 0.18),
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF003D6B).withValues(alpha: 0.04),
+                          color: const Color(
+                            0xFF003D6B,
+                          ).withValues(alpha: 0.04),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -404,7 +470,10 @@ class ShareableReceiptCard extends StatelessWidget {
                       children: [
                         // Thai QR Header Badge
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFF003D6B),
                             borderRadius: BorderRadius.circular(6),
@@ -412,7 +481,11 @@ class ShareableReceiptCard extends StatelessWidget {
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.qr_code_2_rounded, color: Colors.white, size: 16),
+                              Icon(
+                                Icons.qr_code_2_rounded,
+                                color: Colors.white,
+                                size: 16,
+                              ),
                               SizedBox(width: 4),
                               Flexible(
                                 child: Text(
@@ -485,11 +558,16 @@ class ShareableReceiptCard extends StatelessWidget {
                         if (effectiveTargetAmount > 0) ...[
                           Container(
                             margin: const EdgeInsets.symmetric(vertical: 2),
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 3,
+                            ),
                             decoration: BoxDecoration(
                               color: const Color(0xFFF0FDF4),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFFBBF7D0)),
+                              border: Border.all(
+                                color: const Color(0xFFBBF7D0),
+                              ),
                             ),
                             child: Text(
                               'ยอดชำระ: ${AppFormatters.formatCurrency(effectiveTargetAmount)}',
@@ -514,7 +592,8 @@ class ShareableReceiptCard extends StatelessWidget {
                           textAlign: TextAlign.center,
                         ),
 
-                        if (hostBankAccount != null && hostBankAccount!.isNotEmpty) ...[
+                        if (hostBankAccount != null &&
+                            hostBankAccount!.isNotEmpty) ...[
                           const SizedBox(height: 6),
                           Text(
                             'ธนาคาร: ${hostBankName ?? ""} $hostBankAccount',
@@ -527,7 +606,10 @@ class ShareableReceiptCard extends StatelessWidget {
                         const SizedBox(height: 6),
                         const Text(
                           '*QR Code สำหรับโอนเงินเท่านั้น การยืนยันชำระต้องให้เจ้าของกดยืนยันในแอป',
-                          style: TextStyle(fontSize: 9, color: Color(0xFF94A3B8)),
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: Color(0xFF94A3B8),
+                          ),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -545,37 +627,65 @@ class ShareableReceiptCard extends StatelessWidget {
                     ),
                     child: Column(
                       children: [
-                        const Icon(Icons.info_outline_rounded, color: Color(0xFF64748B), size: 26),
+                        const Icon(
+                          Icons.info_outline_rounded,
+                          color: Color(0xFF64748B),
+                          size: 26,
+                        ),
                         const SizedBox(height: 6),
                         const Text(
                           'เจ้าของบิลยังไม่ได้ตั้งค่าพร้อมเพย์',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF334155),
+                          ),
                         ),
                         const SizedBox(height: 3),
                         const Text(
                           'สามารถตั้งค่าพร้อมเพย์เพื่อสร้าง QR Code สำหรับรับเงินอัตโนมัติ',
-                          style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF64748B),
+                          ),
                           textAlign: TextAlign.center,
                         ),
-                        if (hostBankAccount != null && hostBankAccount!.isNotEmpty) ...[
+                        if (hostBankAccount != null &&
+                            hostBankAccount!.isNotEmpty) ...[
                           const SizedBox(height: 6),
                           Text(
                             'โอนเข้าบัญชี: ${hostBankName ?? ""} $hostBankAccount (${hostName ?? ""})',
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF003D6B)),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF003D6B),
+                            ),
                           ),
                         ],
-                        if (onConfigurePromptPay != null && isCurrentViewerOwner) ...[
+                        if (onConfigurePromptPay != null &&
+                            isCurrentViewerOwner) ...[
                           const SizedBox(height: 10),
                           FilledButton.icon(
                             style: FilledButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
                             onPressed: onConfigurePromptPay,
                             icon: const Icon(Icons.qr_code_2_rounded, size: 16),
-                            label: const Text('ตั้งค่า PromptPay', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                            label: const Text(
+                              'ตั้งค่า PromptPay',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
                         ],
                       ],
@@ -591,11 +701,10 @@ class ShareableReceiptCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Image.asset(
-                      'assets/icons/icon_192.png',
-                      width: 16,
-                      height: 16,
-                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.receipt_long, size: 16, color: AppColors.pink),
+                    const Icon(
+                      Icons.receipt_long,
+                      size: 16,
+                      color: AppColors.pink,
                     ),
                     const SizedBox(width: 6),
                     const Text(
@@ -611,7 +720,10 @@ class ShareableReceiptCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   'สร้างเมื่อ ${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')} ${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')} น.',
-                  style: const TextStyle(fontSize: 9.5, color: Color(0xFF94A3B8)),
+                  style: const TextStyle(
+                    fontSize: 9.5,
+                    color: Color(0xFF94A3B8),
+                  ),
                 ),
               ],
             ),
@@ -625,9 +737,7 @@ class ShareableReceiptCard extends StatelessWidget {
     return const SizedBox(
       width: double.infinity,
       height: 1,
-      child: CustomPaint(
-        painter: DashedLinePainter(),
-      ),
+      child: CustomPaint(painter: DashedLinePainter()),
     );
   }
 }

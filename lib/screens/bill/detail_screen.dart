@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -49,20 +51,19 @@ class _DetailScreenState extends State<DetailScreen> {
             .eq('id', ownerId)
             .maybeSingle();
         if (profile != null && mounted) {
-          final paymentInfo = profile['payment_info'] as Map<String, dynamic>?;
+          final paymentInfo = _asMap(profile['payment_info']);
           setState(() {
             _hostPromptPay =
                 profile['promptpay_number']?.toString() ??
-                paymentInfo?['number']?.toString() ??
+                paymentInfo['number']?.toString() ??
                 '';
             _hostPromptPayType =
                 profile['promptpay_type']?.toString() ??
-                paymentInfo?['type']?.toString();
-            _hostBankName = paymentInfo?['bank_name']?.toString();
+                paymentInfo['type']?.toString();
+            _hostBankName = paymentInfo['bank_name']?.toString();
             _hostBankAccountNumber =
-                paymentInfo?['bank_account_number']?.toString() ?? '';
-            _hostBankAccountName = paymentInfo?['bank_account_name']
-                ?.toString();
+                paymentInfo['bank_account_number']?.toString() ?? '';
+            _hostBankAccountName = paymentInfo['bank_account_name']?.toString();
             final name = profile['display_name']?.toString().trim();
             _hostName = name?.isNotEmpty == true
                 ? name!
@@ -357,6 +358,14 @@ class _DetailScreenState extends State<DetailScreen> {
   Map<String, dynamic> _asMap(Object? value) {
     if (value is Map<String, dynamic>) return value;
     if (value is Map) return Map<String, dynamic>.from(value);
+    if (value is String && value.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(value);
+        if (decoded is Map) return Map<String, dynamic>.from(decoded);
+      } on FormatException {
+        debugPrint('Invalid payment_info JSON in profile.');
+      }
+    }
     return {};
   }
 
@@ -548,24 +557,23 @@ class _DetailScreenState extends State<DetailScreen> {
       appBar: AppBar(
         title: const Text('รายละเอียดบิลย้อนหลัง'),
         actions: [
-          if (_isCurrentUserOwner)
-            IconButton(
-              icon: const Icon(
-                Icons.notifications_active_outlined,
-                color: AppColors.primaryOrange,
-              ),
-              tooltip: 'สะกิดเตือนเพื่อน',
-              onPressed: () {
-                PokeReminderDialog.show(
-                  context,
-                  bill: widget.billData,
-                  hostPromptPay: _hostPromptPay,
-                  hostBankAccount: _hostBankAccountNumber,
-                  hostBankName: _hostBankName,
-                  hostName: _hostName,
-                );
-              },
+          IconButton(
+            icon: const Icon(
+              Icons.notifications_active_outlined,
+              color: AppColors.primaryOrange,
             ),
+            tooltip: 'สะกิดเตือนเพื่อน',
+            onPressed: () {
+              PokeReminderDialog.show(
+                context,
+                bill: widget.billData,
+                hostPromptPay: _hostPromptPay,
+                hostBankAccount: _hostBankAccountNumber,
+                hostBankName: _hostBankName,
+                hostName: _hostName,
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.share_rounded),
             tooltip: 'แชร์บิลสรุปสำเร็จรูป',

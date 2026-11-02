@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
-import 'dart:js_interop';
 import 'package:flutter/foundation.dart';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -12,10 +13,8 @@ import '../../theme/app_colors.dart';
 import '../../utils/bill_progress_helper.dart';
 import '../../utils/formatters.dart';
 import '../../utils/promptpay_helper.dart';
+import '../../services/media/qr_image_saver.dart';
 import 'shareable_receipt_card.dart';
-
-// Conditional import for web download
-import 'package:web/web.dart' as web;
 
 class ShareableReceiptPreviewDialog extends StatefulWidget {
   final Map<String, dynamic> bill;
@@ -26,7 +25,8 @@ class ShareableReceiptPreviewDialog extends StatefulWidget {
   final String? hostBankName;
   final String? hostName;
   final bool isCurrentViewerOwner;
-  final void Function(String promptPay, String promptPayType, String? hostName)? onPromptPayUpdated;
+  final void Function(String promptPay, String promptPayType, String? hostName)?
+  onPromptPayUpdated;
 
   const ShareableReceiptPreviewDialog({
     super.key,
@@ -51,7 +51,8 @@ class ShareableReceiptPreviewDialog extends StatefulWidget {
     String? hostBankName,
     String? hostName,
     bool isCurrentViewerOwner = true,
-    void Function(String promptPay, String promptPayType, String? hostName)? onPromptPayUpdated,
+    void Function(String promptPay, String promptPayType, String? hostName)?
+    onPromptPayUpdated,
   }) {
     final effectiveSummary = summary ?? BillProgressHelper.calculate(bill);
     return showDialog(
@@ -106,23 +107,28 @@ class _ShareableReceiptPreviewDialogState
   }
 
   Future<void> _checkAndLoadHostPromptPay() async {
-    if (_currentHostPromptPay != null && _currentHostPromptPay!.trim().isNotEmpty) return;
+    if (_currentHostPromptPay != null &&
+        _currentHostPromptPay!.trim().isNotEmpty) {
+      return;
+    }
     try {
-      final receipt = widget.bill['receipt_json'];
-      if (receipt is Map) {
+      final receipt = _asMap(widget.bill['receipt_json']);
+      if (receipt.isNotEmpty) {
         final rPromptPay = receipt['promptpay_number']?.toString();
         if (rPromptPay != null && rPromptPay.isNotEmpty) {
           if (mounted) {
             setState(() {
               _currentHostPromptPay = rPromptPay;
-              _currentHostPromptPayType = receipt['promptpay_type']?.toString() ?? 'phone';
+              _currentHostPromptPayType =
+                  receipt['promptpay_type']?.toString() ?? 'phone';
             });
           }
           return;
         }
       }
 
-      final ownerId = widget.bill['owner_id']?.toString() ??
+      final ownerId =
+          widget.bill['owner_id']?.toString() ??
           Supabase.instance.client.auth.currentUser?.id;
       if (ownerId != null && ownerId.isNotEmpty) {
         final profile = await Supabase.instance.client
@@ -131,14 +137,16 @@ class _ShareableReceiptPreviewDialogState
             .eq('id', ownerId)
             .maybeSingle();
         if (profile != null && mounted) {
-          final paymentInfo = profile['payment_info'] as Map<String, dynamic>?;
-          final pNumber = profile['promptpay_number']?.toString() ??
-              paymentInfo?['number']?.toString();
+          final paymentInfo = _asMap(profile['payment_info']);
+          final pNumber =
+              profile['promptpay_number']?.toString() ??
+              paymentInfo['number']?.toString();
           if (pNumber != null && pNumber.isNotEmpty) {
             setState(() {
               _currentHostPromptPay = pNumber;
-              _currentHostPromptPayType = profile['promptpay_type']?.toString() ??
-                  paymentInfo?['type']?.toString() ??
+              _currentHostPromptPayType =
+                  profile['promptpay_type']?.toString() ??
+                  paymentInfo['type']?.toString() ??
                   'phone';
               final dName = profile['display_name']?.toString().trim();
               if (dName != null && dName.isNotEmpty) {
@@ -153,9 +161,25 @@ class _ShareableReceiptPreviewDialogState
     }
   }
 
+  Map<String, dynamic> _asMap(Object? value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) return Map<String, dynamic>.from(value);
+    if (value is String && value.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(value);
+        if (decoded is Map) return Map<String, dynamic>.from(decoded);
+      } on FormatException {
+        debugPrint('Invalid payment_info JSON in receipt dialog.');
+      }
+    }
+    return {};
+  }
+
   Future<void> _showPromptPayConfigDialog() async {
     String selectedType = _currentHostPromptPayType ?? 'phone';
-    final numberController = TextEditingController(text: _currentHostPromptPay ?? '');
+    final numberController = TextEditingController(
+      text: _currentHostPromptPay ?? '',
+    );
     final nameController = TextEditingController(text: _currentHostName ?? '');
     String? errorText;
 
@@ -172,7 +196,11 @@ class _ShareableReceiptPreviewDialogState
                     color: AppColors.primary.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.qr_code_2_rounded, color: AppColors.primary, size: 20),
+                  child: const Icon(
+                    Icons.qr_code_2_rounded,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 8),
                 const Expanded(
@@ -193,12 +221,23 @@ class _ShareableReceiptPreviewDialogState
                     style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
                   ),
                   const SizedBox(height: 16),
-                  const Text('ประเภทพร้อมเพย์', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'ประเภทพร้อมเพย์',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 8),
                   SegmentedButton<String>(
                     segments: const [
-                      ButtonSegment(value: 'phone', label: Text('เบอร์โทรศัพท์'), icon: Icon(Icons.phone_iphone_rounded, size: 16)),
-                      ButtonSegment(value: 'id_card', label: Text('บัตรประชาชน'), icon: Icon(Icons.badge_rounded, size: 16)),
+                      ButtonSegment(
+                        value: 'phone',
+                        label: Text('เบอร์โทรศัพท์'),
+                        icon: Icon(Icons.phone_iphone_rounded, size: 16),
+                      ),
+                      ButtonSegment(
+                        value: 'id_card',
+                        label: Text('บัตรประชาชน'),
+                        icon: Icon(Icons.badge_rounded, size: 16),
+                      ),
                     ],
                     selected: {selectedType},
                     onSelectionChanged: (val) {
@@ -210,18 +249,30 @@ class _ShareableReceiptPreviewDialogState
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    selectedType == 'phone' ? 'เบอร์โทรศัพท์ (10 หลัก)' : 'เลขบัตรประชาชน (13 หลัก)',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                    selectedType == 'phone'
+                        ? 'เบอร์โทรศัพท์ (10 หลัก)'
+                        : 'เลขบัตรประชาชน (13 หลัก)',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 6),
                   TextField(
                     controller: numberController,
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
-                      hintText: selectedType == 'phone' ? 'เช่น 0812345678' : 'เช่น 1234567890123',
+                      hintText: selectedType == 'phone'
+                          ? 'เช่น 0812345678'
+                          : 'เช่น 1234567890123',
                       errorText: errorText,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
                     ),
                     onChanged: (_) {
                       if (errorText != null) {
@@ -230,14 +281,22 @@ class _ShareableReceiptPreviewDialogState
                     },
                   ),
                   const SizedBox(height: 14),
-                  const Text('ชื่อบัญชี / ชื่อเจ้าของบิล', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'ชื่อบัญชี / ชื่อเจ้าของบิล',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 6),
                   TextField(
                     controller: nameController,
                     decoration: InputDecoration(
                       hintText: 'เช่น สมชาย ใจดี',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
                     ),
                   ),
                 ],
@@ -249,7 +308,9 @@ class _ShareableReceiptPreviewDialogState
                 child: const Text('ยกเลิก'),
               ),
               FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                ),
                 onPressed: () async {
                   final target = numberController.text.trim();
                   if (!PromptPayHelper.isValidTarget(target)) {
@@ -261,11 +322,14 @@ class _ShareableReceiptPreviewDialogState
                     return;
                   }
 
-                  final newName = nameController.text.trim().isNotEmpty ? nameController.text.trim() : null;
+                  final newName = nameController.text.trim().isNotEmpty
+                      ? nameController.text.trim()
+                      : null;
 
                   // Save to Supabase
                   try {
-                    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+                    final currentUserId =
+                        Supabase.instance.client.auth.currentUser?.id;
                     if (currentUserId != null) {
                       final updateData = <String, dynamic>{
                         'promptpay_number': target,
@@ -274,20 +338,26 @@ class _ShareableReceiptPreviewDialogState
                       if (newName != null) {
                         updateData['display_name'] = newName;
                       }
-                      await Supabase.instance.client.from('profiles').update(updateData).eq('id', currentUserId);
+                      await Supabase.instance.client
+                          .from('profiles')
+                          .update(updateData)
+                          .eq('id', currentUserId);
                     }
 
                     final billId = widget.bill['id']?.toString();
                     if (billId != null && billId.isNotEmpty) {
                       final receipt = widget.bill['receipt_json'] is Map
-                          ? Map<String, dynamic>.from(widget.bill['receipt_json'] as Map)
+                          ? Map<String, dynamic>.from(
+                              widget.bill['receipt_json'] as Map,
+                            )
                           : <String, dynamic>{};
                       receipt['promptpay_number'] = target;
                       receipt['promptpay_type'] = selectedType;
                       if (newName != null) receipt['host_name'] = newName;
-                      await Supabase.instance.client.from('bills').update({
-                        'receipt_json': receipt,
-                      }).eq('id', billId);
+                      await Supabase.instance.client
+                          .from('bills')
+                          .update({'receipt_json': receipt})
+                          .eq('id', billId);
                       widget.bill['receipt_json'] = receipt;
                     }
                   } catch (e) {
@@ -299,12 +369,17 @@ class _ShareableReceiptPreviewDialogState
                       _currentHostPromptPay = target;
                       _currentHostPromptPayType = selectedType;
                       if (newName != null) _currentHostName = newName;
-                      _statusMessage = 'ตั้งค่า PromptPay และสร้าง QR Code สำเร็จแล้ว ✅';
+                      _statusMessage =
+                          'ตั้งค่า PromptPay และสร้าง QR Code สำเร็จแล้ว ✅';
                       _statusColor = AppColors.tealGreen;
                     });
                   }
 
-                  widget.onPromptPayUpdated?.call(target, selectedType, newName);
+                  widget.onPromptPayUpdated?.call(
+                    target,
+                    selectedType,
+                    newName,
+                  );
                   if (dialogCtx.mounted) {
                     Navigator.pop(dialogCtx);
                   }
@@ -322,12 +397,14 @@ class _ShareableReceiptPreviewDialogState
     try {
       await WidgetsBinding.instance.endOfFrame;
       final boundary =
-          _receiptKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+          _receiptKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
       if (boundary == null) return null;
 
       final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-      final ByteData? byteData =
-          await image.toByteData(format: ui.ImageByteFormat.png);
+      final ByteData? byteData = await image.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
       return byteData?.buffer.asUint8List();
     } catch (e) {
       debugPrint('Error capturing receipt image: $e');
@@ -339,14 +416,20 @@ class _ShareableReceiptPreviewDialogState
     final s = widget.summary;
     final buffer = StringBuffer();
     buffer.writeln('🧾 สรุปค่าใช้จ่าย: ${s.shopName}');
-    buffer.writeln('💰 ยอดรวม: ${AppFormatters.formatCurrency(s.totalAmount)} (ตกคนละ ฿${s.formattedAverage})');
-    buffer.writeln('📊 สถานะ: ${s.progressPercentageText} (${s.paidCountText})');
+    buffer.writeln(
+      '💰 ยอดรวม: ${AppFormatters.formatCurrency(s.totalAmount)} (ตกคนละ ฿${s.formattedAverage})',
+    );
+    buffer.writeln(
+      '📊 สถานะ: ${s.progressPercentageText} (${s.paidCountText})',
+    );
     buffer.writeln('');
 
     if (s.unpaidMembers.isNotEmpty) {
       buffer.writeln('⏳ รอชำระ:');
       for (final m in s.unpaidMembers) {
-        buffer.writeln('• ${m.name}: ${AppFormatters.formatCurrency(m.amount)}');
+        buffer.writeln(
+          '• ${m.name}: ${AppFormatters.formatCurrency(m.amount)}',
+        );
       }
       buffer.writeln('');
     }
@@ -382,27 +465,13 @@ class _ShareableReceiptPreviewDialogState
           'snap2bill_receipt_${DateTime.now().millisecondsSinceEpoch}.png';
 
       if (kIsWeb) {
-        // Direct browser file download on web
-        final blob = web.Blob(
-          [imageBytes.toJS].toJS,
-          web.BlobPropertyBag(type: 'image/png'),
-        );
-        final url = web.URL.createObjectURL(blob);
-        final anchor = web.HTMLAnchorElement()
-          ..href = url
-          ..download = fileName;
-        anchor.click();
-        web.URL.revokeObjectURL(url);
+        await saveQrImage(imageBytes, fileName);
       } else {
         // Mobile share/save
         await SharePlus.instance.share(
           ShareParams(
             files: [
-              XFile.fromData(
-                imageBytes,
-                mimeType: 'image/png',
-                name: fileName,
-              ),
+              XFile.fromData(imageBytes, mimeType: 'image/png', name: fileName),
             ],
             title: 'บันทึกรูปภาพบิลสรุป',
           ),
@@ -445,11 +514,7 @@ class _ShareableReceiptPreviewDialogState
         await SharePlus.instance.share(
           ShareParams(
             files: [
-              XFile.fromData(
-                imageBytes,
-                mimeType: 'image/png',
-                name: fileName,
-              ),
+              XFile.fromData(imageBytes, mimeType: 'image/png', name: fileName),
             ],
             text: message,
             subject: 'สรุปบิล ${widget.summary.shopName}',
@@ -465,7 +530,8 @@ class _ShareableReceiptPreviewDialogState
 
       if (mounted) {
         setState(() {
-          _statusMessage = 'เปิดหน้าแชร์ LINE เรียบร้อย ให้เลือกเพื่อนหรือกลุ่มเพื่อส่งภาพบิล';
+          _statusMessage =
+              'เปิดหน้าแชร์ LINE เรียบร้อย ให้เลือกเพื่อนหรือกลุ่มเพื่อส่งภาพบิล';
           _statusColor = AppColors.tealGreen;
         });
       }
@@ -498,11 +564,7 @@ class _ShareableReceiptPreviewDialogState
         await SharePlus.instance.share(
           ShareParams(
             files: [
-              XFile.fromData(
-                imageBytes,
-                mimeType: 'image/png',
-                name: fileName,
-              ),
+              XFile.fromData(imageBytes, mimeType: 'image/png', name: fileName),
             ],
             text: message,
             subject: 'บิลสรุปค่าใช้จ่าย ${widget.summary.shopName}',
@@ -562,7 +624,12 @@ class _ShareableReceiptPreviewDialogState
         children: [
           // Modal Top Bar
           Padding(
-            padding: const EdgeInsets.only(left: 20, right: 12, top: 14, bottom: 8),
+            padding: const EdgeInsets.only(
+              left: 20,
+              right: 12,
+              top: 14,
+              bottom: 8,
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -574,7 +641,11 @@ class _ShareableReceiptPreviewDialogState
                         color: AppColors.pink.withValues(alpha: 0.12),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.receipt_long_rounded, color: AppColors.pink, size: 20),
+                      child: const Icon(
+                        Icons.receipt_long_rounded,
+                        color: AppColors.pink,
+                        size: 20,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Text(
@@ -629,10 +700,14 @@ class _ShareableReceiptPreviewDialogState
                 width: double.infinity,
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: (_statusColor ?? AppColors.tealGreen).withValues(alpha: 0.12),
+                  color: (_statusColor ?? AppColors.tealGreen).withValues(
+                    alpha: 0.12,
+                  ),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: (_statusColor ?? AppColors.tealGreen).withValues(alpha: 0.3),
+                    color: (_statusColor ?? AppColors.tealGreen).withValues(
+                      alpha: 0.3,
+                    ),
                   ),
                 ),
                 child: Text(
@@ -652,8 +727,16 @@ class _ShareableReceiptPreviewDialogState
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: isDark ? AppColors.darkSurface : const Color(0xFFF8FAFC),
-              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
-              border: Border(top: BorderSide(color: isDark ? AppColors.darkBorder : const Color(0xFFE2E8F0))),
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(24),
+              ),
+              border: Border(
+                top: BorderSide(
+                  color: isDark
+                      ? AppColors.darkBorder
+                      : const Color(0xFFE2E8F0),
+                ),
+              ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -668,11 +751,19 @@ class _ShareableReceiptPreviewDialogState
                           foregroundColor: Colors.white,
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                         onPressed: _isProcessing ? null : _saveImage,
                         icon: const Icon(Icons.download_rounded, size: 18),
-                        label: const Text('บันทึกรูปภาพ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                        label: const Text(
+                          'บันทึกรูปภาพ',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13.5,
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -685,11 +776,22 @@ class _ShareableReceiptPreviewDialogState
                           foregroundColor: Colors.white,
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                         onPressed: _isProcessing ? null : _shareToLine,
-                        icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
-                        label: const Text('แชร์เข้า LINE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                        icon: const Icon(
+                          Icons.chat_bubble_outline_rounded,
+                          size: 18,
+                        ),
+                        label: const Text(
+                          'แชร์เข้า LINE',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13.5,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -703,11 +805,16 @@ class _ShareableReceiptPreviewDialogState
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                         onPressed: _isProcessing ? null : _shareNative,
                         icon: const Icon(Icons.share_rounded, size: 17),
-                        label: const Text('แชร์ช่องทางอื่น', style: TextStyle(fontSize: 12.5)),
+                        label: const Text(
+                          'แชร์ช่องทางอื่น',
+                          style: TextStyle(fontSize: 12.5),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -717,11 +824,16 @@ class _ShareableReceiptPreviewDialogState
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                         onPressed: _isProcessing ? null : _copyText,
                         icon: const Icon(Icons.copy_rounded, size: 17),
-                        label: const Text('คัดลอกข้อความ', style: TextStyle(fontSize: 12.5)),
+                        label: const Text(
+                          'คัดลอกข้อความ',
+                          style: TextStyle(fontSize: 12.5),
+                        ),
                       ),
                     ),
                   ],

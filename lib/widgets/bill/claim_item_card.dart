@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_theme_colors.dart';
 import '../../utils/formatters.dart';
 import '../../utils/menu_icon_helper.dart';
 
@@ -29,6 +30,7 @@ class ClaimItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     final myClaimedQty = itemClaims[claimingUserId] ?? 0;
     final totalPersonalQty = itemClaims.values.fold<int>(
       0,
@@ -57,10 +59,10 @@ class ClaimItemCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: isSelected
             ? AppColors.secondary.withValues(alpha: 0.35)
-            : AppColors.surface,
+            : colors.surface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isSelected ? AppColors.primary : AppColors.border,
+          color: isSelected ? AppColors.primary : colors.border,
           width: isSelected ? 1.5 : 1,
         ),
         boxShadow: [
@@ -103,7 +105,7 @@ class ClaimItemCard extends StatelessWidget {
                     children: [
                       Text(
                         itemName,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14.5,
                           fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary,
@@ -114,7 +116,7 @@ class ClaimItemCard extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         '${AppFormatters.formatCurrency(unitPrice)} / จาน (มีทั้งหมด $itemQuantity จาน)',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11.5,
                           color: AppColors.textSecondary,
                         ),
@@ -127,7 +129,7 @@ class ClaimItemCard extends StatelessWidget {
                 // ตัวปรับจำนวน Stepper [ - ] qty [ + ]
                 Container(
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: colors.surface,
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(color: AppColors.border),
                   ),
@@ -148,7 +150,7 @@ class ClaimItemCard extends StatelessWidget {
                             size: 16,
                             color: myClaimedQty > 0
                                 ? AppColors.primary
-                                : AppColors.textMuted,
+                                : colors.textMuted,
                           ),
                         ),
                       ),
@@ -162,7 +164,7 @@ class ClaimItemCard extends StatelessWidget {
                             fontWeight: FontWeight.w800,
                             color: myClaimedQty > 0
                                 ? AppColors.primary
-                                : AppColors.textPrimary,
+                                : colors.textPrimary,
                           ),
                         ),
                       ),
@@ -242,11 +244,11 @@ class ClaimItemCard extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: isShared
-                          ? AppColors.success.withValues(alpha: 0.12)
-                          : AppColors.surface,
+                          ? colors.successContainer
+                          : colors.surface,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: isShared ? AppColors.success : AppColors.border,
+                        color: isShared ? AppColors.tealGreen : colors.border,
                       ),
                     ),
                     child: Row(
@@ -259,7 +261,7 @@ class ClaimItemCard extends StatelessWidget {
                           size: 14,
                           color: isShared
                               ? AppColors.success
-                              : AppColors.textSecondary,
+                              : colors.textSecondary,
                         ),
                         const SizedBox(width: 5),
                         Text(
@@ -270,8 +272,8 @@ class ClaimItemCard extends StatelessWidget {
                             fontSize: 11.5,
                             fontWeight: FontWeight.w600,
                             color: isShared
-                                ? AppColors.success
-                                : AppColors.textSecondary,
+                                ? AppColors.tealText
+                                : colors.textSecondary,
                           ),
                         ),
                       ],
@@ -286,7 +288,7 @@ class ClaimItemCard extends StatelessWidget {
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.success.withValues(alpha: 0.1),
+                      color: colors.successContainer,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Text(
@@ -294,17 +296,14 @@ class ClaimItemCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 10.5,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.success,
+                        color: AppColors.tealText,
                       ),
                     ),
                   )
                 else
                   Text(
                     'เหลือ $remainingQty จาน',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
-                    ),
+                    style: TextStyle(fontSize: 11, color: colors.textSecondary),
                   ),
               ],
             ),

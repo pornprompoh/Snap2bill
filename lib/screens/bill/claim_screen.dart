@@ -6,6 +6,7 @@ import '../../../models/bill_model.dart';
 import '../../../providers/bill_provider.dart';
 import '../../../routes/app_routes.dart';
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_theme_colors.dart';
 import '../../../utils/formatters.dart';
 import '../../../widgets/bill/claim_item_card.dart';
 
@@ -277,7 +278,7 @@ class _ClaimScreenState extends State<ClaimScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'สำหรับเพื่อนที่ไม่ได้พกมือถือมา เพื่อให้เจ้ามือเลือกอาหารและคิดยอดให้',
               style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
             ),
@@ -400,6 +401,7 @@ class _ClaimScreenState extends State<ClaimScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     final billProvider = context.watch<BillProvider>();
     final claimingUserId = widget.isHost
         ? billProvider.currentClaimingUserId
@@ -466,10 +468,10 @@ class _ClaimScreenState extends State<ClaimScreen> {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: colors.surface,
       appBar: AppBar(
         title: const Text('จิ้มเลือกอาหารที่คุณกินจริง'),
-        backgroundColor: AppColors.background,
+        backgroundColor: colors.surface,
         elevation: 0,
         automaticallyImplyLeading: false,
       ),
@@ -505,9 +507,9 @@ class _ClaimScreenState extends State<ClaimScreen> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: colors.surface,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(color: colors.border),
                   ),
                   child: Row(
                     children: [
@@ -519,7 +521,7 @@ class _ClaimScreenState extends State<ClaimScreen> {
                       const SizedBox(width: 4),
                       Text(
                         shopName,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w600,
                         ),
@@ -545,7 +547,7 @@ class _ClaimScreenState extends State<ClaimScreen> {
                   ),
                 ),
                 const SizedBox(width: 6),
-                const Text(
+                Text(
                   'ซิงค์สด Real-time',
                   style: TextStyle(
                     fontSize: 11,
@@ -645,9 +647,9 @@ class _ClaimScreenState extends State<ClaimScreen> {
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: colors.surface,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: colors.border),
               ),
               child: Row(
                 children: [
@@ -757,8 +759,8 @@ class _ClaimScreenState extends State<ClaimScreen> {
           Container(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
             decoration: BoxDecoration(
-              color: AppColors.surface,
-              border: const Border(top: BorderSide(color: AppColors.border)),
+              color: colors.surface,
+              border: Border(top: BorderSide(color: colors.border)),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.05),
@@ -776,16 +778,16 @@ class _ClaimScreenState extends State<ClaimScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
+                        Text(
                           'ยอดของคุณตอนนี้',
                           style: TextStyle(
                             fontSize: 11,
-                            color: AppColors.textSecondary,
+                            color: colors.textSecondary,
                           ),
                         ),
                         Text(
                           AppFormatters.formatCurrency(currentClaimingTotal),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w900,
                             color: AppColors.primary,

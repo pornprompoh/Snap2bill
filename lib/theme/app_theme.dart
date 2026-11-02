@@ -3,13 +3,17 @@ import 'package:flutter/material.dart';
 import 'app_colors.dart';
 import 'app_design_system.dart';
 import 'app_text_styles.dart';
+import 'app_theme_colors.dart';
 
 class AppTheme {
   static ThemeData get light => AppDesignSystem.apply(
     ThemeData(
       fontFamily: AppTextStyles.fontFamily,
       colorScheme: _lightColorScheme,
-      textTheme: AppTextStyles.textTheme,
+      textTheme: AppTextStyles.textTheme.apply(
+        bodyColor: AppColors.black,
+        displayColor: AppColors.black,
+      ),
       scaffoldBackgroundColor: AppColors.background,
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.background,
@@ -36,6 +40,7 @@ class AppTheme {
         hintStyle: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
       ),
       useMaterial3: true,
+      extensions: [AppThemeColors.light()],
     ),
   );
 
@@ -44,6 +49,10 @@ class AppTheme {
       fontFamily: AppTextStyles.fontFamily,
       colorScheme: _darkColorScheme,
       brightness: Brightness.dark,
+      textTheme: AppTextStyles.textTheme.apply(
+        bodyColor: AppColors.darkTextPrimary,
+        displayColor: AppColors.darkTextPrimary,
+      ),
       scaffoldBackgroundColor: AppColors.darkBackground,
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.darkBackground,
@@ -68,6 +77,7 @@ class AppTheme {
         ),
       ),
       useMaterial3: true,
+      extensions: [AppThemeColors.dark()],
     ),
   );
 

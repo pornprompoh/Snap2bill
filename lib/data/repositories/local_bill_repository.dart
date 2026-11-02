@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:drift/drift.dart';
 
-import '../database/app_database.dart';
-import '../utils/bill_progress_helper.dart';
+import '../../database/app_database.dart';
+import '../../utils/bill_progress_helper.dart';
 
 class LocalBillRepository {
   final AppDatabase _db;

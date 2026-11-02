@@ -2,7 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../repositories/local_bill_repository.dart';
+import '../../data/repositories/local_bill_repository.dart';
 import '../../routes/app_routes.dart';
 import '../../services/media/camera_service.dart';
 import '../../theme/app_colors.dart';

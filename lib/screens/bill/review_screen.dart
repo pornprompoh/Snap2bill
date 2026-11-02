@@ -360,6 +360,30 @@ class _ReviewScreenState extends State<ReviewScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (widget.receiptData['totals_reconciled'] == false)
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.warningLight,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.warning),
+                      ),
+                      child: const Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.info_outline, color: AppColors.warning),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'ยอดจากใบเสร็จอาจไม่ตรงกับรายการที่อ่านได้ กรุณาตรวจสอบรายการและยอดสุทธิก่อนดำเนินการต่อ',
+                              style: TextStyle(fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   // แถบ Step Indicator
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,

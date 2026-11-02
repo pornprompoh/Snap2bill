@@ -53,10 +53,7 @@ class _BouncingMascotLoaderState extends State<BouncingMascotLoader>
           children: [
             Transform.translate(
               offset: Offset(0, -lift),
-              child: Transform.rotate(
-                angle: tilt,
-                child: child,
-              ),
+              child: Transform.rotate(angle: tilt, child: child),
             ),
             const SizedBox(height: 4),
             Transform.scale(

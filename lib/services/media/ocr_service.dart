@@ -154,10 +154,11 @@ class OcrService {
     final vatAmount = isVatIncluded ? 0.0 : declaredVatAmount;
     final calculatedTotal = itemTotal + serviceCharge + vatAmount - discount;
 
-    if ((calculatedTotal - finalTotal).abs() > 0.05) {
-      throw FormatException(
-        'Receipt totals do not reconcile: items + service charge + exclusive '
-        'VAT - discount = $calculatedTotal, final_total = $finalTotal.',
+    final totalsReconciled = (calculatedTotal - finalTotal).abs() <= 0.05;
+    if (!totalsReconciled) {
+      debugPrint(
+        'OCR totals need review: items + service charge + exclusive VAT - '
+        'discount = $calculatedTotal, final_total = $finalTotal.',
       );
     }
 
@@ -169,6 +170,7 @@ class OcrService {
       'sub_total': itemTotal,
       'final_total': finalTotal,
       'total_amount': finalTotal,
+      'totals_reconciled': totalsReconciled,
     };
   }
 

@@ -59,7 +59,8 @@ class BillProgressSummary {
       ? 'จ่ายครบแล้ว $totalPayingCount/$totalPayingCount คน'
       : 'จ่ายแล้ว $paidCount/$totalPayingCount คน';
 
-  String get waitingText => unpaidCount > 0 ? 'รออีก $unpaidCount คน' : 'ครบแล้ว 🎉';
+  String get waitingText =>
+      unpaidCount > 0 ? 'รออีก $unpaidCount คน' : 'ครบแล้ว 🎉';
 
   String get formattedAverage => equalPerPerson != null
       ? AppFormatters.formatCurrency(equalPerPerson!)
@@ -101,9 +102,16 @@ class BillProgressHelper {
       double itemsSum = 0.0;
       for (final it in items) {
         if (it is Map) {
-          final qty = int.tryParse((it['qty'] ?? it['quantity'] ?? 1).toString()) ?? 1;
-          final price = double.tryParse((it['unit_price'] ?? it['price'] ?? 0).toString()) ?? 0.0;
-          final total = double.tryParse((it['total_price'] ?? '').toString()) ?? (qty * price);
+          final qty =
+              int.tryParse((it['qty'] ?? it['quantity'] ?? 1).toString()) ?? 1;
+          final price =
+              double.tryParse(
+                (it['unit_price'] ?? it['price'] ?? 0).toString(),
+              ) ??
+              0.0;
+          final total =
+              double.tryParse((it['total_price'] ?? '').toString()) ??
+              (qty * price);
           itemsSum += total;
         }
       }
@@ -116,7 +124,8 @@ class BillProgressHelper {
       double participantsSum = 0.0;
       for (final p in rawParticipants) {
         if (p is Map) {
-          final owed = double.tryParse(p['amount_owed']?.toString() ?? '') ?? 0.0;
+          final owed =
+              double.tryParse(p['amount_owed']?.toString() ?? '') ?? 0.0;
           participantsSum += owed;
         }
       }
@@ -128,7 +137,8 @@ class BillProgressHelper {
 
   static String extractShopName(Map<String, dynamic> bill) {
     final receipt = _asMap(bill['receipt_json']);
-    final name = bill['shop_name']?.toString() ?? receipt['shop_name']?.toString();
+    final name =
+        bill['shop_name']?.toString() ?? receipt['shop_name']?.toString();
     if (name != null && name.trim().isNotEmpty && name.trim() != 'null') {
       return name.trim();
     }
@@ -137,7 +147,8 @@ class BillProgressHelper {
 
   static String extractOwnerId(Map<String, dynamic> bill) {
     final receipt = _asMap(bill['receipt_json']);
-    final ownerId = bill['owner_id']?.toString() ??
+    final ownerId =
+        bill['owner_id']?.toString() ??
         bill['user_id']?.toString() ??
         receipt['owner_id']?.toString();
     return ownerId ?? '';
@@ -164,7 +175,10 @@ class BillProgressHelper {
     final participantMap = <String, Map<String, dynamic>>{};
     for (final p in participantsList) {
       if (p is Map) {
-        final pid = p['profile_id']?.toString() ?? p['friend_id']?.toString() ?? p['id']?.toString();
+        final pid =
+            p['profile_id']?.toString() ??
+            p['friend_id']?.toString() ??
+            p['id']?.toString();
         if (pid != null && pid.isNotEmpty) {
           memberIds.add(pid);
           participantMap[pid] = Map<String, dynamic>.from(p);
@@ -185,13 +199,17 @@ class BillProgressHelper {
           final uq = it['user_quantities'] ?? it['userQuantities'];
           if (uq is Map) {
             for (final k in uq.keys) {
-              if (k != null && k.toString().isNotEmpty) memberIds.add(k.toString());
+              if (k != null && k.toString().isNotEmpty) {
+                memberIds.add(k.toString());
+              }
             }
           }
           final su = it['shared_users'] ?? it['sharedUsers'];
           if (su is Iterable) {
             for (final u in su) {
-              if (u != null && u.toString().isNotEmpty) memberIds.add(u.toString());
+              if (u != null && u.toString().isNotEmpty) {
+                memberIds.add(u.toString());
+              }
             }
           }
         }
@@ -204,7 +222,8 @@ class BillProgressHelper {
       if (val is Iterable) {
         for (final s in val) {
           if (s is Map) {
-            final sid = s['id']?.toString() ??
+            final sid =
+                s['id']?.toString() ??
                 s['userId']?.toString() ??
                 s['user_id']?.toString();
             if (sid != null && sid.isNotEmpty) memberIds.add(sid);
@@ -225,10 +244,12 @@ class BillProgressHelper {
       if (val is Iterable) {
         for (final s in val) {
           if (s is Map) {
-            final sid = s['id']?.toString() ??
+            final sid =
+                s['id']?.toString() ??
                 s['userId']?.toString() ??
                 s['user_id']?.toString();
-            final sname = s['name']?.toString() ??
+            final sname =
+                s['name']?.toString() ??
                 s['displayName']?.toString() ??
                 s['user_name']?.toString();
             if (sid != null && sname != null && sname.isNotEmpty) {
@@ -239,8 +260,12 @@ class BillProgressHelper {
       }
     }
 
-    final totalMembers = memberIds.isEmpty ? (ownerId.isNotEmpty ? 1 : 0) : memberIds.length;
-    final averagePerPerson = totalMembers > 0 ? (totalAmount / totalMembers) : totalAmount;
+    final totalMembers = memberIds.isEmpty
+        ? (ownerId.isNotEmpty ? 1 : 0)
+        : memberIds.length;
+    final averagePerPerson = totalMembers > 0
+        ? totalAmount / totalMembers
+        : totalAmount;
 
     String currentUserId = '';
     String currentEmailPrefix = '';
@@ -251,9 +276,14 @@ class BillProgressHelper {
     } catch (_) {}
 
     for (final mid in memberIds) {
-      final isOwner = (ownerId.isNotEmpty && mid == ownerId) ||
-          (currentUserId.isNotEmpty && mid == currentUserId && (ownerId.isEmpty || ownerId == currentUserId)) ||
-          (currentEmailPrefix.isNotEmpty && mid == currentEmailPrefix && (ownerId.isEmpty || ownerId == currentUserId));
+      final isOwner =
+          (ownerId.isNotEmpty && mid == ownerId) ||
+          (currentUserId.isNotEmpty &&
+              mid == currentUserId &&
+              (ownerId.isEmpty || ownerId == currentUserId)) ||
+          (currentEmailPrefix.isNotEmpty &&
+              mid == currentEmailPrefix &&
+              (ownerId.isEmpty || ownerId == currentUserId));
       final isGuest = mid.startsWith('guest_');
 
       // Determine payment status
@@ -270,16 +300,19 @@ class BillProgressHelper {
       // Determine amount owed
       double amount = 0.0;
       if (participantMap.containsKey(mid)) {
-        amount = double.tryParse(participantMap[mid]?['amount_owed']?.toString() ?? '0') ?? 0.0;
+        amount =
+            double.tryParse(
+              participantMap[mid]?['amount_owed']?.toString() ?? '0',
+            ) ??
+            0.0;
       }
       if (amount <= 0.0) {
         amount = averagePerPerson;
       }
 
-      final name = memberNames[mid] ??
-          (isOwner
-              ? 'เจ้าของบิล'
-              : (isGuest ? 'เพื่อน (Guest)' : 'เพื่อน'));
+      final name =
+          memberNames[mid] ??
+          (isOwner ? 'เจ้าของบิล' : (isGuest ? 'เพื่อน (Guest)' : 'เพื่อน'));
 
       allMembers.add(
         BillParticipantStatus(
@@ -318,7 +351,9 @@ class BillProgressHelper {
     double? equalPerPerson;
     if (allMembers.length > 1) {
       final firstRawAmount = allMembers.first.amount;
-      final allEqual = allMembers.every((m) => (m.amount - firstRawAmount).abs() < 0.01);
+      final allEqual = allMembers.every(
+        (m) => (m.amount - firstRawAmount).abs() < 0.01,
+      );
       if (allEqual && firstRawAmount > 0) {
         isEqualSplit = true;
         equalPerPerson = firstRawAmount.ceilToDouble();

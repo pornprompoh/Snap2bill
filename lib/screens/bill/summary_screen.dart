@@ -270,7 +270,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
 
   bool _isGuestMember(String userId) {
     if (userId.startsWith('guest_')) return true;
-    if (context.read<BillProvider>().roomMembers.any((m) => m.id == userId && m.isGuest)) {
+    if (context.read<BillProvider>().roomMembers.any(
+      (m) => m.id == userId && m.isGuest,
+    )) {
       return true;
     }
     return widget.roomParticipants.any((participant) {
@@ -332,9 +334,11 @@ class _SummaryScreenState extends State<SummaryScreen> {
           widget.lobbyId,
         );
       }
-      final parsedImageUrl =
-          imageUrl == null ? null : Uri.tryParse(imageUrl.trim());
-      final validImageUrl = parsedImageUrl != null &&
+      final parsedImageUrl = imageUrl == null
+          ? null
+          : Uri.tryParse(imageUrl.trim());
+      final validImageUrl =
+          parsedImageUrl != null &&
           (parsedImageUrl.scheme == 'http' ||
               parsedImageUrl.scheme == 'https') &&
           parsedImageUrl.host.isNotEmpty;
@@ -506,7 +510,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   radius: 18,
                   child: Text(
                     memberName.isNotEmpty ? memberName[0].toUpperCase() : '?',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -514,10 +521,20 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(memberName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      Text(
+                        memberName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       Text(
                         'ยอดสุทธิ: ${AppFormatters.formatCurrency(amount)}',
-                        style: const TextStyle(fontSize: 13, color: AppColors.primary, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -535,7 +552,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
                       decoration: BoxDecoration(
                         color: const Color(0xFFFEF3C7),
                         shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0xFFD97706), width: 2),
+                        border: Border.all(
+                          color: const Color(0xFFD97706),
+                          width: 2,
+                        ),
                       ),
                       child: const Icon(
                         Icons.star_rounded,
@@ -555,7 +575,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     const SizedBox(height: 4),
                     Text(
                       'ยอดส่วนตัวของ $memberName คำนวณตามสูตรเดิม',
-                      style: const TextStyle(fontSize: 12, color: AppColors.gray),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.gray,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Container(
@@ -571,7 +594,13 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('ยอดหารส่วนตัว', style: TextStyle(color: AppColors.gray, fontSize: 12)),
+                              const Text(
+                                'ยอดหารส่วนตัว',
+                                style: TextStyle(
+                                  color: AppColors.gray,
+                                  fontSize: 12,
+                                ),
+                              ),
                               Text(
                                 AppFormatters.formatCurrency(amount),
                                 style: const TextStyle(
@@ -586,14 +615,30 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           const Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('บทบาท', style: TextStyle(fontSize: 11, color: AppColors.gray)),
-                              Text('ผู้สร้าง / เจ้าของรายการ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFB45309))),
+                              Text(
+                                'บทบาท',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.gray,
+                                ),
+                              ),
+                              Text(
+                                'ผู้สร้าง / เจ้าของรายการ',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFFB45309),
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 4),
                           const Text(
                             '💡 เจ้าของมีส่วนร่วมในการหารค่าใช้จ่าย แต่ไม่ต้องชำระเงินให้ตนเอง',
-                            style: TextStyle(fontSize: 11, color: Color(0xFF78350F)),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF78350F),
+                            ),
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -606,7 +651,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
                       decoration: BoxDecoration(
                         color: AppColors.lightGreen,
                         shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.tealGreen, width: 2),
+                        border: Border.all(
+                          color: AppColors.tealGreen,
+                          width: 2,
+                        ),
                       ),
                       child: const Icon(
                         Icons.check_circle_rounded,
@@ -626,7 +674,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     const SizedBox(height: 4),
                     Text(
                       'ยอดชำระของ $memberName บันทึกเรียบร้อย',
-                      style: const TextStyle(fontSize: 12, color: AppColors.gray),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.gray,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Container(
@@ -635,14 +686,22 @@ class _SummaryScreenState extends State<SummaryScreen> {
                       decoration: BoxDecoration(
                         color: AppColors.lightGreen.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.tealGreen.withValues(alpha: 0.3)),
+                        border: Border.all(
+                          color: AppColors.tealGreen.withValues(alpha: 0.3),
+                        ),
                       ),
                       child: Column(
                         children: [
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('ยอดชำระ', style: TextStyle(color: AppColors.gray, fontSize: 12)),
+                              const Text(
+                                'ยอดชำระ',
+                                style: TextStyle(
+                                  color: AppColors.gray,
+                                  fontSize: 12,
+                                ),
+                              ),
                               Text(
                                 AppFormatters.formatCurrency(amount),
                                 style: const TextStyle(
@@ -657,16 +716,41 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('ผู้รับเงิน', style: TextStyle(fontSize: 11, color: AppColors.gray)),
-                              Text('$_hostName ($_hostPromptPay)', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                              const Text(
+                                'ผู้รับเงิน',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.gray,
+                                ),
+                              ),
+                              Text(
+                                '$_hostName ($_hostPromptPay)',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 4),
                           const Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('สถานะ', style: TextStyle(fontSize: 11, color: AppColors.gray)),
-                              Text('ชำระเงินแล้ว ✅', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.tealGreen)),
+                              Text(
+                                'สถานะ',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.gray,
+                                ),
+                              ),
+                              Text(
+                                'ชำระเงินแล้ว ✅',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.tealGreen,
+                                ),
+                              ),
                             ],
                           ),
                         ],
@@ -675,7 +759,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   ] else if (canGenerateQr && qrPayload.isNotEmpty) ...[
                     // ⏱️ Single-use dynamic QR with countdown reminder
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       margin: const EdgeInsets.only(bottom: 8),
                       decoration: BoxDecoration(
                         color: Colors.amber.shade50,
@@ -685,9 +772,20 @@ class _SummaryScreenState extends State<SummaryScreen> {
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.timer_outlined, size: 14, color: Colors.amber),
+                          Icon(
+                            Icons.timer_outlined,
+                            size: 14,
+                            color: Colors.amber,
+                          ),
                           SizedBox(width: 4),
-                          Text('คิวอาร์โค้ดใช้ครั้งเดียว (Single-Use)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.brown)),
+                          Text(
+                            'คิวอาร์โค้ดใช้ครั้งเดียว (Single-Use)',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.brown,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -721,12 +819,20 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     const SizedBox(height: 8),
                     Text(
                       'พร้อมเพย์: $_hostPromptPay ($_hostName)',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'สแกนจ่ายได้ทันที ยอด ${AppFormatters.formatCurrency(amount)}',
-                      style: const TextStyle(fontSize: 12, color: AppColors.success, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.success,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ] else ...[
                     Container(
@@ -735,7 +841,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         color: Colors.orange.shade50,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Text('ยังไม่ได้ระบุเลขพร้อมเพย์ของเจ้าของบิล'),
+                      child: const Text(
+                        'ยังไม่ได้ระบุเลขพร้อมเพย์ของเจ้าของบิล',
+                      ),
                     ),
                   ],
                   const SizedBox(height: 16),
@@ -748,10 +856,14 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           backgroundColor: const Color(0xFF06C755),
                           foregroundColor: Colors.white,
                           minimumSize: const Size(double.infinity, 44),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                         icon: const Icon(Icons.send_outlined, size: 18),
-                        label: const Text('ส่งแจ้งเตือนทวงเงินเข้า LINE (สะกิด)'),
+                        label: const Text(
+                          'ส่งแจ้งเตือนทวงเงินเข้า LINE (สะกิด)',
+                        ),
                         onPressed: () {
                           final bankInfo = _hasValidBankTransfer
                               ? '\n🏦 บัญชีธนาคาร: ${_hostBankName ?? ''} เลขบัญชี $_hostBankAccountNumber ($_hostName)'
@@ -759,7 +871,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           final promptPayInfo = _hasValidPromptPay
                               ? '\n💳 พร้อมเพย์: $_hostPromptPay ($_hostName)'
                               : '';
-                          final reminder = '👋 สวัสดี $memberName!\n'
+                          final reminder =
+                              '👋 สวัสดี $memberName!\n'
                               '🍲 ยอดหารบิลร้าน $shopName ของคุณคือ ${AppFormatters.formatCurrency(amount)}'
                               '$promptPayInfo$bankInfo\n'
                               '✨ โอนแล้วรบกวนส่งสลิปด้วยน้า ขอบคุณครับ/ค่ะ 🙏';
@@ -778,13 +891,17 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
                         minimumSize: const Size(double.infinity, 44),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       icon: const Icon(Icons.receipt_long, size: 18),
                       label: const Text('แนบสลิปแจ้งโอนเงิน'),
                       onPressed: () async {
                         final picker = ImagePicker();
-                        final file = await picker.pickImage(source: ImageSource.gallery);
+                        final file = await picker.pickImage(
+                          source: ImageSource.gallery,
+                        );
                         if (file != null && mounted) {
                           setDialogState(() {
                             _manualPaidStatus[memberId] = true;
@@ -794,7 +911,11 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           });
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('แนบสลิปและบันทึกสถานะจ่ายแล้วให้ $memberName แล้ว')),
+                              SnackBar(
+                                content: Text(
+                                  'แนบสลิปและบันทึกสถานะจ่ายแล้วให้ $memberName แล้ว',
+                                ),
+                              ),
                             );
                           }
                         }
@@ -810,7 +931,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           currentPaid ? 'สถานะ: จ่ายแล้ว ✅' : 'สถานะ: รอชำระ ⏳',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: currentPaid ? Colors.green : Colors.orange.shade800,
+                            color: currentPaid
+                                ? Colors.green
+                                : Colors.orange.shade800,
                           ),
                         ),
                         if (_isCurrentUserHost)
@@ -823,7 +946,11 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                 _manualPaidStatus[memberId] = !currentPaid;
                               });
                             },
-                            child: Text(currentPaid ? 'เปลี่ยนเป็นรอจ่าย' : 'เปลี่ยนเป็นจ่ายแล้ว'),
+                            child: Text(
+                              currentPaid
+                                  ? 'เปลี่ยนเป็นรอจ่าย'
+                                  : 'เปลี่ยนเป็นจ่ายแล้ว',
+                            ),
                           ),
                       ],
                     ),
@@ -863,12 +990,25 @@ class _SummaryScreenState extends State<SummaryScreen> {
               '',
         ) ??
         calculatedTotal;
-    final subTotal = double.tryParse(widget.receiptData['sub_total']?.toString() ?? '0') ?? (billTotal * 0.85);
-    final scAmount = double.tryParse(widget.receiptData['service_charge']?.toString() ?? '0') ?? 0.0;
-    final vatAmount = double.tryParse(widget.receiptData['vat_amount']?.toString() ?? '0') ?? 0.0;
+    final subTotal =
+        double.tryParse(widget.receiptData['sub_total']?.toString() ?? '0') ??
+        (billTotal * 0.85);
+    final scAmount =
+        double.tryParse(
+          widget.receiptData['service_charge']?.toString() ?? '0',
+        ) ??
+        0.0;
+    final vatAmount =
+        double.tryParse(widget.receiptData['vat_amount']?.toString() ?? '0') ??
+        0.0;
 
+    final participantIds = totalsByUser.keys
+        .where((userId) => !_isHostUserId(userId))
+        .toList();
     final selectedQrUserId = _isCurrentUserHost
-        ? (_selectedUserId ?? _currentUserId)
+        ? (_selectedUserId != null && !_isHostUserId(_selectedUserId!)
+              ? _selectedUserId
+              : (participantIds.isNotEmpty ? participantIds.first : null))
         : _currentUserId;
     final selectedQrName = selectedQrUserId == null
         ? 'คุณ'
@@ -880,14 +1020,13 @@ class _SummaryScreenState extends State<SummaryScreen> {
         ? 0.0
         : totalsByUser[selectedQrUserId] ?? 0.0;
     final displayedUserIds = _isCurrentUserHost
-        ? (totalsByUser.keys.toList()
-            ..sort((a, b) {
-              final aHost = _isHostUserId(a);
-              final bHost = _isHostUserId(b);
-              if (aHost) return -1;
-              if (bHost) return 1;
-              return 0;
-            }))
+        ? (totalsByUser.keys.toList()..sort((a, b) {
+            final aHost = _isHostUserId(a);
+            final bHost = _isHostUserId(b);
+            if (aHost) return -1;
+            if (bHost) return 1;
+            return 0;
+          }))
         : (_currentUserId != null && totalsByUser.containsKey(_currentUserId)
               ? [_currentUserId!]
               : <String>[]);
@@ -895,9 +1034,13 @@ class _SummaryScreenState extends State<SummaryScreen> {
     final activeUserIds = displayedUserIds
         .where((uid) => (totalsByUser[uid] ?? 0) > 0)
         .toList();
-    final nonHostPayingIds = activeUserIds.where((uid) => !_isHostUserId(uid)).toList();
+    final nonHostPayingIds = activeUserIds
+        .where((uid) => !_isHostUserId(uid))
+        .toList();
     final totalPayingCount = nonHostPayingIds.length;
-    final paidCount = nonHostPayingIds.where((uid) => _isParticipantPaid(uid)).length;
+    final paidCount = nonHostPayingIds
+        .where((uid) => _isParticipantPaid(uid))
+        .length;
     final unpaidPayingCount = totalPayingCount - paidCount;
 
     // Requirement 2: เปอร์เซ็นต์ความคืบหน้า = (ผู้ชำระแล้ว / ผู้เข้าร่วมทั้งหมดไม่รวมเจ้าของ) * 100
@@ -916,10 +1059,13 @@ class _SummaryScreenState extends State<SummaryScreen> {
     final paidAmount = nonHostPayingIds
         .where((uid) => _isParticipantPaid(uid))
         .fold<double>(0, (sum, uid) => sum + (totalsByUser[uid] ?? 0.0));
-    final remainingAmountToCollect = (totalPayingExpectedAmount - paidAmount).clamp(0.0, totalPayingExpectedAmount);
+    final remainingAmountToCollect = (totalPayingExpectedAmount - paidAmount)
+        .clamp(0.0, totalPayingExpectedAmount);
 
-    final allParticipantsPaid = totalPayingCount == 0 ||
-        (nonHostPayingIds.isNotEmpty && nonHostPayingIds.every((uid) => _isParticipantPaid(uid)));
+    final allParticipantsPaid =
+        totalPayingCount == 0 ||
+        (nonHostPayingIds.isNotEmpty &&
+            nonHostPayingIds.every((uid) => _isParticipantPaid(uid)));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -934,7 +1080,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
               children: [
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -943,7 +1092,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppColors.secondary,
                                 borderRadius: BorderRadius.circular(20),
@@ -958,7 +1110,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppColors.surface,
                                 borderRadius: BorderRadius.circular(14),
@@ -966,9 +1121,19 @@ class _SummaryScreenState extends State<SummaryScreen> {
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.restaurant_rounded, size: 14, color: AppColors.primary),
+                                  const Icon(
+                                    Icons.restaurant_rounded,
+                                    size: 14,
+                                    color: AppColors.primary,
+                                  ),
                                   const SizedBox(width: 4),
-                                  Text(shopName, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
+                                  Text(
+                                    shopName,
+                                    style: const TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -1012,7 +1177,11 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                       color: AppColors.secondary,
                                       borderRadius: BorderRadius.circular(10),
                                     ),
-                                    child: const Icon(Icons.receipt_long_rounded, color: AppColors.primary, size: 16),
+                                    child: const Icon(
+                                      Icons.receipt_long_rounded,
+                                      color: AppColors.primary,
+                                      size: 16,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -1030,38 +1199,59 @@ class _SummaryScreenState extends State<SummaryScreen> {
                               // Breakdown Lines
                               _buildSummaryLine('ค่าอาหารรวม', subTotal),
                               if (scAmount > 0)
-                                _buildSummaryLine('Service Charge (10%)', scAmount),
+                                _buildSummaryLine(
+                                  'Service Charge (10%)',
+                                  scAmount,
+                                ),
                               if (vatAmount > 0)
                                 _buildSummaryLine('VAT (7%)', vatAmount),
                               const SizedBox(height: 6),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.secondary.withValues(alpha: 0.6),
+                                  color: AppColors.secondary.withValues(
+                                    alpha: 0.6,
+                                  ),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
                                   splitType == 'equal'
                                       ? '⚡ คำนวณ Service & VAT แบบหารเท่าเฉพาะคนที่กินจริง'
                                       : '⚡ คำนวณ Service & VAT ตามสัดส่วนจานที่แต่ละคนทานจริง',
-                                  style: const TextStyle(fontSize: 10.5, color: AppColors.primary, fontWeight: FontWeight.w600),
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
-                              const Divider(height: 20, color: AppColors.border),
+                              const Divider(
+                                height: 20,
+                                color: AppColors.border,
+                              ),
 
                               // Progress Bar (Requirement 2 & 3: x/n format and percentage without owner)
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     totalPayingCount == 0
                                         ? 'บิลของเจ้าของคนเดียว'
                                         : 'ชำระแล้ว $paidCount/$totalPayingCount คน',
-                                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                                    style: const TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                   Text(
                                     totalPayingCount == 0
-                                        ? AppFormatters.formatCurrency(billTotal)
+                                        ? AppFormatters.formatCurrency(
+                                            billTotal,
+                                          )
                                         : '${AppFormatters.formatCurrency(paidAmount)} / ${AppFormatters.formatCurrency(totalPayingExpectedAmount)}',
                                     style: const TextStyle(
                                       fontSize: 11.5,
@@ -1083,11 +1273,15 @@ class _SummaryScreenState extends State<SummaryScreen> {
                               ),
                               const SizedBox(height: 6),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     'คืบหน้า $progressPercentage%',
-                                    style: const TextStyle(fontSize: 10.5, color: AppColors.textSecondary),
+                                    style: const TextStyle(
+                                      fontSize: 10.5,
+                                      color: AppColors.textSecondary,
+                                    ),
                                   ),
                                   Text(
                                     unpaidPayingCount > 0
@@ -1095,7 +1289,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                         : 'ชำระครบแล้ว 🎉',
                                     style: TextStyle(
                                       fontSize: 10.5,
-                                      color: unpaidPayingCount > 0 ? AppColors.warning : AppColors.success,
+                                      color: unpaidPayingCount > 0
+                                          ? AppColors.warning
+                                          : AppColors.success,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -1111,7 +1307,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              _isCurrentUserHost ? 'สรุปรายบุคคล' : 'ส่วนของคุณ',
+                              _isCurrentUserHost
+                                  ? 'สรุปรายบุคคล'
+                                  : 'ส่วนของคุณ',
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,
@@ -1119,14 +1317,21 @@ class _SummaryScreenState extends State<SummaryScreen> {
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppColors.secondary,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
                                 '${activeUserIds.length} ยอดเรียกเก็บ',
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
                               ),
                             ),
                           ],
@@ -1149,11 +1354,12 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                         _isHostUserId(userId)
                                             ? 'เจ้าของรายการ'
                                             : (_isParticipantPaid(userId)
-                                                ? 'ชำระแล้ว'
-                                                : 'รอจ่าย'),
+                                                  ? 'ชำระแล้ว'
+                                                  : 'รอจ่าย'),
                                         ...?itemSharesByUser[userId],
                                       ].join('\n')
-                                    : (itemSharesByUser[userId]?.isNotEmpty == true
+                                    : (itemSharesByUser[userId]?.isNotEmpty ==
+                                              true
                                           ? itemSharesByUser[userId]!.join('\n')
                                           : null),
                               ),
@@ -1173,7 +1379,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
                             if (!_isCurrentUserHost) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('เฉพาะเจ้าของรายการเท่านั้นที่มีสิทธิ์เปลี่ยนสถานะการชำระเงิน'),
+                                  content: Text(
+                                    'เฉพาะเจ้าของรายการเท่านั้นที่มีสิทธิ์เปลี่ยนสถานะการชำระเงิน',
+                                  ),
                                   backgroundColor: Colors.red,
                                 ),
                               );
@@ -1203,11 +1411,15 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                 : '',
                             selectedUserName: selectedQrName,
                             amount: qrAmount,
-                            isPaid: selectedQrUserId != null && _isParticipantPaid(selectedQrUserId),
+                            isPaid:
+                                selectedQrUserId != null &&
+                                _isParticipantPaid(selectedQrUserId),
                             onAttachSlip: () async {
                               final messenger = ScaffoldMessenger.of(context);
                               final picker = ImagePicker();
-                              final file = await picker.pickImage(source: ImageSource.gallery);
+                              final file = await picker.pickImage(
+                                source: ImageSource.gallery,
+                              );
                               if (file != null && mounted) {
                                 if (selectedQrUserId != null) {
                                   setState(() {
@@ -1216,7 +1428,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                 }
                                 messenger.showSnackBar(
                                   SnackBar(
-                                    content: Text('แนบสลิปและบันทึกสถานะจ่ายแล้วให้ $selectedQrName แล้ว ✅'),
+                                    content: Text(
+                                      'แนบสลิปและบันทึกสถานะจ่ายแล้วให้ $selectedQrName แล้ว ✅',
+                                    ),
                                     backgroundColor: AppColors.success,
                                   ),
                                 );
@@ -1233,24 +1447,40 @@ class _SummaryScreenState extends State<SummaryScreen> {
                             decoration: BoxDecoration(
                               color: AppColors.lightGreen,
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: AppColors.tealGreen.withValues(alpha: 0.3)),
+                              border: Border.all(
+                                color: AppColors.tealGreen.withValues(
+                                  alpha: 0.3,
+                                ),
+                              ),
                             ),
                             child: const Row(
                               children: [
-                                Icon(Icons.celebration_rounded, color: AppColors.tealGreen, size: 24),
+                                Icon(
+                                  Icons.celebration_rounded,
+                                  color: AppColors.tealGreen,
+                                  size: 24,
+                                ),
                                 SizedBox(width: 10),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         '🎉 ทุกคนชำระเงินครบ 100% แล้ว!',
-                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: AppColors.tealGreen),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13.5,
+                                          color: AppColors.tealGreen,
+                                        ),
                                       ),
                                       SizedBox(height: 2),
                                       Text(
                                         'ยอดเงินครบตามบิลแล้ว เจ้าของบิลสามารถกดปิดบิลเสร็จสิ้นได้เลย',
-                                        style: TextStyle(fontSize: 11, color: AppColors.tealGreen),
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: AppColors.tealGreen,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -1263,7 +1493,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         const Center(
                           child: Text(
                             'ระบบจะส่งสลิปหลักฐานเข้ากลุ่ม LINE อัตโนมัติเมื่อทุกคนโอนครบ',
-                            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -1277,7 +1510,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                   decoration: BoxDecoration(
                     color: AppColors.surface,
-                    border: const Border(top: BorderSide(color: AppColors.border)),
+                    border: const Border(
+                      top: BorderSide(color: AppColors.border),
+                    ),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.05),
@@ -1294,7 +1529,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         Expanded(
                           child: ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF06C755), // LINE Green
+                              backgroundColor: const Color(
+                                0xFF06C755,
+                              ), // LINE Green
                               foregroundColor: Colors.white,
                               elevation: 0,
                               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -1305,14 +1542,19 @@ class _SummaryScreenState extends State<SummaryScreen> {
                             icon: const Icon(Icons.send_rounded, size: 18),
                             label: const Text(
                               'แชร์บิลสรุปให้ทุกคนใน LINE',
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                             onPressed: () {
                               final listNames = activeUserIds
                                   .map((uid) {
                                     final name = userNames[uid] ?? 'เพื่อน';
                                     final isPaid = _isParticipantPaid(uid);
-                                    final amt = AppFormatters.formatCurrency(totalsByUser[uid] ?? 0);
+                                    final amt = AppFormatters.formatCurrency(
+                                      totalsByUser[uid] ?? 0,
+                                    );
                                     return '- $name: ฿$amt ${isPaid ? "(จ่ายแล้ว ✓)" : "(รอโอน ⏳)"}';
                                   })
                                   .join('\n');
@@ -1322,7 +1564,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
                               final promptPayInfo = _hasValidPromptPay
                                   ? '\n💳 พร้อมเพย์: $_hostPromptPay ($_hostName)'
                                   : '';
-                              final msg = '🍲 สรุปยอดค่าอาหารร้าน "$shopName" 🍲\n'
+                              final msg =
+                                  '🍲 สรุปยอดค่าอาหารร้าน "$shopName" 🍲\n'
                                   'ยอดรวมทั้งโต๊ะ: ${AppFormatters.formatCurrency(billTotal)} บาท\n\n'
                                   '📌 ยอดสรุปรายบุคคล:\n$listNames\n'
                                   '$promptPayInfo$bankInfo\n\n'
@@ -1341,14 +1584,28 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         // ปุ่มปิดบิลเสร็จสิ้น
                         IconButton.filledTonal(
                           style: IconButton.styleFrom(
-                            backgroundColor: allParticipantsPaid ? AppColors.success : AppColors.secondary,
-                            foregroundColor: allParticipantsPaid ? Colors.white : AppColors.primary,
+                            backgroundColor: allParticipantsPaid
+                                ? AppColors.success
+                                : AppColors.secondary,
+                            foregroundColor: allParticipantsPaid
+                                ? Colors.white
+                                : AppColors.primary,
                             padding: const EdgeInsets.all(12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
                           ),
-                          tooltip: _isCurrentUserHost ? 'ปิดบิลเสร็จสิ้น' : 'กลับหน้าแรก',
+                          tooltip: _isCurrentUserHost
+                              ? 'ปิดบิลเสร็จสิ้น'
+                              : 'กลับหน้าแรก',
                           icon: _isFinishing
-                              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
                               : const Icon(Icons.check_rounded, size: 22),
                           onPressed: _isFinishing ? null : _saveAndFinish,
                         ),
@@ -1367,10 +1624,20 @@ class _SummaryScreenState extends State<SummaryScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
+          ),
           Text(
             AppFormatters.formatCurrency(amount),
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
           ),
         ],
       ),

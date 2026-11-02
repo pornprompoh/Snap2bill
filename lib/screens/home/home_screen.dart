@@ -252,19 +252,29 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('เข้าร่วมห้องหารบิล', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'เข้าร่วมห้องหารบิล',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('กรอกรหัส 6 หลักที่เพื่อนแชร์มาให้', style: TextStyle(fontSize: 13, color: AppColors.gray)),
+            const Text(
+              'กรอกรหัส 6 หลักที่เพื่อนแชร์มาให้',
+              style: TextStyle(fontSize: 13, color: AppColors.gray),
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: codeController,
               keyboardType: TextInputType.number,
               maxLength: 6,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 4),
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 4,
+              ),
               decoration: InputDecoration(
                 hintText: '123456',
                 filled: true,
@@ -280,7 +290,10 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('ยกเลิก', style: TextStyle(color: AppColors.gray)),
+            child: const Text(
+              'ยกเลิก',
+              style: TextStyle(color: AppColors.gray),
+            ),
           ),
           ElevatedButton(
             onPressed: _isCheckingRoom
@@ -293,7 +306,9 @@ class _HomeScreenState extends State<HomeScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.pink,
               foregroundColor: AppColors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: const Text('เข้าร่วมเลย'),
           ),
@@ -304,7 +319,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   bool _isBillSettled(Map<String, dynamic> bill) {
     final summary = BillProgressHelper.calculate(bill);
-    if (summary.isSettled && bill['status'] != 'completed' && bill['id'] != null) {
+    if (summary.isSettled &&
+        bill['status'] != 'completed' &&
+        bill['id'] != null) {
       // Auto-sync status to completed in background if all members paid
       () async {
         try {
@@ -350,7 +367,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 alignment: Alignment.center,
                 children: [
                   IconButton(
-                    icon: Icon(Icons.notifications_none_rounded, color: textPrimary, size: 26),
+                    icon: Icon(
+                      Icons.notifications_none_rounded,
+                      color: textPrimary,
+                      size: 26,
+                    ),
                     tooltip: 'การแจ้งเตือน',
                     onPressed: () async {
                       await NotificationCenterDialog.show(
@@ -370,7 +391,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: AppColors.pink,
                           shape: BoxShape.circle,
                         ),
-                        constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
                         child: Text(
                           '$unread',
                           style: const TextStyle(
@@ -417,22 +441,28 @@ class _HomeScreenState extends State<HomeScreen> {
             int recoveredMonthlyCount = 0;
 
             final now = DateTime.now();
-            final currentMonthPrefix = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+            final currentMonthPrefix =
+                '${now.year}-${now.month.toString().padLeft(2, '0')}';
 
             final completedCount = bills.where((b) => _isBillSettled(b)).length;
 
             for (final b in bills) {
-              final amount = BillProgressHelper.extractBillTotal(b);
+              final summary = BillProgressHelper.calculate(b);
               final isSettled = _isBillSettled(b);
               final createdAt = b['created_at']?.toString() ?? '';
 
               if (isSettled) {
                 if (createdAt.startsWith(currentMonthPrefix)) {
-                  recoveredMonthlyTotal += amount;
+                  recoveredMonthlyTotal += summary.allMembers
+                      .where((member) => !member.isOwner && member.isPaid)
+                      .fold<double>(0, (sum, member) => sum + member.amount);
                   recoveredMonthlyCount++;
                 }
               } else {
-                unpaidTotal += amount;
+                unpaidTotal += summary.unpaidMembers.fold<double>(
+                  0,
+                  (sum, member) => sum + member.amount,
+                );
                 unpaidCount++;
               }
             }
@@ -449,7 +479,10 @@ class _HomeScreenState extends State<HomeScreen> {
             if (bills.isEmpty) {
               return SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 8.0,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -478,15 +511,21 @@ class _HomeScreenState extends State<HomeScreen> {
                             height: 120,
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: isDark ? AppColors.darkCardBackground : AppColors.white,
+                              color: isDark
+                                  ? AppColors.darkCardBackground
+                                  : AppColors.white,
                               borderRadius: BorderRadius.circular(24),
                               border: Border.all(
-                                color: isDark ? AppColors.darkBorder : const Color(0xFFEEEEEE),
+                                color: isDark
+                                    ? AppColors.darkBorder
+                                    : const Color(0xFFEEEEEE),
                                 width: 1.2,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                                  color: Colors.black.withValues(
+                                    alpha: isDark ? 0.2 : 0.04,
+                                  ),
                                   blurRadius: 16,
                                   offset: const Offset(0, 4),
                                 ),
@@ -497,11 +536,12 @@ class _HomeScreenState extends State<HomeScreen> {
                               child: Image.asset(
                                 'assets/images/bunny_mascot.png',
                                 fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) => const Icon(
-                                  Icons.receipt_long_rounded,
-                                  size: 48,
-                                  color: AppColors.pink,
-                                ),
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Icon(
+                                      Icons.receipt_long_rounded,
+                                      size: 48,
+                                      color: AppColors.pink,
+                                    ),
                               ),
                             ),
                           ),
@@ -527,7 +567,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             width: 160,
                             height: 44,
                             child: ElevatedButton(
-                              onPressed: () => _pickImageAndScan(ImageSource.camera),
+                              onPressed: () =>
+                                  _pickImageAndScan(ImageSource.camera),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.pink,
                                 foregroundColor: AppColors.white,
@@ -558,7 +599,10 @@ class _HomeScreenState extends State<HomeScreen> {
             // --- VIEW B: ACTIVE CONTENT (Matching Image 3 Right & Image 4) ---
             return SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 8.0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -569,14 +613,22 @@ class _HomeScreenState extends State<HomeScreen> {
                       Expanded(
                         child: InkWell(
                           borderRadius: BorderRadius.circular(16),
-                          onTap: () => setState(() => _historyFilter = 'unpaid'),
+                          onTap: () =>
+                              setState(() => _historyFilter = 'unpaid'),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
                             decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF2C281E) : AppColors.paleYellow,
+                              color: isDark
+                                  ? const Color(0xFF2C281E)
+                                  : AppColors.paleYellow,
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                color: isDark ? const Color(0xFF4A402A) : const Color(0xFFFFEEA8),
+                                color: isDark
+                                    ? const Color(0xFF4A402A)
+                                    : const Color(0xFFFFEEA8),
                                 width: 1.2,
                               ),
                             ),
@@ -588,7 +640,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
-                                    color: isDark ? AppColors.white : AppColors.black,
+                                    color: isDark
+                                        ? AppColors.white
+                                        : AppColors.black,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -597,7 +651,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                   style: TextStyle(
                                     fontSize: 19.5,
                                     fontWeight: FontWeight.w800,
-                                    color: isDark ? AppColors.white : AppColors.black,
+                                    color: isDark
+                                        ? AppColors.white
+                                        : AppColors.black,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
@@ -605,7 +661,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                   'รอเก็บ $unpaidCount บิล',
                                   style: TextStyle(
                                     fontSize: 12.5,
-                                    color: isDark ? AppColors.darkTextSecondary : AppColors.gray,
+                                    color: isDark
+                                        ? AppColors.darkTextSecondary
+                                        : AppColors.gray,
                                   ),
                                 ),
                               ],
@@ -619,14 +677,22 @@ class _HomeScreenState extends State<HomeScreen> {
                       Expanded(
                         child: InkWell(
                           borderRadius: BorderRadius.circular(16),
-                          onTap: () => setState(() => _historyFilter = 'completed'),
+                          onTap: () =>
+                              setState(() => _historyFilter = 'completed'),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
                             decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF1E2C22) : AppColors.lightGreen,
+                              color: isDark
+                                  ? const Color(0xFF1E2C22)
+                                  : AppColors.lightGreen,
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                color: isDark ? const Color(0xFF2E4D36) : const Color(0xFFA2EDB0),
+                                color: isDark
+                                    ? const Color(0xFF2E4D36)
+                                    : const Color(0xFFA2EDB0),
                                 width: 1.2,
                               ),
                             ),
@@ -638,16 +704,22 @@ class _HomeScreenState extends State<HomeScreen> {
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
-                                    color: isDark ? AppColors.white : AppColors.black,
+                                    color: isDark
+                                        ? AppColors.white
+                                        : AppColors.black,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  AppFormatters.formatCurrency(recoveredMonthlyTotal),
+                                  AppFormatters.formatCurrency(
+                                    recoveredMonthlyTotal,
+                                  ),
                                   style: TextStyle(
                                     fontSize: 19.5,
                                     fontWeight: FontWeight.w800,
-                                    color: isDark ? AppColors.white : AppColors.black,
+                                    color: isDark
+                                        ? AppColors.white
+                                        : AppColors.black,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
@@ -655,7 +727,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                   'ปิดยอด $recoveredMonthlyCount บิล',
                                   style: TextStyle(
                                     fontSize: 12.5,
-                                    color: isDark ? AppColors.darkTextSecondary : AppColors.gray,
+                                    color: isDark
+                                        ? AppColors.darkTextSecondary
+                                        : AppColors.gray,
                                   ),
                                 ),
                               ],
@@ -692,7 +766,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               decoration: BoxDecoration(
                                 color: Colors.white.withValues(alpha: 0.16),
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.3),
+                                ),
                               ),
                               child: const Icon(
                                 Icons.document_scanner_outlined,
@@ -733,12 +809,15 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: [
                             Expanded(
                               child: ElevatedButton(
-                                onPressed: () => _pickImageAndScan(ImageSource.camera),
+                                onPressed: () =>
+                                    _pickImageAndScan(ImageSource.camera),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.white,
                                   foregroundColor: AppColors.tealGreen,
                                   elevation: 0,
-                                  padding: const EdgeInsets.symmetric(vertical: 11),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 11,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(10),
                                   ),
@@ -756,12 +835,17 @@ class _HomeScreenState extends State<HomeScreen> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: OutlinedButton(
-                                onPressed: () => _pickImageAndScan(ImageSource.gallery),
+                                onPressed: () =>
+                                    _pickImageAndScan(ImageSource.gallery),
                                 style: OutlinedButton.styleFrom(
                                   backgroundColor: AppColors.whiteOverlay24,
                                   foregroundColor: Colors.white,
-                                  side: BorderSide(color: Colors.white.withValues(alpha: 0.6)),
-                                  padding: const EdgeInsets.symmetric(vertical: 11),
+                                  side: BorderSide(
+                                    color: Colors.white.withValues(alpha: 0.6),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 11,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(10),
                                   ),
@@ -786,12 +870,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   // 3. Tip Card (Pale Yellow)
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF2C281E) : AppColors.paleYellow,
+                      color: isDark
+                          ? const Color(0xFF2C281E)
+                          : AppColors.paleYellow,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: isDark ? const Color(0xFF4A402A) : const Color(0xFFFFEEA8),
+                        color: isDark
+                            ? const Color(0xFF4A402A)
+                            : const Color(0xFFFFEEA8),
                       ),
                     ),
                     child: Text(
@@ -799,7 +890,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 12,
-                        color: isDark ? const Color(0xFFF0D58C) : const Color(0xFF8A6200),
+                        color: isDark
+                            ? const Color(0xFFF0D58C)
+                            : const Color(0xFF8A6200),
                         height: 1.35,
                       ),
                     ),
@@ -824,10 +917,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       Text(
                         'ทั้งหมด ${bills.length} บิล',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: textSecondary,
-                        ),
+                        style: TextStyle(fontSize: 13, color: textSecondary),
                       ),
                     ],
                   ),
@@ -839,7 +929,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     decoration: BoxDecoration(
                       color: isDark ? AppColors.darkSurface : AppColors.white,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: isDark ? AppColors.darkBorder : const Color(0xFFD6D6D6)),
+                      border: Border.all(
+                        color: isDark
+                            ? AppColors.darkBorder
+                            : const Color(0xFFD6D6D6),
+                      ),
                     ),
                     child: Row(
                       children: [
@@ -881,7 +975,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       alignment: Alignment.center,
                       child: Column(
                         children: [
-                          Icon(Icons.receipt_outlined, size: 44, color: textSecondary.withValues(alpha: 0.5)),
+                          Icon(
+                            Icons.receipt_outlined,
+                            size: 44,
+                            color: textSecondary.withValues(alpha: 0.5),
+                          ),
                           const SizedBox(height: 8),
                           Text(
                             _historyFilter == 'unpaid'
@@ -889,7 +987,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                 : _historyFilter == 'completed'
                                 ? 'ยังไม่มีบิลที่ปิดยอดสำเร็จ'
                                 : 'ยังไม่มีประวัติบิล',
-                            style: TextStyle(color: textSecondary, fontSize: 13),
+                            style: TextStyle(
+                              color: textSecondary,
+                              fontSize: 13,
+                            ),
                           ),
                         ],
                       ),
@@ -902,7 +1003,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       itemBuilder: (context, index) {
                         final bill = filteredBills[index];
                         final summary = BillProgressHelper.calculate(bill);
-                        final date = bill['created_at']?.toString().split('T')[0] ?? '';
+                        final date =
+                            bill['created_at']?.toString().split('T')[0] ?? '';
 
                         return BillCard(
                           shopName: summary.shopName,
@@ -925,10 +1027,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           },
                           onRemind: !summary.isSettled
                               ? () => PokeReminderDialog.show(
-                                    context,
-                                    bill: bill,
-                                    summary: summary,
-                                  )
+                                  context,
+                                  bill: bill,
+                                  summary: summary,
+                                )
                               : null,
                         );
                       },
@@ -944,7 +1046,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildJoinRoomCard(bool isDark, Color textPrimary, Color textSecondary) {
+  Widget _buildJoinRoomCard(
+    bool isDark,
+    Color textPrimary,
+    Color textSecondary,
+  ) {
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: () => _showJoinRoomDialog(context),
@@ -990,19 +1096,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 2),
                   Text(
                     'กรอกรหัส 6 หลักเพื่อเข้าร่วม',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: textSecondary,
-                    ),
+                    style: TextStyle(fontSize: 13, color: textSecondary),
                   ),
                 ],
               ),
             ),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: textSecondary,
-              size: 24,
-            ),
+            Icon(Icons.chevron_right_rounded, color: textSecondary, size: 24),
           ],
         ),
       ),

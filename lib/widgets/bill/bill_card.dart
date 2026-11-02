@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
-import '../utils/formatters.dart';
+import '../../theme/app_colors.dart';
+import '../../utils/formatters.dart';
 
 class BillCard extends StatelessWidget {
   final String shopName;

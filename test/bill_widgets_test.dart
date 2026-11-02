@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:snap2bill/widgets/friend_item.dart';
+import 'package:snap2bill/widgets/friends/friend_item.dart';
 import 'package:snap2bill/widgets/bill/promptpay_card.dart';
 import 'package:snap2bill/widgets/bill/claim_item_card.dart';
 import 'package:snap2bill/utils/menu_icon_helper.dart';

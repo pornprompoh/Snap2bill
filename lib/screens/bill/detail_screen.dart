@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../models/bill_model.dart';
-import '../providers/bill_provider.dart';
-import '../theme/app_colors.dart';
-import '../utils/formatters.dart';
-import '../widgets/bill/member_summary_list.dart';
-import '../utils/bill_progress_helper.dart';
-import '../widgets/bill/poke_reminder_dialog.dart';
-import '../widgets/bill/shareable_receipt_preview_dialog.dart';
-import 'bill/personal_payment_details_screen.dart';
+import '../../models/bill_model.dart';
+import '../../providers/bill_provider.dart';
+import '../../theme/app_colors.dart';
+import '../../utils/formatters.dart';
+import '../../widgets/bill/member_summary_list.dart';
+import '../../utils/bill_progress_helper.dart';
+import '../../widgets/bill/poke_reminder_dialog.dart';
+import '../../widgets/bill/shareable_receipt_preview_dialog.dart';
+import 'personal_payment_details_screen.dart';
 
 class DetailScreen extends StatefulWidget {
   final Map<String, dynamic> billData;

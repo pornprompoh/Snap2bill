@@ -10,8 +10,8 @@ import '../../providers/contact_provider.dart';
 import '../../services/supabase_db_service.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/constants.dart';
-import '../../widgets/custom_button.dart';
-import '../../widgets/friend_item.dart';
+import '../../widgets/common/custom_button.dart';
+import '../../widgets/friends/friend_item.dart';
 
 class FriendListScreen extends StatefulWidget {
   final bool selectionMode;

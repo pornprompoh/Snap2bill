@@ -4,7 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../routes/app_routes.dart';
 import '../../services/camera_service.dart';
 import '../../theme/app_colors.dart';
-import '../../widgets/custom_button.dart';
+import '../../widgets/common/custom_button.dart';
 
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});

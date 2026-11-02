@@ -4,11 +4,25 @@ import 'package:flutter/material.dart';
 import '../models/bill_model.dart';
 import '../models/user_model.dart';
 import 'contact_provider.dart';
-import '../services/data/supabase_db_service.dart';
+import '../data/repositories/supabase_bill_repository.dart';
+import '../domain/repositories/bill_repository.dart';
+import '../domain/usecases/bill_use_cases.dart';
 
 class BillProvider with ChangeNotifier {
-  final SupabaseDbService _dbService = SupabaseDbService();
+  final BillRepository _billRepository;
+  late final GetRoomGuestMembers _getRoomGuestMembers;
+  late final AddRoomGuestMember _addRoomGuestMember;
+  late final GetMyBills _getMyBills;
+  late final CreateBill _createBill;
   ContactProvider? _contactProvider;
+
+  BillProvider({BillRepository? billRepository})
+      : _billRepository = billRepository ?? SupabaseBillRepository() {
+    _getRoomGuestMembers = GetRoomGuestMembers(_billRepository);
+    _addRoomGuestMember = AddRoomGuestMember(_billRepository);
+    _getMyBills = GetMyBills(_billRepository);
+    _createBill = CreateBill(_billRepository);
+  }
 
   void setContactProvider(ContactProvider contactProvider) {
     _contactProvider = contactProvider;
@@ -27,7 +41,7 @@ class BillProvider with ChangeNotifier {
   List<UserModel> get roomParticipants => List.unmodifiable(_roomParticipants);
   List<RoomMember> get roomMembers => List.unmodifiable(_roomMembers);
   String get currentClaimingUserId =>
-      _currentClaimingUserId ?? _dbService.currentUserId ?? '';
+      _currentClaimingUserId ?? _billRepository.currentUserId ?? '';
   bool get isLoading => _isLoading;
   String get splitType => _splitType;
 
@@ -114,7 +128,7 @@ class BillProvider with ChangeNotifier {
     _activeRoomCode = roomCode;
     _roomParticipants.clear();
     _roomMembers.clear();
-    _currentClaimingUserId = _dbService.currentUserId;
+    _currentClaimingUserId = _billRepository.currentUserId;
     _splitType = 'proportional';
     notifyListeners();
   }
@@ -139,7 +153,7 @@ class BillProvider with ChangeNotifier {
         avatarUrl: participant.avatarUrl,
       );
       _mergeRoomMember(member);
-      if (member.id != _dbService.currentUserId) _saveContact(member.name);
+      if (member.id != _billRepository.currentUserId) _saveContact(member.name);
       changed = true;
     }
     if (changed) notifyListeners();
@@ -147,7 +161,7 @@ class BillProvider with ChangeNotifier {
   }
 
   Future<void> loadRoomMembers(String roomCode) async {
-    final members = await _dbService.getRoomGuestMembers(roomCode);
+    final members = await _getRoomGuestMembers(roomCode);
     mergeRoomMembers(members);
   }
 
@@ -163,7 +177,7 @@ class BillProvider with ChangeNotifier {
       name: name,
       isGuest: true,
     );
-    final savedMember = await _dbService.addRoomGuestMember(roomCode, member);
+    final savedMember = await _addRoomGuestMember(roomCode, member);
     mergeRoomMembers([savedMember]);
     await _saveContact(name);
     return savedMember;
@@ -171,7 +185,7 @@ class BillProvider with ChangeNotifier {
 
   Future<void> saveRoomMemberContacts(Iterable<RoomMember> members) async {
     for (final member in members) {
-      if (!member.isGuest && member.id == _dbService.currentUserId) continue;
+      if (!member.isGuest && member.id == _billRepository.currentUserId) continue;
       await _saveContact(member.name);
     }
   }
@@ -216,7 +230,7 @@ class BillProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    _bills = await _dbService.getMyBills();
+    _bills = await _getMyBills();
 
     _isLoading = false;
     notifyListeners();
@@ -230,7 +244,7 @@ class BillProvider with ChangeNotifier {
 
     _isCreatingBill = true;
     try {
-      final newBill = await _dbService.createBill(shopName, totalAmount);
+      final newBill = await _createBill(shopName, totalAmount);
       _bills.insert(0, newBill);
       notifyListeners();
       return newBill;

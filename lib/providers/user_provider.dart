@@ -1,13 +1,27 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
-import '../services/data/supabase_db_service.dart';
+import '../data/repositories/supabase_user_repository.dart';
+import '../domain/repositories/user_repository.dart';
+import '../domain/usecases/user_use_cases.dart';
 
 class UserProvider with ChangeNotifier {
-  final SupabaseDbService _dbService = SupabaseDbService();
+  final UserRepository _userRepository;
+  late final GetMyProfile _getMyProfile;
+  late final UpdateUserProfile _updateUserProfile;
+  late final GetMyFriends _getMyFriends;
+  late final AddFriend _addFriend;
 
   UserModel? _currentUser;
   List<FriendModel> _friends = [];
   bool _isLoading = false;
+
+  UserProvider({UserRepository? userRepository})
+      : _userRepository = userRepository ?? SupabaseUserRepository() {
+    _getMyProfile = GetMyProfile(_userRepository);
+    _updateUserProfile = UpdateUserProfile(_userRepository);
+    _getMyFriends = GetMyFriends(_userRepository);
+    _addFriend = AddFriend(_userRepository);
+  }
 
   UserModel? get currentUser => _currentUser;
   List<FriendModel> get friends => _friends;
@@ -23,7 +37,7 @@ class UserProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      _currentUser = await _dbService.getMyProfile();
+      _currentUser = await _getMyProfile();
       return _currentUser;
     } catch (error, stackTrace) {
       debugPrint('Failed to load profile: $error\n$stackTrace');
@@ -62,7 +76,7 @@ class UserProvider with ChangeNotifier {
         paymentInfo['bank_account_name'] = trimmedBankAccountName ?? name;
       }
 
-      _currentUser = await _dbService.updateUserProfile(
+      _currentUser = await _updateUserProfile(
         displayName: name,
         paymentInfo: paymentInfo.isEmpty ? null : paymentInfo,
       );
@@ -81,7 +95,7 @@ class UserProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    _friends = await _dbService.getMyFriends();
+    _friends = await _getMyFriends();
 
     _isLoading = false;
     notifyListeners();
@@ -89,7 +103,7 @@ class UserProvider with ChangeNotifier {
 
   // เพิ่มเพื่อนใหม่ แล้วสั่งให้รีเฟรชหน้าจอ
   Future<void> addFriend(String name) async {
-    await _dbService.addFriend(name);
+    await _addFriend(name);
     await loadFriends(); 
   }
 }

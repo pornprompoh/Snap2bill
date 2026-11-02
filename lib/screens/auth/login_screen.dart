@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../data/repositories/supabase_auth_repository.dart';
+import '../../domain/repositories/auth_repository.dart';
+import '../../domain/usecases/auth_use_cases.dart';
 import '../../routes/app_routes.dart';
-import '../../services/auth/supabase_auth_service.dart';
 import '../../theme/app_colors.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -13,6 +15,11 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final AuthRepository _authRepository = SupabaseAuthRepository();
+  late final SignInWithGoogle _signInWithGoogle;
+  late final SignInWithFacebook _signInWithFacebook;
+  late final SignInWithEmail _signInWithEmail;
+  late final SignUp _signUp;
   bool _isLoading = false;
   bool _isSignUp = false;
   bool _isPasswordVisible = false;
@@ -32,6 +39,10 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
+    _signInWithGoogle = SignInWithGoogle(_authRepository);
+    _signInWithFacebook = SignInWithFacebook(_authRepository);
+    _signInWithEmail = SignInWithEmail(_authRepository);
+    _signUp = SignUp(_authRepository);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final session = Supabase.instance.client.auth.currentSession;
@@ -60,7 +71,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isLoading = true);
     try {
-      final response = await SupabaseAuthService().signInWithGoogle();
+      final response = await _signInWithGoogle();
       if (!mounted) return;
       if (response != null && response.user != null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -81,7 +92,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleFacebookSignIn() async {
     setState(() => _isLoading = true);
     try {
-      await SupabaseAuthService().signInWithFacebook();
+      await _signInWithFacebook();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -101,20 +112,14 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
     try {
       if (_isSignUp) {
-        await Supabase.instance.client.auth.signUp(
-          email: email,
-          password: password,
-        );
+        await _signUp(email, password);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('สมัครสมาชิกสำเร็จ!')),
         );
         _navigateToHome();
       } else {
-        await Supabase.instance.client.auth.signInWithPassword(
-          email: email,
-          password: password,
-        );
+        await _signInWithEmail(email, password);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('เข้าสู่ระบบสำเร็จ')),

@@ -21,7 +21,12 @@ snap2bill/
 │   └── Runner/Info.plist                 # URL scheme และการตั้งค่าแอป
 ├── lib/                                  # โค้ด Flutter หลัก
 │   ├── main.dart                         # เริ่มแอป, initialize Supabase, providers และ deep-link listener
-│   ├── models/                           # Data models และการแปลงข้อมูลจาก/ไป Supabase
+│   ├── data/                             # Repository implementations และ local persistence
+│   │   └── repositories/                 # Supabase adapters และ LocalBillRepository
+│   ├── domain/                           # Contracts และ use cases ของแอป
+│   │   ├── repositories/                 # Repository interfaces
+│   │   └── usecases/                     # Application use cases
+│   ├── models/                           # Data models ที่ใช้ร่วมระหว่างชั้นปัจจุบัน
 │   │   ├── bill_model.dart               # Bill, item และ participant models
 │   │   └── user_model.dart               # User/Friend models รวม payment_info ของ PromptPay
 │   ├── providers/                        # State management ด้วย Provider
@@ -33,21 +38,22 @@ snap2bill/
 │   │   ├── auth/login_screen.dart        # เข้าสู่ระบบ
 │   │   ├── friends/friend_list_screen.dart # เลือกเพื่อนจากประวัติบิล
 │   │   ├── profile/profile_screen.dart   # ดู/แก้ไขโปรไฟล์และ PromptPay
-│   │   ├── detail_screen.dart            # รายละเอียดบิลย้อนหลัง
-│   │   ├── home_screen.dart              # หน้าหลักและประวัติบิล
-│   │   ├── loading_screen.dart           # สถานะระหว่างประมวลผล OCR
-│   │   ├── main_screen.dart              # Navigation หลัก
+│   │   ├── bill/detail_screen.dart       # รายละเอียดบิลย้อนหลัง
+│   │   ├── home/home_screen.dart         # หน้าหลักและประวัติบิล
+│   │   ├── common/loading_screen.dart    # สถานะระหว่างประมวลผล OCR
+│   │   ├── main/main_screen.dart         # Navigation หลัก
 │   │   ├── bill/                         # หน้าจอ Flow การหารบิล
 │   │   │   ├── claim_screen.dart         # เลือกรายการอาหารและผู้รับผิดชอบ
 │   │   │   ├── lobby_screen.dart         # ห้อง Realtime, QR และรายชื่อสมาชิก
 │   │   │   ├── review_screen.dart        # ตรวจ/แก้ข้อมูล OCR ก่อนเริ่มหาร
 │   │   │   ├── scan_screen.dart          # ถ่ายภาพหรือเลือกรูปใบเสร็จ
 │   │   │   └── summary_screen.dart       # ยอดชำระ, PromptPay QR และบันทึกบิล
-│   ├── services/                         # การเชื่อมต่อ API และ business services
-│   │   ├── ocr_service.dart              # Gemini OCR พร้อม retry/fallback model
-│   │   ├── supabase_auth_service.dart    # Supabase Auth และ Google Sign-In
-│   │   ├── supabase_db_service.dart      # อ่าน/เขียน profiles, friends และ bills
-│   │   └── supabase_storage_service.dart # Resize/compress ภาพและอัปโหลด Storage
+│   ├── services/                         # Infrastructure services และ platform integrations
+│   │   ├── auth/                         # Supabase Auth และ Google Sign-In
+│   │   ├── data/                         # Supabase data source เดิม
+│   │   ├── media/                        # OCR, camera และ QR image handling
+│   │   ├── notifications/                # In-app notifications
+│   │   └── storage/                      # Supabase Storage
 │   ├── theme/                            # สีและรูปแบบตัวอักษร
 │   │   ├── app_colors.dart               # ชุดสีหลัก
 │   │   └── app_text_styles.dart          # Text styles ที่ใช้ซ้ำ
@@ -55,9 +61,9 @@ snap2bill/
 │   │   ├── constants.dart                # ระยะห่างและค่าคงที่ของ UI
 │   │   └── formatters.dart                # จัดรูปแบบตัวเลข/สกุลเงิน
 │   └── widgets/                          # Widgets ที่ใช้ซ้ำ
-│       ├── bill_card.dart                # การ์ดสรุปบิล
-│       ├── custom_button.dart            # ปุ่มมาตรฐานพร้อม loading state
-│       ├── friend_item.dart              # รายการเพื่อนและสถานะเลือก
+│       ├── bill/bill_card.dart            # การ์ดสรุปบิล
+│       ├── common/custom_button.dart      # ปุ่มมาตรฐานพร้อม loading state
+│       ├── friends/friend_item.dart       # รายการเพื่อนและสถานะเลือก
 │       └── bill/                         # Components เฉพาะใน Bill Flow
 │           ├── claim_item_card.dart      # การ์ดเลือกรายการ/แชร์เมนู
 │           ├── guest_dialog.dart         # Dialog เพิ่มสมาชิก Guest

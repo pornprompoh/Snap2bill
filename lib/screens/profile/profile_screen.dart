@@ -7,6 +7,7 @@ import '../../providers/theme_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_theme_colors.dart';
 import '../../utils/constants.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/custom_top_app_bar.dart';
@@ -175,6 +176,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final cardBg = isDark ? AppColors.darkCardBackground : AppColors.white;
+        final themeColors = context.appColors;
 
         return Scaffold(
           backgroundColor: isDark
@@ -557,13 +559,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               AppConstants.paddingM,
                             ),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.surface,
+                              color: themeColors.surfaceVariant,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: Theme.of(
-                                  context,
-                                ).dividerColor.withValues(alpha: 0.2),
+                                color: AppColors.tealGreen.withValues(
+                                  alpha: isDark ? 0.7 : 0.35,
+                                ),
+                                width: 1.2,
                               ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(
+                                    alpha: isDark ? 0.18 : 0.05,
+                                  ),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -709,13 +721,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   vertical: 6,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.surface,
+                                  color: themeColors.surfaceVariant,
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: Theme.of(
-                                      context,
-                                    ).dividerColor.withValues(alpha: 0.2),
+                                    color: AppColors.primary.withValues(
+                                      alpha: isDark ? 0.65 : 0.3,
+                                    ),
+                                    width: 1.2,
                                   ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: isDark ? 0.18 : 0.05,
+                                      ),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
                                 ),
                                 child: SwitchListTile.adaptive(
                                   contentPadding: EdgeInsets.zero,

@@ -5,6 +5,7 @@ import '../../providers/bill_provider.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/formatters.dart';
+import '../../utils/menu_icon_helper.dart';
 
 class ReviewScreen extends StatefulWidget {
   final Map<String, dynamic> receiptData;
@@ -67,7 +68,15 @@ class _ReviewScreenState extends State<ReviewScreen> {
     _enableSc = _sc > 0;
 
     final aiItems = widget.receiptData['items'] as List<dynamic>? ?? [];
-    _items = aiItems.map((e) => Map<String, dynamic>.from(e)).toList();
+    _items = aiItems
+        .map((e) => Map<String, dynamic>.from(e))
+        .where((item) {
+          final price = double.tryParse((item['unit_price'] ?? item['price'] ?? 0).toString()) ?? 0.0;
+          final total = double.tryParse((item['total_price'] ?? 0).toString()) ?? 0.0;
+          final name = (item['name'] ?? item['item_name'])?.toString().trim() ?? '';
+          return name.isNotEmpty && (price > 0 || total > 0);
+        })
+        .toList();
   }
 
   double _calculateSubtotal() {
@@ -231,8 +240,15 @@ class _ReviewScreenState extends State<ReviewScreen> {
               if (rawName.isEmpty) return;
               final qty = int.tryParse(qtyCtrl.text) ?? 1;
               final unitPrice = double.tryParse(priceCtrl.text) ?? 0.0;
+              if (unitPrice <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('กรุณาระบุราคาที่มากกว่า 0 บาท')),
+                );
+                return;
+              }
               final updatedItem = {
                 'item_name': rawName,
+                'name': rawName,
                 'qty': qty,
                 'unit_price': unitPrice,
                 'total_price': qty * unitPrice,
@@ -276,6 +292,14 @@ class _ReviewScreenState extends State<ReviewScreen> {
     updatedReceiptData['discount'] = _discount;
     updatedReceiptData['split_model'] = _splitModel;
 
+    // กรองเฉพาะรายการที่มีราคามากกว่า 0 บาทก่อนส่งต่อไปยัง Lobby และ Claim Items
+    _items = _items.where((item) {
+      final unitPrice = double.tryParse((item['unit_price'] ?? item['price'] ?? 0).toString()) ?? 0.0;
+      final totalPrice = double.tryParse((item['total_price'] ?? 0).toString()) ?? 0.0;
+      final name = (item['name'] ?? item['item_name'])?.toString().trim() ?? '';
+      return name.isNotEmpty && (unitPrice > 0 || totalPrice > 0);
+    }).toList();
+
     double subTotal = 0;
     for (var item in _items) {
       final qty = int.tryParse(item['qty'].toString()) ?? 1;
@@ -299,39 +323,12 @@ class _ReviewScreenState extends State<ReviewScreen> {
     );
   }
 
-  IconData _getDishIcon(String name) {
-    final lower = name.toLowerCase();
-    if (lower.contains('ชา') || lower.contains('น้ำ') || lower.contains('กาแฟ') || lower.contains('เบียร์')) {
-      return Icons.local_cafe_rounded;
-    }
-    if (lower.contains('เนื้อ') || lower.contains('หมู') || lower.contains('ไก่') || lower.contains('ปลา')) {
-      return Icons.set_meal_rounded;
-    }
-    if (lower.contains('ผัก') || lower.contains('สลัด')) {
-      return Icons.eco_rounded;
-    }
-    if (lower.contains('ข้าว')) {
-      return Icons.rice_bowl_rounded;
-    }
-    return Icons.ramen_dining_rounded;
-  }
-
   Color _getDishColor(int index) {
     const colors = [
       AppColors.lightPink,
       AppColors.paleYellow,
       AppColors.lightGreen,
       AppColors.lightPink,
-    ];
-    return colors[index % colors.length];
-  }
-
-  Color _getDishIconColor(int index) {
-    const colors = [
-      AppColors.pink,
-      AppColors.primaryOrange,
-      AppColors.tealGreen,
-      AppColors.pink,
     ];
     return colors[index % colors.length];
   }
@@ -588,10 +585,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
                                 color: _getDishColor(index),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: Icon(
-                                _getDishIcon(name),
-                                color: _getDishIconColor(index),
-                                size: 20,
+                              child: Center(
+                                child: Text(
+                                  MenuIconHelper.getDishEmoji(name),
+                                  style: const TextStyle(fontSize: 20),
+                                ),
                               ),
                             ),
                             const SizedBox(width: 12),

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'formatters.dart';
 
 class BillParticipantStatus {
@@ -29,6 +30,8 @@ class BillProgressSummary {
   final int unpaidCount;
   final int percentage; // 0 to 100
   final double averagePerPerson;
+  final double? equalPerPerson;
+  final bool isEqualSplit;
   final bool isSettled;
   final List<BillParticipantStatus> unpaidMembers;
   final List<BillParticipantStatus> allMembers;
@@ -43,6 +46,8 @@ class BillProgressSummary {
     required this.unpaidCount,
     required this.percentage,
     required this.averagePerPerson,
+    this.equalPerPerson,
+    this.isEqualSplit = false,
     required this.isSettled,
     required this.unpaidMembers,
     required this.allMembers,
@@ -56,7 +61,9 @@ class BillProgressSummary {
 
   String get waitingText => unpaidCount > 0 ? 'รออีก $unpaidCount คน' : 'ครบแล้ว 🎉';
 
-  String get formattedAverage => AppFormatters.formatCurrency(averagePerPerson);
+  String get formattedAverage => equalPerPerson != null
+      ? AppFormatters.formatCurrency(equalPerPerson!)
+      : AppFormatters.formatCurrency(averagePerPerson);
 }
 
 class BillProgressHelper {
@@ -87,6 +94,35 @@ class BillProgressHelper {
         if (val > 0) return val;
       }
     }
+
+    // Fallback: sum up items inside receipt_json['items']
+    final items = receipt['items'];
+    if (items is List) {
+      double itemsSum = 0.0;
+      for (final it in items) {
+        if (it is Map) {
+          final qty = int.tryParse((it['qty'] ?? it['quantity'] ?? 1).toString()) ?? 1;
+          final price = double.tryParse((it['unit_price'] ?? it['price'] ?? 0).toString()) ?? 0.0;
+          final total = double.tryParse((it['total_price'] ?? '').toString()) ?? (qty * price);
+          itemsSum += total;
+        }
+      }
+      if (itemsSum > 0) return itemsSum;
+    }
+
+    // Fallback: sum bill_participants amounts
+    final rawParticipants = bill['bill_participants'];
+    if (rawParticipants is List) {
+      double participantsSum = 0.0;
+      for (final p in rawParticipants) {
+        if (p is Map) {
+          final owed = double.tryParse(p['amount_owed']?.toString() ?? '') ?? 0.0;
+          participantsSum += owed;
+        }
+      }
+      if (participantsSum > 0) return participantsSum;
+    }
+
     return 0.0;
   }
 
@@ -168,7 +204,9 @@ class BillProgressHelper {
       if (val is Iterable) {
         for (final s in val) {
           if (s is Map) {
-            final sid = s['id']?.toString() ?? s['userId']?.toString();
+            final sid = s['id']?.toString() ??
+                s['userId']?.toString() ??
+                s['user_id']?.toString();
             if (sid != null && sid.isNotEmpty) memberIds.add(sid);
           } else if (s is String && s.isNotEmpty) {
             memberIds.add(s);
@@ -187,8 +225,12 @@ class BillProgressHelper {
       if (val is Iterable) {
         for (final s in val) {
           if (s is Map) {
-            final sid = s['id']?.toString() ?? s['userId']?.toString();
-            final sname = s['name']?.toString() ?? s['displayName']?.toString();
+            final sid = s['id']?.toString() ??
+                s['userId']?.toString() ??
+                s['user_id']?.toString();
+            final sname = s['name']?.toString() ??
+                s['displayName']?.toString() ??
+                s['user_name']?.toString();
             if (sid != null && sname != null && sname.isNotEmpty) {
               memberNames[sid] = sname;
             }
@@ -200,8 +242,18 @@ class BillProgressHelper {
     final totalMembers = memberIds.isEmpty ? (ownerId.isNotEmpty ? 1 : 0) : memberIds.length;
     final averagePerPerson = totalMembers > 0 ? (totalAmount / totalMembers) : totalAmount;
 
+    String currentUserId = '';
+    String currentEmailPrefix = '';
+    try {
+      final currentAuthUser = Supabase.instance.client.auth.currentUser;
+      currentUserId = currentAuthUser?.id ?? '';
+      currentEmailPrefix = currentAuthUser?.email?.split('@').first ?? '';
+    } catch (_) {}
+
     for (final mid in memberIds) {
-      final isOwner = ownerId.isNotEmpty && mid == ownerId;
+      final isOwner = (ownerId.isNotEmpty && mid == ownerId) ||
+          (currentUserId.isNotEmpty && mid == currentUserId && (ownerId.isEmpty || ownerId == currentUserId)) ||
+          (currentEmailPrefix.isNotEmpty && mid == currentEmailPrefix && (ownerId.isEmpty || ownerId == currentUserId));
       final isGuest = mid.startsWith('guest_');
 
       // Determine payment status
@@ -247,17 +299,41 @@ class BillProgressHelper {
     final paidCount = payingMembers.where((m) => m.isPaid).length;
     final unpaidCount = totalPayingCount - paidCount;
 
+    // Requirement 2:
+    // เปอร์เซ็นต์ความคืบหน้า = (จำนวนผู้เข้าร่วมที่ชำระเงินแล้ว ÷ จำนวนผู้เข้าร่วมทั้งหมดที่ไม่รวมเจ้าของ) × 100
+    // หากสร้างบิลใหม่และยังไม่มีใครชำระเงิน ให้แสดง 0%
     final int percentage;
     if (totalPayingCount == 0) {
-      // Solo bill or no other paying members
-      percentage = 100;
+      // ยังไม่มีผู้ต้องชำระ: ห้ามนับเป็นสำเร็จ ให้อยู่แท็บ "ยังไม่ครบ" (0%)
+      percentage = 0;
     } else {
       percentage = ((paidCount / totalPayingCount) * 100).round();
     }
 
-    final billStatus = bill['status']?.toString().toLowerCase() ?? '';
-    final isExplicitlyCompleted = {'completed', 'paid', 'settled', 'cleared'}.contains(billStatus);
-    final isSettled = totalPayingCount == 0 || (totalPayingCount > 0 && unpaidCount == 0) || isExplicitlyCompleted;
+    // Requirement 4:
+    // หากผู้เข้าร่วมทุกคนมียอดเงินที่ต้องชำระเท่ากัน ให้แสดงข้อความ "ตกคนละ X บาท"
+    // หากผู้เข้าร่วมแต่ละคนมียอดเงินไม่เท่ากัน ไม่ต้องแสดงข้อความยอดเฉลี่ยต่อคน
+    // ตรวจสอบความเท่ากันของยอดเงินก่อนปัดเศษ เพื่อไม่ให้ยอดที่แตกต่างกันถูกแสดงเป็นยอดเดียวกันโดยไม่ถูกต้อง
+    bool isEqualSplit = false;
+    double? equalPerPerson;
+    if (allMembers.length > 1) {
+      final firstRawAmount = allMembers.first.amount;
+      final allEqual = allMembers.every((m) => (m.amount - firstRawAmount).abs() < 0.01);
+      if (allEqual && firstRawAmount > 0) {
+        isEqualSplit = true;
+        equalPerPerson = firstRawAmount.ceilToDouble();
+      }
+    } else if (allMembers.length == 1 && allMembers.first.amount > 0) {
+      isEqualSplit = true;
+      equalPerPerson = allMembers.first.amount.ceilToDouble();
+    }
+
+    // Requirement 1:
+    // หากยังมีผู้เข้าร่วมค้างชำระอยู่ (unpaidCount > 0) ต้องไม่แสดงบิลในแท็บ "สำเร็จ" โดยเด็ดขาด
+    // สำเร็จ (Completed): แสดงเฉพาะบิลที่ผู้เข้าร่วมทุกคนชำระเงินครบถ้วนแล้ว (unpaidCount == 0)
+    final bool isSettled;
+    // บิลใหม่ (ยังไม่มีผู้ชำระ) ต้องอยู่ "ยังไม่ครบ" เสมอ จนกว่าผู้เข้าร่วมทุกคนจ่ายครบ
+    isSettled = totalPayingCount > 0 && unpaidCount == 0;
 
     final unpaidMembers = payingMembers.where((m) => !m.isPaid).toList();
 
@@ -271,6 +347,8 @@ class BillProgressHelper {
       unpaidCount: unpaidCount,
       percentage: percentage,
       averagePerPerson: averagePerPerson,
+      equalPerPerson: equalPerPerson,
+      isEqualSplit: isEqualSplit,
       isSettled: isSettled,
       unpaidMembers: unpaidMembers,
       allMembers: allMembers,

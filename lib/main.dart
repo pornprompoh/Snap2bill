@@ -8,6 +8,7 @@ import 'providers/contact_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/user_provider.dart';
 import 'theme/app_colors.dart';
+import 'theme/app_design_system.dart';
 import 'theme/app_text_styles.dart';
 import 'package:snap2bill/widgets/deep_link_handler.dart';
 
@@ -106,7 +107,7 @@ class MyApp extends StatelessWidget {
       navigatorKey: _navigatorKey,
       scaffoldMessengerKey: _scaffoldMessengerKey,
       themeMode: themeProvider.themeMode,
-      theme: ThemeData(
+      theme: AppDesignSystem.apply(ThemeData(
         fontFamily: AppTextStyles.fontFamily,
         colorScheme: lightColorScheme,
         textTheme: AppTextStyles.textTheme,
@@ -136,8 +137,8 @@ class MyApp extends StatelessWidget {
           hintStyle: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
         ),
         useMaterial3: true,
-      ),
-      darkTheme: ThemeData(
+      )),
+      darkTheme: AppDesignSystem.apply(ThemeData(
         fontFamily: AppTextStyles.fontFamily,
         colorScheme: darkColorScheme,
         brightness: Brightness.dark,
@@ -165,7 +166,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
         useMaterial3: true,
-      ),
+      )),
       // OAuth returns to the app after Supabase has restored the session.
       initialRoute: Supabase.instance.client.auth.currentSession == null
           ? '/'

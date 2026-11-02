@@ -48,8 +48,5 @@ app.*.map.json
 .env
 .env*
 
-# Local Reports
-USABILITY_TESTING_REPORT.md
-
 # Excluded Folders
 Labsheet/

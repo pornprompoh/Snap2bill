@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:snap2bill/widgets/friend_item.dart';
 import 'package:snap2bill/widgets/bill/promptpay_card.dart';
 import 'package:snap2bill/widgets/bill/claim_item_card.dart';
+import 'package:snap2bill/utils/menu_icon_helper.dart';
 
 void main() {
   group('FriendItem Widget Tests', () {
@@ -97,7 +98,7 @@ void main() {
 
       expect(find.textContaining('คุณเจ้าของห้อง'), findsWidgets);
       expect(find.textContaining('0812345678'), findsWidgets);
-      expect(find.textContaining('320.50'), findsWidgets);
+      expect(find.textContaining('321'), findsWidgets);
 
       await tester.pumpWidget(const SizedBox());
     });
@@ -201,8 +202,8 @@ void main() {
       );
 
       expect(find.text('ข้าวผัดต้มยำกุ้ง'), findsOneWidget);
-      expect(find.textContaining('95.00'), findsOneWidget);
-      expect(find.byIcon(Icons.rice_bowl_rounded), findsOneWidget);
+      expect(find.textContaining('95'), findsOneWidget);
+      expect(find.text(MenuIconHelper.getDishEmoji('ข้าวผัดต้มยำกุ้ง')), findsOneWidget);
 
       // Tap + button to increment
       final addButtons = find.byIcon(Icons.add);
@@ -241,7 +242,7 @@ void main() {
       );
 
       expect(find.text('ชาเขียวเย็นหวานน้อย'), findsOneWidget);
-      expect(find.byIcon(Icons.local_cafe_rounded), findsOneWidget);
+      expect(find.text(MenuIconHelper.getDishEmoji('ชาเขียวเย็นหวานน้อย')), findsOneWidget);
     });
   });
 }

@@ -55,8 +55,9 @@ class BillProvider with ChangeNotifier {
         if (id.isNotEmpty) id: 0,
     };
     var totalMenuValue = 0.0;
+    final validItems = items.where((it) => it.price > 0 && it.itemName.trim().isNotEmpty);
 
-    for (final item in items) {
+    for (final item in validItems) {
       totalMenuValue += item.price * item.quantity;
       final personalClaims = item.userQuantities.isNotEmpty
           ? item.userQuantities
@@ -78,7 +79,7 @@ class BillProvider with ChangeNotifier {
       final sharedUsers = item.sharedUsers.where((id) => id.isNotEmpty).toSet();
       if (unallocatedQuantity > 0 && sharedUsers.isNotEmpty) {
         final sharedAmount =
-            item.price * unallocatedQuantity / sharedUsers.length;
+            (item.price * unallocatedQuantity / sharedUsers.length).ceilToDouble();
         for (final userId in sharedUsers) {
           itemTotalsByUser[userId] =
               (itemTotalsByUser[userId] ?? 0) + sharedAmount;
@@ -99,12 +100,12 @@ class BillProvider with ChangeNotifier {
       for (final entry in itemTotalsByUser.entries)
         entry.key: activeEaterIds.isNotEmpty && !activeEaterIds.contains(entry.key)
             ? 0.0
-            : entry.value +
+            : (entry.value +
                 (splitType == 'equal'
                     ? (activeCount > 0 ? extraAmount / activeCount : 0.0)
                     : (totalMenuValue > 0
                           ? extraAmount * entry.value / totalMenuValue
-                          : 0.0)),
+                          : 0.0))).ceilToDouble(),
     };
   }
 

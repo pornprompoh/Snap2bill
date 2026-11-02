@@ -12,6 +12,7 @@ class BillCard extends StatelessWidget {
   final int? totalPayingCount;
   final int? paidCount;
   final double? averagePerPerson;
+  final bool isEqualSplit;
   final String? unpaidMemberName;
   final double? collectedAmount;
   final String? splitType;
@@ -29,6 +30,7 @@ class BillCard extends StatelessWidget {
     this.totalPayingCount,
     this.paidCount,
     this.averagePerPerson,
+    this.isEqualSplit = false,
     this.unpaidMemberName,
     this.collectedAmount,
     this.splitType,
@@ -63,7 +65,7 @@ class BillCard extends StatelessWidget {
     final effectivePaid = paidCount ?? (effectiveTotalPaying - unpaidCount).clamp(0, effectiveTotalPaying);
     final progress = effectiveTotalPaying > 0
         ? (effectivePaid / effectiveTotalPaying).clamp(0.0, 1.0)
-        : 1.0;
+        : 0.0;
     final int percentage = (progress * 100).round();
 
     return Container(
@@ -180,7 +182,7 @@ class BillCard extends StatelessWidget {
                             ),
                           ],
                         ),
-                        if (totalAmount > 0 && averagePerPerson != null && averagePerPerson! > 0) ...[
+                        if (totalAmount > 0 && isEqualSplit && averagePerPerson != null && averagePerPerson! > 0) ...[
                           const SizedBox(height: 2),
                           Text(
                             'ตกคนละ ${AppFormatters.formatCurrency(averagePerPerson!)}',
@@ -197,7 +199,7 @@ class BillCard extends StatelessWidget {
                 ),
 
                 // Active progress bar if bill has active collection
-                if (!_isSettled && unpaidCount > 0) ...[
+                if (!_isSettled) ...[
                   const SizedBox(height: 10),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),

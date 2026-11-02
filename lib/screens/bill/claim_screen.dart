@@ -413,7 +413,14 @@ class _ClaimScreenState extends State<ClaimScreen> {
       claimingUsers[entry.key] = entry.value;
     }
     final shopName = widget.receiptData['shop_name'] ?? 'ไม่ระบุชื่อร้าน';
-    final items = widget.receiptData['items'] as List<dynamic>? ?? [];
+    final rawItems = widget.receiptData['items'] as List<dynamic>? ?? [];
+    final items = rawItems.where((it) {
+      if (it is! Map) return false;
+      final price = double.tryParse((it['unit_price'] ?? it['price'] ?? 0).toString()) ?? 0.0;
+      final total = double.tryParse((it['total_price'] ?? 0).toString()) ?? 0.0;
+      final name = (it['item_name'] ?? it['name'])?.toString().trim() ?? '';
+      return name.isNotEmpty && (price > 0 || total > 0);
+    }).toList();
 
     // คำนวณยอดเงินของคนที่กำลังเลือกอยู่
     double currentClaimingTotal = 0.0;

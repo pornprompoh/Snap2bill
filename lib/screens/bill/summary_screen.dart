@@ -345,9 +345,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
           ) ??
           calculatedTotal;
 
-      // ตรวจสอบว่ามีผู้ที่ต้องชำระเงินนอกจากเจ้าของหรือไม่
-      final nonOwnerPayingCount = userTotalsForDB.keys.where((uid) => uid != userId).length;
-      final initialStatus = nonOwnerPayingCount == 0 ? 'completed' : 'pending';
+      // บิลใหม่ต้องเริ่มที่ "ยังไม่ครบ" (pending) เสมอ
+      const initialStatus = 'pending';
 
       final insertedBill = await supabase
           .from('bills')
@@ -379,6 +378,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
             'bill_id': newBillId,
             'profile_id': uid,
             'amount_owed': amount,
+            'status': 'pending',
           });
         }
       });
@@ -562,7 +562,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                             children: [
                               const Text('ยอดหารส่วนตัว', style: TextStyle(color: AppColors.gray, fontSize: 12)),
                               Text(
-                                '${AppFormatters.formatCurrency(amount)} ฿',
+                                AppFormatters.formatCurrency(amount),
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800,
@@ -633,7 +633,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                             children: [
                               const Text('ยอดชำระ', style: TextStyle(color: AppColors.gray, fontSize: 12)),
                               Text(
-                                '${AppFormatters.formatCurrency(amount)} ฿',
+                                AppFormatters.formatCurrency(amount),
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800,
@@ -714,7 +714,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'สแกนจ่ายได้ทันที ยอด ฿${amount.toStringAsFixed(2)}',
+                      'สแกนจ่ายได้ทันที ยอด ${AppFormatters.formatCurrency(amount)}',
                       style: const TextStyle(fontSize: 12, color: AppColors.success, fontWeight: FontWeight.bold),
                     ),
                   ] else ...[
@@ -749,7 +749,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                               ? '\n💳 พร้อมเพย์: $_hostPromptPay ($_hostName)'
                               : '';
                           final reminder = '👋 สวัสดี $memberName!\n'
-                              '🍲 ยอดหารบิลร้าน $shopName ของคุณคือ ฿${amount.toStringAsFixed(2)}'
+                              '🍲 ยอดหารบิลร้าน $shopName ของคุณคือ ${AppFormatters.formatCurrency(amount)}'
                               '$promptPayInfo$bankInfo\n'
                               '✨ โอนแล้วรบกวนส่งสลิปด้วยน้า ขอบคุณครับ/ค่ะ 🙏';
                           SharePlus.instance.share(
@@ -884,15 +884,31 @@ class _SummaryScreenState extends State<SummaryScreen> {
     final activeUserIds = displayedUserIds
         .where((uid) => (totalsByUser[uid] ?? 0) > 0)
         .toList();
-    final paidMembersCount = activeUserIds.where((uid) => _isParticipantPaid(uid)).length;
-    final paidAmount = activeUserIds
+    final nonHostPayingIds = activeUserIds.where((uid) => !_isHostUserId(uid)).toList();
+    final totalPayingCount = nonHostPayingIds.length;
+    final paidCount = nonHostPayingIds.where((uid) => _isParticipantPaid(uid)).length;
+    final unpaidPayingCount = totalPayingCount - paidCount;
+
+    // Requirement 2: เปอร์เซ็นต์ความคืบหน้า = (ผู้ชำระแล้ว / ผู้เข้าร่วมทั้งหมดไม่รวมเจ้าของ) * 100
+    // หากสร้างบิลใหม่และยังไม่มีใครชำระเงิน ให้แสดง 0%
+    final int progressPercentage = totalPayingCount == 0
+        ? 0
+        : ((paidCount / totalPayingCount) * 100).round();
+    final progressValue = totalPayingCount == 0
+        ? 0.0
+        : (paidCount / totalPayingCount).clamp(0.0, 1.0);
+
+    final totalPayingExpectedAmount = nonHostPayingIds.fold<double>(
+      0,
+      (sum, uid) => sum + (totalsByUser[uid] ?? 0.0),
+    );
+    final paidAmount = nonHostPayingIds
         .where((uid) => _isParticipantPaid(uid))
         .fold<double>(0, (sum, uid) => sum + (totalsByUser[uid] ?? 0.0));
-    final unpaidAmount = (billTotal - paidAmount).clamp(0.0, billTotal);
-    final progress = billTotal > 0 ? (paidAmount / billTotal).clamp(0.0, 1.0) : 1.0;
+    final remainingAmountToCollect = (totalPayingExpectedAmount - paidAmount).clamp(0.0, totalPayingExpectedAmount);
 
-    final allParticipantsPaid = activeUserIds.isNotEmpty &&
-        activeUserIds.every((uid) => _isParticipantPaid(uid));
+    final allParticipantsPaid = totalPayingCount == 0 ||
+        (nonHostPayingIds.isNotEmpty && nonHostPayingIds.every((uid) => _isParticipantPaid(uid)));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -1022,16 +1038,20 @@ class _SummaryScreenState extends State<SummaryScreen> {
                               ),
                               const Divider(height: 20, color: AppColors.border),
 
-                              // Progress Bar
+                              // Progress Bar (Requirement 2 & 3: x/n format and percentage without owner)
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
-                                    'ชำระแล้ว $paidMembersCount จาก ${activeUserIds.length} คน',
+                                    totalPayingCount == 0
+                                        ? 'บิลของเจ้าของคนเดียว'
+                                        : 'ชำระแล้ว $paidCount/$totalPayingCount คน',
                                     style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
                                   ),
                                   Text(
-                                    '${AppFormatters.formatCurrency(paidAmount)} / ${AppFormatters.formatCurrency(billTotal)}',
+                                    totalPayingCount == 0
+                                        ? AppFormatters.formatCurrency(billTotal)
+                                        : '${AppFormatters.formatCurrency(paidAmount)} / ${AppFormatters.formatCurrency(totalPayingExpectedAmount)}',
                                     style: const TextStyle(
                                       fontSize: 11.5,
                                       fontWeight: FontWeight.bold,
@@ -1044,7 +1064,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(6),
                                 child: LinearProgressIndicator(
-                                  value: progress,
+                                  value: progressValue,
                                   backgroundColor: AppColors.border,
                                   color: AppColors.success,
                                   minHeight: 6,
@@ -1055,12 +1075,18 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
-                                    'คืบหน้า ${(progress * 100).toStringAsFixed(0)}%',
+                                    'คืบหน้า $progressPercentage%',
                                     style: const TextStyle(fontSize: 10.5, color: AppColors.textSecondary),
                                   ),
                                   Text(
-                                    'ยังค้างเบิก ${AppFormatters.formatCurrency(unpaidAmount)}',
-                                    style: const TextStyle(fontSize: 10.5, color: AppColors.warning, fontWeight: FontWeight.w600),
+                                    unpaidPayingCount > 0
+                                        ? 'ยังค้างเบิก ${AppFormatters.formatCurrency(remainingAmountToCollect)}'
+                                        : 'ชำระครบแล้ว 🎉',
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      color: unpaidPayingCount > 0 ? AppColors.warning : AppColors.success,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ],
                               ),

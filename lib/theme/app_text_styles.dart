@@ -26,7 +26,7 @@ class AppTextStyles {
   static const TextStyle body = TextStyle(
     fontFamily: fontFamily,
     color: AppColors.textPrimary,
-    fontSize: 16.5,
+    fontSize: 18,
     fontWeight: FontWeight.w400,
     height: 1.45,
   );
@@ -34,7 +34,7 @@ class AppTextStyles {
   static const TextStyle caption = TextStyle(
     fontFamily: fontFamily,
     color: AppColors.textSecondary,
-    fontSize: 13.5,
+    fontSize: 15,
     fontWeight: FontWeight.w400,
     height: 1.4,
   );
@@ -51,6 +51,6 @@ class AppTextStyles {
     bodySmall: caption,
     labelLarge: body.copyWith(fontSize: 15.5, fontWeight: FontWeight.w600),
     labelMedium: caption.copyWith(fontWeight: FontWeight.w500),
-    labelSmall: caption.copyWith(fontSize: 12.5),
+    labelSmall: caption.copyWith(fontSize: 13.5),
   );
 }

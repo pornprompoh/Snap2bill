@@ -3,7 +3,10 @@ import '../../models/user_model.dart';
 import '../../models/bill_model.dart';
 
 class SupabaseDbService {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  SupabaseDbService({SupabaseClient? client})
+    : _supabase = client ?? Supabase.instance.client;
+
+  final SupabaseClient _supabase;
 
   String? get currentUserId => _supabase.auth.currentUser?.id;
 

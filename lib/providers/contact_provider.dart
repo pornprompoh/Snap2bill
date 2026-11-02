@@ -4,7 +4,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/contact_model.dart';
 
 class ContactProvider extends ChangeNotifier {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  ContactProvider({SupabaseClient? client})
+    : _supabase = client ?? Supabase.instance.client;
+
+  final SupabaseClient _supabase;
 
   List<ContactModel> _contacts = [];
   bool _isLoading = false;

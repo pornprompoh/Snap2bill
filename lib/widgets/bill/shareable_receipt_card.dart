@@ -65,7 +65,15 @@ class ShareableReceiptCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = summary;
     final createdAt = bill['created_at']?.toString() ?? '';
-    final imageUrl = bill['image_url']?.toString();
+    final rawImageUrl = bill['image_url']?.toString().trim();
+    final parsedImageUrl =
+        rawImageUrl == null ? null : Uri.tryParse(rawImageUrl);
+    final imageUrl = parsedImageUrl != null &&
+            (parsedImageUrl.scheme == 'http' ||
+                parsedImageUrl.scheme == 'https') &&
+            parsedImageUrl.host.isNotEmpty
+        ? rawImageUrl
+        : null;
     final hasValidPromptPay = hostPromptPay != null && PromptPayHelper.isValidTarget(hostPromptPay!);
     final qrPayload = _promptPayPayload;
 

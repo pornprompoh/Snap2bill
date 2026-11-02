@@ -39,7 +39,8 @@ class _DetailScreenState extends State<DetailScreen> {
 
   Future<void> _fetchHostPromptPayInfo() async {
     try {
-      final ownerId = widget.billData['owner_id']?.toString() ??
+      final ownerId =
+          widget.billData['owner_id']?.toString() ??
           Supabase.instance.client.auth.currentUser?.id;
       if (ownerId != null) {
         final profile = await Supabase.instance.client
@@ -50,15 +51,18 @@ class _DetailScreenState extends State<DetailScreen> {
         if (profile != null && mounted) {
           final paymentInfo = profile['payment_info'] as Map<String, dynamic>?;
           setState(() {
-            _hostPromptPay = profile['promptpay_number']?.toString() ??
+            _hostPromptPay =
+                profile['promptpay_number']?.toString() ??
                 paymentInfo?['number']?.toString() ??
                 '';
-            _hostPromptPayType = profile['promptpay_type']?.toString() ??
+            _hostPromptPayType =
+                profile['promptpay_type']?.toString() ??
                 paymentInfo?['type']?.toString();
             _hostBankName = paymentInfo?['bank_name']?.toString();
             _hostBankAccountNumber =
                 paymentInfo?['bank_account_number']?.toString() ?? '';
-            _hostBankAccountName = paymentInfo?['bank_account_name']?.toString();
+            _hostBankAccountName = paymentInfo?['bank_account_name']
+                ?.toString();
             final name = profile['display_name']?.toString().trim();
             _hostName = name?.isNotEmpty == true
                 ? name!
@@ -103,7 +107,8 @@ class _DetailScreenState extends State<DetailScreen> {
         if (userId.isEmpty) continue;
         final userName = sharer['user_name']?.toString();
         if (userName?.isNotEmpty == true) namesById[userId] = userName!;
-        final quantity = int.tryParse(sharer['quantity']?.toString() ?? '') ?? 0;
+        final quantity =
+            int.tryParse(sharer['quantity']?.toString() ?? '') ?? 0;
         if (quantity > 0) personalQuantities[userId] = quantity;
         if (sharer['is_shared'] == true) sharedUsers.add(userId);
       }
@@ -166,8 +171,9 @@ class _DetailScreenState extends State<DetailScreen> {
           .select('id, display_name, email')
           .inFilter('id', profileIds.toList());
       for (final profile in profiles) {
-        profilesById[profile['id'].toString()] =
-            Map<String, dynamic>.from(profile);
+        profilesById[profile['id'].toString()] = Map<String, dynamic>.from(
+          profile,
+        );
       }
     }
     for (final profile in profilesById.entries) {
@@ -201,7 +207,8 @@ class _DetailScreenState extends State<DetailScreen> {
       participantIds: participantIds,
     );
 
-    final ownerId = widget.billData['owner_id']?.toString() ??
+    final ownerId =
+        widget.billData['owner_id']?.toString() ??
         widget.billData['user_id']?.toString() ??
         receipt['owner_id']?.toString() ??
         '';
@@ -245,14 +252,18 @@ class _DetailScreenState extends State<DetailScreen> {
           );
         }
         if (item.sharedUsers.contains(id)) {
-          final personalClaimsCount =
-              item.userQuantities.values.fold<int>(0, (a, b) => a + b);
-          final sharedQuantity =
-              (item.quantity - personalClaimsCount).clamp(0, item.quantity);
+          final personalClaimsCount = item.userQuantities.values.fold<int>(
+            0,
+            (a, b) => a + b,
+          );
+          final sharedQuantity = (item.quantity - personalClaimsCount).clamp(
+            0,
+            item.quantity,
+          );
           final sharersCount = item.sharedUsers.length;
           if (sharedQuantity > 0 && sharersCount > 0) {
-            final sharePrice =
-                (item.price * sharedQuantity / sharersCount).ceilToDouble();
+            final sharePrice = (item.price * sharedQuantity / sharersCount)
+                .ceilToDouble();
             memberDishes.add(
               MemberDishItem(
                 itemName: item.itemName,
@@ -273,11 +284,11 @@ class _DetailScreenState extends State<DetailScreen> {
       final effectiveStatus = isOwner
           ? 'owner'
           : (rawStatus == 'paid'
-              ? 'paid'
-              : (rawStatus == 'reviewing' ||
-                      (slipUrl != null && slipUrl.isNotEmpty)
-                  ? 'reviewing'
-                  : 'pending'));
+                ? 'paid'
+                : (rawStatus == 'reviewing' ||
+                          (slipUrl != null && slipUrl.isNotEmpty)
+                      ? 'reviewing'
+                      : 'pending'));
 
       entriesById[id] = MemberSummaryEntry(
         id: id,
@@ -305,16 +316,16 @@ class _DetailScreenState extends State<DetailScreen> {
       final effectiveStatus = isOwner
           ? 'owner'
           : (rowStatus == 'paid' ||
-                  rowStatus == 'cleared' ||
-                  rowStatus == 'settled' ||
-                  existing.status == 'paid'
-              ? 'paid'
-              : (rowStatus == 'reviewing' ||
-                      rowStatus == 'pending_verification' ||
-                      existing.status == 'reviewing' ||
-                      (slipUrl != null && slipUrl.isNotEmpty)
-                  ? 'reviewing'
-                  : 'pending'));
+                    rowStatus == 'cleared' ||
+                    rowStatus == 'settled' ||
+                    existing.status == 'paid'
+                ? 'paid'
+                : (rowStatus == 'reviewing' ||
+                          rowStatus == 'pending_verification' ||
+                          existing.status == 'reviewing' ||
+                          (slipUrl != null && slipUrl.isNotEmpty)
+                      ? 'reviewing'
+                      : 'pending'));
 
       entriesById[id] = existing.copyWith(
         amount:
@@ -327,17 +338,17 @@ class _DetailScreenState extends State<DetailScreen> {
       );
     }
 
-    return entriesById.values.toList()
-      ..sort((a, b) {
-        if (a.isOwner) return -1;
-        if (b.isOwner) return 1;
-        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-      });
+    return entriesById.values.toList()..sort((a, b) {
+      if (a.isOwner) return -1;
+      if (b.isOwner) return 1;
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
   }
 
   bool get _isCurrentUserOwner {
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
-    final ownerId = widget.billData['owner_id']?.toString() ??
+    final ownerId =
+        widget.billData['owner_id']?.toString() ??
         widget.billData['user_id']?.toString() ??
         _asMap(widget.billData['receipt_json'])['owner_id']?.toString();
     return currentUserId != null && ownerId != null && currentUserId == ownerId;
@@ -347,6 +358,54 @@ class _DetailScreenState extends State<DetailScreen> {
     if (value is Map<String, dynamic>) return value;
     if (value is Map) return Map<String, dynamic>.from(value);
     return {};
+  }
+
+  Widget _buildReceiptImage(Object? rawImageUrl) {
+    final imageUrl = rawImageUrl?.toString().trim() ?? '';
+    final uri = Uri.tryParse(imageUrl);
+    final isValidUrl =
+        uri != null &&
+        (uri.scheme == 'http' || uri.scheme == 'https') &&
+        uri.host.isNotEmpty;
+
+    if (!isValidUrl) {
+      return _buildMissingReceiptImage();
+    }
+
+    return Image.network(
+      imageUrl,
+      height: 300,
+      width: double.infinity,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        debugPrint('Receipt image failed to load: $imageUrl - $error');
+        return _buildMissingReceiptImage();
+      },
+    );
+  }
+
+  Widget _buildMissingReceiptImage() {
+    return Container(
+      height: 180,
+      width: double.infinity,
+      color: AppColors.surface,
+      alignment: Alignment.center,
+      child: const Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.receipt_long_outlined,
+            size: 42,
+            color: AppColors.textSecondary,
+          ),
+          SizedBox(height: 8),
+          Text(
+            'ไม่พบรูปใบเสร็จของบิลนี้',
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
   }
 
   // 💳 สลับสถานะชำระเงิน (Paid / Pending) และอัปเดตลง Supabase (Week 9 Cloud)
@@ -361,7 +420,9 @@ class _DetailScreenState extends State<DetailScreen> {
     if (!_isCurrentUserOwner) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('เฉพาะเจ้าของรายการเท่านั้นที่มีสิทธิ์เปลี่ยนสถานะการชำระเงิน'),
+          content: Text(
+            'เฉพาะเจ้าของรายการเท่านั้นที่มีสิทธิ์เปลี่ยนสถานะการชำระเงิน',
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -393,7 +454,8 @@ class _DetailScreenState extends State<DetailScreen> {
 
       final updatedMembers = await _loadMemberSummary();
       final nonOwnerPaying = updatedMembers.where((m) => !m.isOwner).toList();
-      final allPayingSettled = nonOwnerPaying.isNotEmpty && nonOwnerPaying.every((m) => m.isPaid);
+      final allPayingSettled =
+          nonOwnerPaying.isNotEmpty && nonOwnerPaying.every((m) => m.isPaid);
       final newBillStatus = allPayingSettled ? 'completed' : 'pending';
 
       try {
@@ -419,7 +481,9 @@ class _DetailScreenState extends State<DetailScreen> {
                   : 'อัปเดต: ${member.name} รอจ่าย ⏳',
             ),
             duration: const Duration(seconds: 2),
-            backgroundColor: newStatus == 'paid' ? AppColors.success : AppColors.warning,
+            backgroundColor: newStatus == 'paid'
+                ? AppColors.success
+                : AppColors.warning,
           ),
         );
       }
@@ -486,7 +550,10 @@ class _DetailScreenState extends State<DetailScreen> {
         actions: [
           if (_isCurrentUserOwner)
             IconButton(
-              icon: const Icon(Icons.notifications_active_outlined, color: AppColors.primaryOrange),
+              icon: const Icon(
+                Icons.notifications_active_outlined,
+                color: AppColors.primaryOrange,
+              ),
               tooltip: 'สะกิดเตือนเพื่อน',
               onPressed: () {
                 PokeReminderDialog.show(
@@ -515,11 +582,11 @@ class _DetailScreenState extends State<DetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (imageUrl != null && imageUrl.toString().isNotEmpty)
+                if (imageUrl != null && imageUrl.toString().trim().isNotEmpty)
                   Center(
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: Image.network(imageUrl, height: 300, fit: BoxFit.cover),
+                      child: _buildReceiptImage(imageUrl),
                     ),
                   ),
                 const SizedBox(height: 16),
@@ -529,325 +596,375 @@ class _DetailScreenState extends State<DetailScreen> {
                     type: MaterialType.transparency,
                     child: Text(
                       shopName.toString(),
-                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
-            if (createdAt.isNotEmpty)
-              Text(
-                'วันที่: $createdAt',
-                style: TextStyle(color: Colors.grey.shade600),
-              ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? AppColors.darkCardBackground
-                    : AppColors.paleYellow,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? AppColors.darkBorder
-                      : AppColors.primaryOrange.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Column(
-                children: [
-                  _buildSummaryRow('ยอดรวม (Subtotal)', subTotal),
-                  if (serviceCharge > 0)
-                    _buildSummaryRow('Service Charge', serviceCharge),
-                  if (vatAmount > 0) _buildSummaryRow('VAT', vatAmount),
-                  if (discount > 0)
-                    _buildSummaryRow('ส่วนลด', -discount, color: AppColors.error),
-                  const Divider(),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                if (createdAt.isNotEmpty)
+                  Text(
+                    'วันที่: $createdAt',
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? AppColors.darkCardBackground
+                        : AppColors.paleYellow,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? AppColors.darkBorder
+                          : AppColors.primaryOrange.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Column(
                     children: [
-                      const Text(
-                        'ยอดสุทธิ',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                      _buildSummaryRow('ยอดรวม (Subtotal)', subTotal),
+                      if (serviceCharge > 0)
+                        _buildSummaryRow('Service Charge', serviceCharge),
+                      if (vatAmount > 0) _buildSummaryRow('VAT', vatAmount),
+                      if (discount > 0)
+                        _buildSummaryRow(
+                          'ส่วนลด',
+                          -discount,
+                          color: AppColors.error,
                         ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                      const Divider(),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            totalAmount > 0
-                                ? AppFormatters.formatCurrency(totalAmount)
-                                : 'ยังไม่มีข้อมูลยอดบิล',
-                            style: const TextStyle(
-                              fontSize: 20,
+                          const Text(
+                            'ยอดสุทธิ',
+                            style: TextStyle(
+                              fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: AppColors.tealGreen,
                             ),
                           ),
-                          if (totalAmount > 0 && billSummary.averagePerPerson > 0) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              'ตกคนละ ${AppFormatters.formatCurrency(billSummary.averagePerPerson)}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey.shade700,
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                totalAmount > 0
+                                    ? AppFormatters.formatCurrency(totalAmount)
+                                    : 'ยังไม่มีข้อมูลยอดบิล',
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.tealGreen,
+                                ),
                               ),
-                            ),
-                          ],
+                              if (totalAmount > 0 &&
+                                  billSummary.averagePerPerson > 0) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  'ตกคนละ ${AppFormatters.formatCurrency(billSummary.averagePerPerson)}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.grey.shade700,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
                         ],
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.tealGreen,
-                foregroundColor: Colors.white,
-                minimumSize: const Size(double.infinity, 48),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                elevation: 0,
-              ),
-              icon: const Icon(Icons.receipt_long_rounded, size: 20),
-              label: const Text(
-                'สร้างและแชร์บิลสรุปสำเร็จรูป (รูปบิลใบเสร็จ)',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-              ),
-              onPressed: _openShareableReceiptDialog,
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'รายการที่สั่ง (รายละเอียด)',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const Divider(),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: items.length,
-              itemBuilder: (context, index) {
-                final rawItem = _asMap(items[index]);
-                final itemName = rawItem['item_name']?.toString() ?? 'ไม่มีชื่อ';
-                final qty =
-                    int.tryParse(
-                      (rawItem['qty'] ?? rawItem['quantity'] ?? 1).toString(),
-                    ) ??
-                    1;
-                final unitPrice =
-                    double.tryParse(
-                      (rawItem['unit_price'] ?? rawItem['price'] ?? 0)
-                          .toString(),
-                    ) ??
-                    0;
-                final totalPrice =
-                    double.tryParse(rawItem['total_price']?.toString() ?? '') ??
-                    qty * unitPrice;
-                final itemSharers =
-                    sharersJson[index.toString()] as List<dynamic>? ?? [];
-                final userQuantities = <String, int>{};
-                final namesByUserId = <String, String>{};
-                final sharedUsers = <String, String>{};
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.tealGreen,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 48),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 0,
+                  ),
+                  icon: const Icon(Icons.receipt_long_rounded, size: 20),
+                  label: const Text(
+                    'สร้างและแชร์บิลสรุปสำเร็จรูป (รูปบิลใบเสร็จ)',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  onPressed: _openShareableReceiptDialog,
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'รายการที่สั่ง (รายละเอียด)',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const Divider(),
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: items.length,
+                  itemBuilder: (context, index) {
+                    final rawItem = _asMap(items[index]);
+                    final itemName =
+                        rawItem['item_name']?.toString() ?? 'ไม่มีชื่อ';
+                    final qty =
+                        int.tryParse(
+                          (rawItem['qty'] ?? rawItem['quantity'] ?? 1)
+                              .toString(),
+                        ) ??
+                        1;
+                    final unitPrice =
+                        double.tryParse(
+                          (rawItem['unit_price'] ?? rawItem['price'] ?? 0)
+                              .toString(),
+                        ) ??
+                        0;
+                    final totalPrice =
+                        double.tryParse(
+                          rawItem['total_price']?.toString() ?? '',
+                        ) ??
+                        qty * unitPrice;
+                    final itemSharers =
+                        sharersJson[index.toString()] as List<dynamic>? ?? [];
+                    final userQuantities = <String, int>{};
+                    final namesByUserId = <String, String>{};
+                    final sharedUsers = <String, String>{};
 
-                for (final rawSharer in itemSharers) {
-                  final sharer = _asMap(rawSharer);
-                  final userId = sharer['user_id']?.toString() ?? '';
-                  if (userId.isEmpty) continue;
-                  final name = sharer['user_name']?.toString() ?? 'ไม่ระบุ';
-                  namesByUserId[userId] = name;
-                  final claimedQuantity =
-                      int.tryParse(sharer['quantity']?.toString() ?? '') ?? 0;
-                  if (claimedQuantity > 0) {
-                    userQuantities[userId] =
-                        (userQuantities[userId] ?? 0) + claimedQuantity;
-                  }
-                  if (sharer['is_shared'] == true) sharedUsers[userId] = name;
-                }
-
-                if (itemSharers.isEmpty) {
-                  final claims =
-                      rawItem['userQuantities'] ??
-                      rawItem['claims'] ??
-                      rawItem['user_quantities'];
-                  if (claims is Map) {
-                    claims.forEach((userId, amount) {
-                      final id = userId.toString();
+                    for (final rawSharer in itemSharers) {
+                      final sharer = _asMap(rawSharer);
+                      final userId = sharer['user_id']?.toString() ?? '';
+                      if (userId.isEmpty) continue;
+                      final name = sharer['user_name']?.toString() ?? 'ไม่ระบุ';
+                      namesByUserId[userId] = name;
                       final claimedQuantity =
-                          int.tryParse(amount.toString()) ?? 0;
+                          int.tryParse(sharer['quantity']?.toString() ?? '') ??
+                          0;
                       if (claimedQuantity > 0) {
-                        userQuantities[id] = claimedQuantity;
-                        namesByUserId[id] = id.startsWith('guest_')
-                            ? 'Guest'
-                            : id;
+                        userQuantities[userId] =
+                            (userQuantities[userId] ?? 0) + claimedQuantity;
                       }
-                    });
-                  }
-                  final shared = rawItem['sharedUsers'] ??
-                      rawItem['shared_claims'] ??
-                      rawItem['shared_users'];
-                  if (shared is List) {
-                    for (final userId in shared) {
-                      sharedUsers[userId.toString()] =
-                          userId.toString().startsWith('guest_')
-                          ? 'Guest'
-                          : userId.toString();
+                      if (sharer['is_shared'] == true) {
+                        sharedUsers[userId] = name;
+                      }
                     }
-                  }
-                }
 
-                final personalQuantity = userQuantities.values.fold<int>(
-                  0,
-                  (sum, amount) => sum + amount,
-                );
-                final sharedQuantity = (qty - personalQuantity).clamp(0, qty);
+                    if (itemSharers.isEmpty) {
+                      final claims =
+                          rawItem['userQuantities'] ??
+                          rawItem['claims'] ??
+                          rawItem['user_quantities'];
+                      if (claims is Map) {
+                        claims.forEach((userId, amount) {
+                          final id = userId.toString();
+                          final claimedQuantity =
+                              int.tryParse(amount.toString()) ?? 0;
+                          if (claimedQuantity > 0) {
+                            userQuantities[id] = claimedQuantity;
+                            namesByUserId[id] = id.startsWith('guest_')
+                                ? 'Guest'
+                                : id;
+                          }
+                        });
+                      }
+                      final shared =
+                          rawItem['sharedUsers'] ??
+                          rawItem['shared_claims'] ??
+                          rawItem['shared_users'];
+                      if (shared is List) {
+                        for (final userId in shared) {
+                          sharedUsers[userId.toString()] =
+                              userId.toString().startsWith('guest_')
+                              ? 'Guest'
+                              : userId.toString();
+                        }
+                      }
+                    }
 
-                return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 4),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    final personalQuantity = userQuantities.values.fold<int>(
+                      0,
+                      (sum, amount) => sum + amount,
+                    );
+                    final sharedQuantity = (qty - personalQuantity).clamp(
+                      0,
+                      qty,
+                    );
+
+                    return Card(
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    itemName,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        itemName,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                      Text(
+                                        '$qty x ${AppFormatters.formatCurrency(unitPrice)}',
+                                        style: TextStyle(
+                                          color: Colors.grey.shade600,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  Text(
-                                    '$qty x ${AppFormatters.formatCurrency(unitPrice)}',
-                                    style: TextStyle(
-                                      color: Colors.grey.shade600,
-                                      fontSize: 13,
-                                    ),
+                                ),
+                                Text(
+                                  AppFormatters.formatCurrency(totalPrice),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-                            Text(
-                              AppFormatters.formatCurrency(totalPrice),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
+                            if (userQuantities.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                '👤 ส่วนตัว: ${userQuantities.entries.map((entry) => '${namesByUserId[entry.key] ?? entry.key}: ${entry.value} ชิ้น').join(', ')}',
+                                style: TextStyle(
+                                  color: Colors.grey.shade700,
+                                  fontSize: 12,
+                                ),
                               ),
-                            ),
+                            ],
+                            if (sharedUsers.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                '🤝 แชร์ร่วมกัน ($sharedQuantity ชิ้น): ${sharedUsers.values.join(', ')}',
+                                style: TextStyle(
+                                  color: Colors.grey.shade700,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
                           ],
-                        ),
-                        if (userQuantities.isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            '👤 ส่วนตัว: ${userQuantities.entries.map((entry) => '${namesByUserId[entry.key] ?? entry.key}: ${entry.value} ชิ้น').join(', ')}',
-                            style: TextStyle(
-                              color: Colors.grey.shade700,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                        if (sharedUsers.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            '🤝 แชร์ร่วมกัน ($sharedQuantity ชิ้น): ${sharedUsers.values.join(', ')}',
-                            style: TextStyle(
-                              color: Colors.grey.shade700,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 20),
-            const Center(
-              child: Text(
-                'สรุปยอดชำระและสถานะของเพื่อน',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-            const Divider(),
-            FutureBuilder<List<MemberSummaryEntry>>(
-              future: _membersFuture,
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text(
-                      'โหลดสรุปยอดของสมาชิกไม่สำเร็จ: ${snapshot.error}',
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  );
-                }
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.data!.isEmpty) {
-                  return const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text('ไม่มีข้อมูลยอดชำระรายบุคคล'),
-                  );
-                }
-                return MemberSummaryList(
-                  members: snapshot.data!,
-                  isCurrentViewerOwner: _isCurrentUserOwner,
-                  onMemberTap: (memberId) async {
-                    final member = snapshot.data!.firstWhere(
-                      (m) => m.id == memberId,
-                    );
-                    final receipt = _asMap(widget.billData['receipt_json']);
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => PersonalPaymentDetailsScreen(
-                          billData: widget.billData,
-                          member: member,
-                          hostPromptPay: _hostPromptPay,
-                          hostPromptPayType: _hostPromptPayType,
-                          hostBankName: _hostBankName,
-                          hostBankAccountNumber: _hostBankAccountNumber,
-                          hostBankAccountName: _hostBankAccountName,
-                          hostName: _hostName,
-                          isCurrentViewerOwner: _isCurrentUserOwner,
-                          receiptSubTotal: double.tryParse(receipt['sub_total']?.toString() ?? '0') ?? 0.0,
-                          receiptVat: double.tryParse(receipt['vat_amount']?.toString() ?? '0') ?? 0.0,
-                          receiptServiceCharge: double.tryParse(receipt['service_charge']?.toString() ?? '0') ?? 0.0,
-                          receiptDiscount: double.tryParse(receipt['discount']?.toString() ?? '0') ?? 0.0,
-                          onStatusChanged: (newStatus, slipUrl) {
-                            setState(() {
-                              _membersFuture = _loadMemberSummary();
-                            });
-                          },
                         ),
                       ),
                     );
-                    if (mounted) {
-                      setState(() {
-                        _membersFuture = _loadMemberSummary();
-                      });
-                    }
                   },
-                  onStatusToggle: _handleStatusToggle,
-                );
-              },
+                ),
+                const SizedBox(height: 20),
+                const Center(
+                  child: Text(
+                    'สรุปยอดชำระและสถานะของเพื่อน',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const Divider(),
+                FutureBuilder<List<MemberSummaryEntry>>(
+                  future: _membersFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(
+                          'โหลดสรุปยอดของสมาชิกไม่สำเร็จ: ${snapshot.error}',
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      );
+                    }
+                    if (!snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.data!.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Text('ไม่มีข้อมูลยอดชำระรายบุคคล'),
+                      );
+                    }
+                    return MemberSummaryList(
+                      members: snapshot.data!,
+                      isCurrentViewerOwner: _isCurrentUserOwner,
+                      onMemberTap: (memberId) async {
+                        final matchingMembers = snapshot.data!.where(
+                          (m) => m.id == memberId,
+                        );
+                        if (matchingMembers.isEmpty) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('ไม่พบข้อมูลสมาชิกของบิลนี้'),
+                              ),
+                            );
+                          }
+                          return;
+                        }
+                        final member = matchingMembers.first;
+                        final receipt = _asMap(widget.billData['receipt_json']);
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PersonalPaymentDetailsScreen(
+                              billData: widget.billData,
+                              member: member,
+                              hostPromptPay: _hostPromptPay,
+                              hostPromptPayType: _hostPromptPayType,
+                              hostBankName: _hostBankName,
+                              hostBankAccountNumber: _hostBankAccountNumber,
+                              hostBankAccountName: _hostBankAccountName,
+                              hostName: _hostName,
+                              isCurrentViewerOwner: _isCurrentUserOwner,
+                              receiptSubTotal:
+                                  double.tryParse(
+                                    receipt['sub_total']?.toString() ?? '0',
+                                  ) ??
+                                  0.0,
+                              receiptVat:
+                                  double.tryParse(
+                                    receipt['vat_amount']?.toString() ?? '0',
+                                  ) ??
+                                  0.0,
+                              receiptServiceCharge:
+                                  double.tryParse(
+                                    receipt['service_charge']?.toString() ??
+                                        '0',
+                                  ) ??
+                                  0.0,
+                              receiptDiscount:
+                                  double.tryParse(
+                                    receipt['discount']?.toString() ?? '0',
+                                  ) ??
+                                  0.0,
+                              onStatusChanged: (newStatus, slipUrl) {
+                                setState(() {
+                                  _membersFuture = _loadMemberSummary();
+                                });
+                              },
+                            ),
+                          ),
+                        );
+                        if (mounted) {
+                          setState(() {
+                            _membersFuture = _loadMemberSummary();
+                          });
+                        }
+                      },
+                      onStatusToggle: _handleStatusToggle,
+                    );
+                  },
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
-    ),
-  ),
-);
+    );
   }
 
   Widget _buildSummaryRow(String label, double amount, {Color? color}) {

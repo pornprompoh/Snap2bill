@@ -332,6 +332,12 @@ class _SummaryScreenState extends State<SummaryScreen> {
           widget.lobbyId,
         );
       }
+      final parsedImageUrl =
+          imageUrl == null ? null : Uri.tryParse(imageUrl.trim());
+      final validImageUrl = parsedImageUrl != null &&
+          (parsedImageUrl.scheme == 'http' ||
+              parsedImageUrl.scheme == 'https') &&
+          parsedImageUrl.host.isNotEmpty;
 
       final sharersJson = widget.itemSharers.map(
         (key, value) => MapEntry(key.toString(), value),
@@ -348,23 +354,27 @@ class _SummaryScreenState extends State<SummaryScreen> {
       // บิลใหม่ต้องเริ่มที่ "ยังไม่ครบ" (pending) เสมอ
       const initialStatus = 'pending';
 
+      final billPayload = <String, dynamic>{
+        'owner_id': userId,
+        'shop_name': widget.receiptData['shop_name'] ?? 'ไม่ระบุชื่อร้าน',
+        'sub_total': finalTotal,
+        'total_amount': finalTotal,
+        'status': initialStatus,
+        'receipt_json': {
+          ...widget.receiptData,
+          'final_total': finalTotal,
+          'total_amount': finalTotal,
+          'split_type': splitType,
+        },
+        'sharers_json': sharersJson,
+      };
+      if (validImageUrl) {
+        billPayload['image_url'] = imageUrl!.trim();
+      }
+
       final insertedBill = await supabase
           .from('bills')
-          .insert({
-            'owner_id': userId,
-            'shop_name': widget.receiptData['shop_name'] ?? 'ไม่ระบุชื่อร้าน',
-            'sub_total': finalTotal,
-            'total_amount': finalTotal,
-            'status': initialStatus,
-            'image_url': imageUrl,
-            'receipt_json': {
-              ...widget.receiptData,
-              'final_total': finalTotal,
-              'total_amount': finalTotal,
-              'split_type': splitType,
-            },
-            'sharers_json': sharersJson,
-          })
+          .insert(billPayload)
           .select('id')
           .single();
 

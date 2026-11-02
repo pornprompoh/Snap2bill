@@ -47,7 +47,7 @@ class OcrService {
 8. ถ้าใบเสร็จระบุ "VAT INCLUDED", "รวมภาษีมูลค่าเพิ่มแล้ว" หรือข้อความความหมายเดียวกัน ให้ตั้ง is_vat_included = true และ vat_amount = 0
 9. ถ้าไม่มีข้อความ VAT included แต่ sub_total + service_charge เท่ากับ final_total ให้ถือว่า VAT รวมอยู่แล้ว ตั้ง is_vat_included = true และ vat_amount = 0
 10. นับเฉพาะ VAT ที่แสดงเป็นค่าใช้จ่ายแยกเพิ่มจากยอดอาหารเป็น vat_amount บวกเพิ่มเท่านั้น
-11. ก่อนส่ง JSON ให้ตรวจสมการ: ผลรวม total_price ของรายการอาหาร + service_charge + vat_amount - discount ต้องเท่ากับ final_total (ยอมรับส่วนต่างจากการปัดเศษไม่เกิน 0.05) หากเป็น VAT included ให้ใช้ vat_amount = 0
+11. ห้ามปรับราคาเมนู, final_total, service_charge, vat_amount หรือ discount เพื่อบังคับให้สมการตรงกัน หากยอดรายการไม่ตรงกับ final_total ให้คงค่าที่อ่านได้จากใบเสร็จไว้ เพราะใบเสร็จอาจพิมพ์ยอดผิดหรือมีค่าใช้จ่ายที่ระบุไม่ชัดเจน
 12. ส่งกลับมาเฉพาะ JSON text เท่านั้น ห้ามมีคำอธิบายอื่น และห้ามมี markdown ```json ครอบ
 ''');
 
@@ -110,10 +110,8 @@ class OcrService {
       final itemName =
           (item['item_name'] ?? item['name'])?.toString().trim() ?? '';
       final unitPrice = numberValue(item['unit_price'] ?? item['price']);
-      final qty = int.tryParse(
-            (item['qty'] ?? item['quantity'] ?? 1).toString(),
-          ) ??
-          1;
+      final qty =
+          int.tryParse((item['qty'] ?? item['quantity'] ?? 1).toString()) ?? 1;
       final totalPrice = item['total_price'] != null
           ? numberValue(item['total_price'])
           : unitPrice * qty;
@@ -137,7 +135,9 @@ class OcrService {
     }
 
     if (validItems.isEmpty) {
-      throw const FormatException('ไม่พบรายการอาหารที่มีราคามากกว่า 0 บาทในใบเสร็จ');
+      throw const FormatException(
+        'ไม่พบรายการอาหารที่มีราคามากกว่า 0 บาทในใบเสร็จ',
+      );
     }
 
     final itemTotal = validItems.fold<double>(0, (sum, item) {
@@ -155,6 +155,7 @@ class OcrService {
     final calculatedTotal = itemTotal + serviceCharge + vatAmount - discount;
 
     final totalsReconciled = (calculatedTotal - finalTotal).abs() <= 0.05;
+    final receiptDifference = finalTotal - calculatedTotal;
     if (!totalsReconciled) {
       debugPrint(
         'OCR totals need review: items + service charge + exclusive VAT - '
@@ -171,6 +172,8 @@ class OcrService {
       'final_total': finalTotal,
       'total_amount': finalTotal,
       'totals_reconciled': totalsReconciled,
+      'calculated_total': calculatedTotal,
+      'receipt_difference': receiptDifference,
     };
   }
 

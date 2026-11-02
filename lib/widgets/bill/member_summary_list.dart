@@ -50,9 +50,10 @@ class MemberSummaryEntry {
     this.slipUrl,
     this.avatarUrl,
     this.dishes = const [],
-  })  : isPaid = isPaid ?? (status == 'paid'),
-        isReviewing = isReviewing ??
-            (status == 'reviewing' || status == 'pending_verification');
+  }) : isPaid = isPaid ?? (status == 'paid'),
+       isReviewing =
+           isReviewing ??
+           (status == 'reviewing' || status == 'pending_verification');
 
   MemberSummaryEntry copyWith({
     String? id,
@@ -75,7 +76,8 @@ class MemberSummaryEntry {
       amount: amount ?? this.amount,
       status: status ?? this.status,
       isPaid: isPaid ?? (status != null ? (status == 'paid') : this.isPaid),
-      isReviewing: isReviewing ??
+      isReviewing:
+          isReviewing ??
           (status != null
               ? (status == 'reviewing' || status == 'pending_verification')
               : this.isReviewing),
@@ -116,7 +118,10 @@ class MemberSummaryList extends StatelessWidget {
         final member = members[index];
         final isSelected = member.id == selectedMemberId;
         return ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 4,
+          ),
           selected: isSelected,
           selectedTileColor: AppColors.primary.withValues(alpha: 0.08),
           shape: RoundedRectangleBorder(
@@ -130,38 +135,53 @@ class MemberSummaryList extends StatelessWidget {
             backgroundColor: member.isOwner
                 ? const Color(0xFFFEF3C7) // amber 100
                 : (member.isPaid
-                    ? Colors.green.shade50
-                    : (member.isReviewing
-                        ? Colors.blue.shade50
-                        : Colors.orange.shade50)),
-            child: member.avatarUrl != null && member.avatarUrl!.isNotEmpty
+                      ? Colors.green.shade50
+                      : (member.isReviewing
+                            ? Colors.blue.shade50
+                            : Colors.orange.shade50)),
+            child: _isValidImageUrl(member.avatarUrl)
                 ? ClipOval(
                     child: Image.network(
                       member.avatarUrl!,
                       width: 40,
                       height: 40,
                       fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Center(
+                        child: Text(
+                          member.name.isNotEmpty
+                              ? member.name[0].toUpperCase()
+                              : '?',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: member.isPaid
+                                ? Colors.green.shade700
+                                : (member.isReviewing
+                                      ? Colors.blue.shade700
+                                      : Colors.orange.shade800),
+                          ),
+                        ),
+                      ),
                     ),
                   )
                 : (member.isOwner
-                    ? const Icon(
-                        Icons.star_rounded,
-                        color: Color(0xFFD97706),
-                        size: 22,
-                      )
-                    : Text(
-                        member.name.isNotEmpty
-                            ? member.name[0].toUpperCase()
-                            : '?',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: member.isPaid
-                              ? Colors.green.shade700
-                              : (member.isReviewing
-                                  ? Colors.blue.shade700
-                                  : Colors.orange.shade800),
-                        ),
-                      )),
+                      ? const Icon(
+                          Icons.star_rounded,
+                          color: Color(0xFFD97706),
+                          size: 22,
+                        )
+                      : Text(
+                          member.name.isNotEmpty
+                              ? member.name[0].toUpperCase()
+                              : '?',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: member.isPaid
+                                ? Colors.green.shade700
+                                : (member.isReviewing
+                                      ? Colors.blue.shade700
+                                      : Colors.orange.shade800),
+                          ),
+                        )),
           ),
           title: Text.rich(
             TextSpan(
@@ -227,16 +247,25 @@ class MemberSummaryList extends StatelessWidget {
                   // 1. เจ้าของรายการ
                   if (member.isOwner)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFFBEB), // amber 50
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFFCD34D)), // amber 300
+                        border: Border.all(
+                          color: const Color(0xFFFCD34D),
+                        ), // amber 300
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.star_rounded, size: 13, color: Color(0xFFB45309)),
+                          Icon(
+                            Icons.star_rounded,
+                            size: 13,
+                            color: Color(0xFFB45309),
+                          ),
                           SizedBox(width: 4),
                           Text(
                             'เจ้าของ',
@@ -249,7 +278,6 @@ class MemberSummaryList extends StatelessWidget {
                         ],
                       ),
                     )
-
                   // 2. จ่ายแล้ว
                   else if (member.isPaid)
                     InkWell(
@@ -258,7 +286,10 @@ class MemberSummaryList extends StatelessWidget {
                           ? () => onStatusToggle!(member)
                           : null,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.green.shade50,
                           borderRadius: BorderRadius.circular(12),
@@ -267,7 +298,11 @@ class MemberSummaryList extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.check_circle, size: 13, color: Colors.green.shade700),
+                            Icon(
+                              Icons.check_circle,
+                              size: 13,
+                              color: Colors.green.shade700,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               'จ่ายแล้ว',
@@ -281,11 +316,13 @@ class MemberSummaryList extends StatelessWidget {
                         ),
                       ),
                     )
-
                   // 3. รอตรวจสอบ (แนบสลิปแล้ว)
                   else if (member.isReviewing)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.blue.shade50,
                         borderRadius: BorderRadius.circular(12),
@@ -294,7 +331,11 @@ class MemberSummaryList extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.hourglass_top_rounded, size: 13, color: Colors.blue.shade700),
+                          Icon(
+                            Icons.hourglass_top_rounded,
+                            size: 13,
+                            color: Colors.blue.shade700,
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             'รอตรวจสอบ',
@@ -307,7 +348,6 @@ class MemberSummaryList extends StatelessWidget {
                         ],
                       ),
                     )
-
                   // 4. ยังไม่ชำระ / รอจ่าย
                   else
                     InkWell(
@@ -316,7 +356,10 @@ class MemberSummaryList extends StatelessWidget {
                           ? () => onStatusToggle!(member)
                           : null,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.orange.shade50,
                           borderRadius: BorderRadius.circular(12),
@@ -325,7 +368,11 @@ class MemberSummaryList extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.schedule, size: 13, color: Colors.orange.shade800),
+                            Icon(
+                              Icons.schedule,
+                              size: 13,
+                              color: Colors.orange.shade800,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               'รอจ่าย',
@@ -352,5 +399,14 @@ class MemberSummaryList extends StatelessWidget {
         );
       },
     );
+  }
+
+  bool _isValidImageUrl(String? value) {
+    final url = value?.trim();
+    if (url == null || url.isEmpty) return false;
+    final uri = Uri.tryParse(url);
+    return uri != null &&
+        (uri.scheme == 'http' || uri.scheme == 'https') &&
+        uri.host.isNotEmpty;
   }
 }

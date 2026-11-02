@@ -69,10 +69,7 @@ class MyApp extends StatelessWidget {
       themeMode: themeProvider.themeMode,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      // OAuth returns to the app after Supabase has restored the session.
-      initialRoute: Supabase.instance.client.auth.currentSession == null
-          ? '/'
-          : AppRoutes.home,
+      initialRoute: AppRoutes.splash,
       onGenerateRoute: AppRoutes.generateRoute,
     );
   }

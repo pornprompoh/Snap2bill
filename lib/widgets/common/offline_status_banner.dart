@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../services/offline/offline_service.dart';
+import '../../utils/mascot_assets.dart';
 
 class OfflineStatusBanner extends StatelessWidget {
   final Widget child;
@@ -30,15 +31,38 @@ class OfflineStatusBanner extends StatelessWidget {
                       horizontal: 16,
                       vertical: 8,
                     ),
-                    child: Text(
-                      offline.isSyncing
-                          ? 'กำลังซิงก์ข้อมูลที่ค้างไว้...'
-                          : 'ออฟไลน์: ข้อมูลจะถูกซิงก์เมื่อกลับมาออนไลน์',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Image.asset(
+                          offline.isSyncing
+                              ? MascotAssets.thinking
+                              : MascotAssets.phoneHappy,
+                          width: 30,
+                          height: 30,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) =>
+                              Image.asset(
+                                MascotAssets.fallback,
+                                width: 30,
+                                height: 30,
+                                fit: BoxFit.contain,
+                              ),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            offline.isSyncing
+                                ? 'กำลังซิงก์ข้อมูลที่ค้างไว้...'
+                                : 'Bunny บันทึกข้อมูลไว้ก่อนนะ จะซิงก์เมื่อออนไลน์',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

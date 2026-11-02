@@ -171,8 +171,7 @@ class SupabaseDbService {
           DateTime.tryParse(bill['created_at']?.toString() ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
       for (final participantId in memberIds) {
-        if (participantId == currentUserId ||
-            participantId.startsWith('guest_')) {
+        if (participantId == currentUserId || _isGuestId(participantId)) {
           continue;
         }
         participantCounts.update(
@@ -211,7 +210,19 @@ class SupabaseDbService {
             );
       });
 
-    return participants;
+    return participants
+        .where(
+          (participant) =>
+              participant.id != currentUserId && !_isGuestId(participant.id),
+        )
+        .toList();
+  }
+
+  bool _isGuestId(String id) {
+    final normalized = id.trim().toLowerCase();
+    return normalized.startsWith('guest_') ||
+        normalized.startsWith('guest-') ||
+        normalized == 'guest';
   }
 
   // 2. ดึงสมุดรายชื่อเพื่อน (ดึงเฉพาะคนที่ยังไม่ถูกซ่อน/ลบ)

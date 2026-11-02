@@ -15,6 +15,8 @@ import '../../services/offline/offline_service.dart';
 import '../../widgets/bill/poke_reminder_dialog.dart';
 import '../../widgets/bill/notification_center_dialog.dart';
 import '../../widgets/common/custom_top_app_bar.dart';
+import '../../widgets/common/mascot_state_view.dart';
+import '../../widgets/friends/friend_history_dialog.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -369,15 +371,13 @@ class _HomeScreenState extends State<HomeScreen> {
             backgroundColor: scaffoldBg,
             foregroundColor: textPrimary,
             unreadCount: unread,
-            onNotificationsPressed: () async {
-              await NotificationCenterDialog.show(
+            onNotificationsPressed: () {
+              NotificationCenterDialog.show(
                 context,
                 currentUserId: _supabase.auth.currentUser?.id,
               );
-              _refreshBills();
             },
-            onFriendsPressed: () =>
-                Navigator.pushNamed(context, AppRoutes.friends),
+            onFriendsPressed: () => FriendHistoryDialog.show(context),
           ),
         ),
       ),
@@ -493,18 +493,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               ],
                             ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(18),
-                              child: Image.asset(
-                                'assets/images/bunny_mascot.png',
-                                fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    const Icon(
-                                      Icons.receipt_long_rounded,
-                                      size: 48,
-                                      color: AppColors.pink,
-                                    ),
-                              ),
+                            child: const MascotStateView(
+                              state: MascotState.empty,
+                              message: '',
+                              size: 104,
                             ),
                           ),
                           const SizedBox(height: 20),

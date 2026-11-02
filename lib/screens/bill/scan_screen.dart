@@ -6,6 +6,7 @@ import '../../services/media/camera_service.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/custom_top_app_bar.dart';
+import '../../widgets/common/mascot_state_view.dart';
 
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
@@ -84,13 +85,11 @@ class _ScanScreenState extends State<ScanScreen> {
                           height: double.infinity,
                         )
                       : const Center(
-                          child: Text(
-                            'กรุณาเลือกรูปภาพใบเสร็จ',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.black,
-                            ),
+                          child: MascotStateView(
+                            state: MascotState.scan,
+                            message: 'บันนี่พร้อมช่วยอ่านใบเสร็จแล้ว',
+                            detail: 'ถ่ายรูปหรือเลือกรูปจากคลังภาพได้เลย',
+                            size: 150,
                           ),
                         ),
                 ),

@@ -12,6 +12,7 @@ import '../../utils/bill_progress_helper.dart';
 import '../../widgets/bill/poke_reminder_dialog.dart';
 import '../../widgets/bill/shareable_receipt_preview_dialog.dart';
 import '../../services/offline/offline_service.dart';
+import '../../widgets/common/mascot_state_view.dart';
 import 'personal_payment_details_screen.dart';
 
 class DetailScreen extends StatefulWidget {
@@ -986,11 +987,13 @@ class _DetailScreenState extends State<DetailScreen> {
                   future: _membersFuture,
                   builder: (context, snapshot) {
                     if (snapshot.hasError) {
-                      return Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Text(
-                          'โหลดสรุปยอดของสมาชิกไม่สำเร็จ: ${snapshot.error}',
-                          style: const TextStyle(color: Colors.red),
+                      return const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: MascotStateView(
+                          state: MascotState.error,
+                          message: 'โหลดสรุปยอดไม่สำเร็จ',
+                          detail: 'ลองเปิดหน้านี้ใหม่อีกครั้ง',
+                          size: 96,
                         ),
                       );
                     }

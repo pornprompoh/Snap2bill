@@ -9,6 +9,7 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_theme_colors.dart';
 import '../../../utils/formatters.dart';
 import '../../../utils/claim_selection_validator.dart';
+import '../../../utils/mascot_assets.dart';
 import '../../../widgets/bill/claim_item_card.dart';
 
 class ClaimScreen extends StatefulWidget {
@@ -807,16 +808,32 @@ class _ClaimScreenState extends State<ClaimScreen> {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       if (widget.isHost && !canProceed)
-                        const Padding(
-                          padding: EdgeInsets.only(bottom: 4),
-                          child: Text(
-                            'กรุณาเลือกอาหารให้ครบทุกหน่วยก่อน',
-                            style: TextStyle(
-                              color: AppColors.primaryOrange,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Image.asset(
+                              MascotAssets.thinking,
+                              width: 30,
+                              height: 30,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Image.asset(
+                                    MascotAssets.fallback,
+                                    width: 30,
+                                    height: 30,
+                                    fit: BoxFit.contain,
+                                  ),
                             ),
-                          ),
+                            SizedBox(width: 4),
+                            Text(
+                              'เลือกอาหารให้ครบก่อนนะ',
+                              style: TextStyle(
+                                color: AppColors.primaryOrange,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                       ElevatedButton(
                         onPressed: widget.isHost && canProceed

@@ -102,54 +102,92 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<List<Map<String, dynamic>>> _fetchMyBills() async {
-    try {
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) {
-        return await _localRepo.getCachedBills();
-      }
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) return _localRepo.getCachedBills();
 
+    final uniqueBills = <String, Map<String, dynamic>>{};
+    Object? lastError;
+
+    // Load owned bills independently so a participant/RLS issue cannot hide
+    // bills owned by the current user.
+    try {
       final ownedBills = await _supabase
           .from('bills')
           .select('*, bill_participants(*)')
           .eq('owner_id', userId);
+      _addBillRows(uniqueBills, ownedBills);
+    } catch (error, stackTrace) {
+      lastError = error;
+      debugPrint('Failed to load owned bills: $error\n$stackTrace');
+      try {
+        final ownedBills = await _supabase
+            .from('bills')
+            .select()
+            .eq('owner_id', userId);
+        _addBillRows(uniqueBills, ownedBills);
+      } catch (fallbackError, fallbackStackTrace) {
+        lastError = fallbackError;
+        debugPrint(
+          'Failed to load owned bills without participants: '
+          '$fallbackError\n$fallbackStackTrace',
+        );
+      }
+    }
 
-      final participated = await _supabase
+    // Fetch participant bill IDs first. This avoids relying on Supabase's
+    // nested relation shape, which can be a Map or a List depending on schema.
+    try {
+      final participantRows = await _supabase
           .from('bill_participants')
-          .select('bills(*, bill_participants(*))')
+          .select('bill_id')
           .eq('profile_id', userId);
+      final billIds = participantRows
+          .map((row) => row['bill_id']?.toString())
+          .whereType<String>()
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList();
 
-      final Map<String, Map<String, dynamic>> uniqueBills = {};
-
-      for (var b in ownedBills) {
-        uniqueBills[b['id'].toString()] = Map<String, dynamic>.from(b);
+      if (billIds.isNotEmpty) {
+        final participatedBills = await _supabase
+            .from('bills')
+            .select('*, bill_participants(*)')
+            .inFilter('id', billIds);
+        _addBillRows(uniqueBills, participatedBills);
       }
+    } catch (error, stackTrace) {
+      lastError = error;
+      debugPrint('Failed to load participated bills: $error\n$stackTrace');
+    }
 
-      for (var p in participated) {
-        if (p['bills'] != null) {
-          final b = p['bills'] as Map<String, dynamic>;
-          uniqueBills[b['id'].toString()] = Map<String, dynamic>.from(b);
-        }
-      }
+    if (uniqueBills.isEmpty && lastError != null) {
+      final cached = await _localRepo.getCachedBills();
+      if (cached.isNotEmpty) return cached;
+    }
 
-      final result = uniqueBills.values.toList();
-
-      result.sort((a, b) {
+    final result = uniqueBills.values.toList()
+      ..sort((a, b) {
         final dateA =
-            DateTime.tryParse(a['created_at'].toString()) ??
+            DateTime.tryParse(a['created_at']?.toString() ?? '') ??
             DateTime.fromMillisecondsSinceEpoch(0);
         final dateB =
-            DateTime.tryParse(b['created_at'].toString()) ??
+            DateTime.tryParse(b['created_at']?.toString() ?? '') ??
             DateTime.fromMillisecondsSinceEpoch(0);
         return dateB.compareTo(dateA);
       });
 
-      await _localRepo.cacheSupabaseBills(result);
-      return result;
-    } catch (e) {
-      debugPrint('Error fetching bills from Supabase: $e');
-      final cached = await _localRepo.getCachedBills();
-      if (cached.isNotEmpty) return cached;
-      return [];
+    await _localRepo.cacheSupabaseBills(result);
+    return result;
+  }
+
+  void _addBillRows(
+    Map<String, Map<String, dynamic>> uniqueBills,
+    Iterable<dynamic> rows,
+  ) {
+    for (final row in rows) {
+      if (row is! Map || row['id'] == null) continue;
+      final bill = Map<String, dynamic>.from(row);
+      uniqueBills[bill['id'].toString()] = bill;
     }
   }
 

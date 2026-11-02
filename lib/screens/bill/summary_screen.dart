@@ -12,6 +12,7 @@ import '../../../providers/user_provider.dart';
 import '../../../routes/app_routes.dart';
 import '../../../services/storage/supabase_storage_service.dart';
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_theme_colors.dart';
 import '../../../utils/formatters.dart';
 import '../../../widgets/bill/promptpay_card.dart';
 import '../../../widgets/bill/member_summary_list.dart';
@@ -564,7 +565,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    const Text(
+                    Text(
                       'เจ้าของรายการบิล 👑',
                       style: TextStyle(
                         fontSize: 16,
@@ -575,10 +576,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     const SizedBox(height: 4),
                     Text(
                       'ยอดส่วนตัวของ $memberName คำนวณตามสูตรเดิม',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.gray,
-                      ),
+                      style: TextStyle(fontSize: 12, color: AppColors.gray),
                     ),
                     const SizedBox(height: 12),
                     Container(
@@ -594,7 +592,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text(
+                              Text(
                                 'ยอดหารส่วนตัว',
                                 style: TextStyle(
                                   color: AppColors.gray,
@@ -603,7 +601,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                               ),
                               Text(
                                 AppFormatters.formatCurrency(amount),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800,
                                   color: Color(0xFFB45309),
@@ -674,10 +672,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     const SizedBox(height: 4),
                     Text(
                       'ยอดชำระของ $memberName บันทึกเรียบร้อย',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.gray,
-                      ),
+                      style: TextStyle(fontSize: 12, color: AppColors.gray),
                     ),
                     const SizedBox(height: 12),
                     Container(
@@ -704,7 +699,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                               ),
                               Text(
                                 AppFormatters.formatCurrency(amount),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800,
                                   color: AppColors.tealGreen,
@@ -725,7 +720,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                               ),
                               Text(
                                 '$_hostName ($_hostPromptPay)',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -819,7 +814,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     const SizedBox(height: 8),
                     Text(
                       'พร้อมเพย์: $_hostPromptPay ($_hostName)',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: Colors.grey,
@@ -972,6 +967,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     final splitType = context.watch<BillProvider>().splitType;
     final totalsByUser = _calculateUserShares();
     final userNames = _getUserNames();
@@ -1068,10 +1064,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
             nonHostPayingIds.every((uid) => _isParticipantPaid(uid)));
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: colors.surface,
       appBar: AppBar(
         title: const Text('สรุปยอดและชำระเงิน'),
-        backgroundColor: AppColors.background,
+        backgroundColor: colors.surface,
         elevation: 0,
       ),
       body: _isLoadingHost
@@ -1105,7 +1101,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
-                                  color: AppColors.primary,
+                                  color: AppColors.white,
                                 ),
                               ),
                             ),
@@ -1115,9 +1111,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: AppColors.surface,
+                                color: colors.surface,
                                 borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: AppColors.border),
+                                border: Border.all(color: colors.border),
                               ),
                               child: Row(
                                 children: [
@@ -1146,9 +1142,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           width: double.infinity,
                           padding: const EdgeInsets.all(18),
                           decoration: BoxDecoration(
-                            color: AppColors.surface,
+                            color: colors.surface,
                             borderRadius: BorderRadius.circular(22),
-                            border: Border.all(color: AppColors.border),
+                            border: Border.all(color: colors.border),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withValues(alpha: 0.04),
@@ -1162,12 +1158,12 @@ class _SummaryScreenState extends State<SummaryScreen> {
                             children: [
                               Row(
                                 children: [
-                                  const Text(
+                                  Text(
                                     'มียอดรวมทั้งโต๊ะ',
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
-                                      color: AppColors.textSecondary,
+                                      color: colors.textSecondary,
                                     ),
                                   ),
                                   const Spacer(),
@@ -1179,7 +1175,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                     ),
                                     child: const Icon(
                                       Icons.receipt_long_rounded,
-                                      color: AppColors.primary,
+                                      color: AppColors.white,
                                       size: 16,
                                     ),
                                   ),
@@ -1221,17 +1217,14 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                   splitType == 'equal'
                                       ? '⚡ คำนวณ Service & VAT แบบหารเท่าเฉพาะคนที่กินจริง'
                                       : '⚡ คำนวณ Service & VAT ตามสัดส่วนจานที่แต่ละคนทานจริง',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 10.5,
-                                    color: AppColors.primary,
+                                    color: colors.tealText,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ),
-                              const Divider(
-                                height: 20,
-                                color: AppColors.border,
-                              ),
+                              Divider(height: 20, color: colors.border),
 
                               // Progress Bar (Requirement 2 & 3: x/n format and percentage without owner)
                               Row(
@@ -1242,7 +1235,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                     totalPayingCount == 0
                                         ? 'บิลของเจ้าของคนเดียว'
                                         : 'ชำระแล้ว $paidCount/$totalPayingCount คน',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 11.5,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -1266,7 +1259,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                 borderRadius: BorderRadius.circular(6),
                                 child: LinearProgressIndicator(
                                   value: progressValue,
-                                  backgroundColor: AppColors.border,
+                                  backgroundColor: colors.border,
                                   color: AppColors.success,
                                   minHeight: 6,
                                 ),
@@ -1278,9 +1271,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                 children: [
                                   Text(
                                     'คืบหน้า $progressPercentage%',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 10.5,
-                                      color: AppColors.textSecondary,
+                                      color: colors.textSecondary,
                                     ),
                                   ),
                                   Text(
@@ -1330,7 +1323,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                 style: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
-                                  color: AppColors.primary,
+                                  color: AppColors.white,
                                 ),
                               ),
                             ),
@@ -1509,10 +1502,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 Container(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    border: const Border(
-                      top: BorderSide(color: AppColors.border),
-                    ),
+                    color: colors.surface,
+                    border: Border(top: BorderSide(color: colors.border)),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.05),

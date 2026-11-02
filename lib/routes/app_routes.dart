@@ -2,14 +2,12 @@ import 'package:flutter/material.dart';
 import 'dart:typed_data';
 
 import '../screens/auth/login_screen.dart';
-import '../screens/bill/scan_screen.dart';
 import '../screens/common/loading_screen.dart';
 import '../screens/common/splash_screen.dart';
 import '../screens/bill/review_screen.dart';
 import '../screens/bill/lobby_screen.dart';
 import '../screens/bill/claim_screen.dart';
 import '../screens/bill/summary_screen.dart';
-import '../screens/profile/profile_screen.dart';
 import '../screens/friends/friend_list_screen.dart';
 import '../screens/bill/detail_screen.dart';
 import '../screens/main/main_screen.dart';
@@ -43,9 +41,13 @@ class AppRoutes {
       case home:
         return MaterialPageRoute(builder: (_) => const MainScreen());
       case scan:
-        return MaterialPageRoute(builder: (_) => const ScanScreen());
+        return MaterialPageRoute(
+          builder: (_) => const MainScreen(initialIndex: 1),
+        );
       case profile:
-        return MaterialPageRoute(builder: (_) => const ProfileScreen());
+        return MaterialPageRoute(
+          builder: (_) => const MainScreen(initialIndex: 2),
+        );
       case friends:
         final selectionMode = settings.arguments == true;
         return MaterialPageRoute(

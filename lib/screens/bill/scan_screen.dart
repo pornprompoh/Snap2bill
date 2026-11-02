@@ -5,6 +5,7 @@ import '../../routes/app_routes.dart';
 import '../../services/media/camera_service.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/common/custom_button.dart';
+import '../../widgets/common/custom_top_app_bar.dart';
 
 class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
@@ -46,21 +47,19 @@ class _ScanScreenState extends State<ScanScreen> {
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,
+      appBar: CustomTopAppBar(
+        title: 'ถ่ายรูปใบเสร็จ',
+        backgroundColor: isDark
+            ? AppColors.darkBackground
+            : AppColors.background,
+        foregroundColor: isDark ? AppColors.white : AppColors.black,
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 12),
-              Text(
-                'ถ่ายรูปใบเสร็จ',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                  color: isDark ? AppColors.white : AppColors.black,
-                ),
-              ),
               const SizedBox(height: 24),
 
               // กรอบรูปภาพใบเสร็จขอบมนเส้นสีชมพูตามแบบอ้างอิง
@@ -141,10 +140,7 @@ class _ScanScreenState extends State<ScanScreen> {
         decoration: BoxDecoration(
           color: AppColors.lightPink,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: AppColors.pink,
-            width: 1.2,
-          ),
+          border: Border.all(color: AppColors.pink, width: 1.2),
         ),
         child: Text(
           label,

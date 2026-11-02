@@ -25,6 +25,7 @@ class AppColors {
   static const Color gray = Color(0xFF757575);
   static const Color primaryOrange = Color(0xFFE37A51);
   static const Color tealGreen = Color(0xFF047E69);
+  static const Color tealText = Color(0xFF035C4D);
   static const Color pink = Color(0xFFF76DB7);
   static const Color lightPink = Color(0xFFFFD5EC);
   static const Color paleYellow = Color(0xFFFFF9D4);
@@ -34,10 +35,13 @@ class AppColors {
   // --- 2. Overlays ---
   /// Black with 68% opacity
   static const Color blackOverlay = Color(0xAD000000);
+
   /// Dark with 28% opacity (#111010)
   static const Color darkOverlay = Color(0x47111010);
+
   /// White with 24% opacity
   static const Color whiteOverlay24 = Color(0x3DFFFFFF);
+
   /// White with 7% opacity
   static const Color whiteOverlay7 = Color(0x12FFFFFF);
 
@@ -55,34 +59,34 @@ class AppColors {
   );
 
   // --- 4. Role-based & Semantic Aliases ---
-  static const Color primary = pink;                // #F76DB7
+  static const Color primary = pink; // #F76DB7
   static const Color primaryDark = Color(0xFFD44C93);
-  static const Color primaryLight = lightPink;       // #FFD5EC
-  static const Color secondary = tealGreen;         // #047E69
-  static const Color accent = primaryOrange;        // #E37A51
+  static const Color primaryLight = lightPink; // #FFD5EC
+  static const Color secondary = tealGreen; // #047E69
+  static const Color accent = primaryOrange; // #E37A51
 
   // Neutral Background & Surface
-  static const Color background = white;             // Clean crisp white
+  static const Color background = white; // Clean crisp white
   static const Color surface = white;
   static const Color cardBackground = white;
-  static const Color border = Color(0xFFE8E8E8);     // Subtle gray border
+  static const Color border = Color(0xFFE8E8E8); // Subtle gray border
   static const Color divider = Color(0xFFEEEEEE);
 
   // Typography
-  static const Color textPrimary = black;            // #000000
-  static const Color textSecondary = gray;          // #757575
-  static const Color textMuted = gray;              // #757575
+  static const Color textPrimary = black; // #000000
+  static const Color textSecondary = gray; // #757575
+  static const Color textMuted = gray; // #757575
 
   // Status & Semantics
-  static const Color success = tealGreen;            // #047E69 (Teal Green)
-  static const Color successLight = lightGreen;      // #B6F7C1 (Light Green)
-  static const Color warning = primaryOrange;        // #E37A51 (Primary Orange)
-  static const Color warningLight = paleYellow;      // #FFF9D4 (Pale Yellow)
-  static const Color error = primaryOrange;          // #E37A51
-  static const Color errorLight = lightPink;         // #FFD5EC
+  static const Color success = tealGreen; // #047E69 (Teal Green)
+  static const Color successLight = lightGreen; // #B6F7C1 (Light Green)
+  static const Color warning = primaryOrange; // #E37A51 (Primary Orange)
+  static const Color warningLight = paleYellow; // #FFF9D4 (Pale Yellow)
+  static const Color error = primaryOrange; // #E37A51
+  static const Color errorLight = lightPink; // #FFD5EC
   static const Color info = tealGreen;
   static const Color infoLight = lightPink;
-  static const Color lineGreen = Color(0xFF06C755);  // LINE brand green
+  static const Color lineGreen = Color(0xFF06C755); // LINE brand green
 
   // Backward compatibility aliases
   static const Color blossomPink = lightPink;

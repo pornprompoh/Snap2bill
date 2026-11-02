@@ -12,6 +12,7 @@ import '../../utils/bill_progress_helper.dart';
 import '../../services/notifications/in_app_notification_service.dart';
 import '../../widgets/bill/poke_reminder_dialog.dart';
 import '../../widgets/bill/notification_center_dialog.dart';
+import '../../widgets/common/custom_top_app_bar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -345,79 +346,25 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: scaffoldBg,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: scaffoldBg,
-        elevation: 0,
-        title: Text(
-          'Snap2Bill',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            color: textPrimary,
-            letterSpacing: -0.4,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: ValueListenableBuilder<int>(
+          valueListenable: InAppNotificationService.instance.unreadCount,
+          builder: (context, unread, child) => CustomTopAppBar(
+            backgroundColor: scaffoldBg,
+            foregroundColor: textPrimary,
+            unreadCount: unread,
+            onNotificationsPressed: () async {
+              await NotificationCenterDialog.show(
+                context,
+                currentUserId: _supabase.auth.currentUser?.id,
+              );
+              _refreshBills();
+            },
+            onFriendsPressed: () =>
+                Navigator.pushNamed(context, AppRoutes.friends),
           ),
         ),
-        actions: [
-          // Notification Bell
-          ValueListenableBuilder<int>(
-            valueListenable: InAppNotificationService.instance.unreadCount,
-            builder: (context, unread, child) {
-              return Stack(
-                alignment: Alignment.center,
-                children: [
-                  IconButton(
-                    icon: Icon(
-                      Icons.notifications_none_rounded,
-                      color: textPrimary,
-                      size: 26,
-                    ),
-                    tooltip: 'การแจ้งเตือน',
-                    onPressed: () async {
-                      await NotificationCenterDialog.show(
-                        context,
-                        currentUserId: _supabase.auth.currentUser?.id,
-                      );
-                      _refreshBills();
-                    },
-                  ),
-                  if (unread > 0)
-                    Positioned(
-                      right: 8,
-                      top: 8,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: AppColors.pink,
-                          shape: BoxShape.circle,
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
-                        ),
-                        child: Text(
-                          '$unread',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                ],
-              );
-            },
-          ),
-          // Friends button (Matching mockup top right)
-          IconButton(
-            icon: Icon(Icons.people_alt_outlined, color: textPrimary, size: 26),
-            tooltip: 'เพื่อนในตี้',
-            onPressed: () => Navigator.pushNamed(context, AppRoutes.friends),
-          ),
-          const SizedBox(width: 8),
-        ],
       ),
       body: RefreshIndicator(
         color: AppColors.pink,
@@ -741,6 +688,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 12),
 
+                  /*
                   // 2. Hero Scan Card (Teal Green Linear Gradient)
                   Container(
                     width: double.infinity,
@@ -898,6 +846,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
+                  */
 
                   // 4. Join Room Card (Light Pink)
                   _buildJoinRoomCard(isDark, textPrimary, textSecondary),

@@ -3,9 +3,32 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:snap2bill/widgets/friends/friend_item.dart';
 import 'package:snap2bill/widgets/bill/promptpay_card.dart';
 import 'package:snap2bill/widgets/bill/claim_item_card.dart';
+import 'package:snap2bill/widgets/common/bouncing_mascot_loader.dart';
 import 'package:snap2bill/utils/menu_icon_helper.dart';
 
 void main() {
+  group('BouncingMascotLoader Widget Tests', () {
+    testWidgets('renders custom message and mascot asset', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: BouncingMascotLoader(
+              message: 'กำลังทดสอบ',
+              size: 96,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('กำลังทดสอบ'), findsOneWidget);
+      expect(find.byType(Image), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 800));
+      expect(find.byType(BouncingMascotLoader), findsOneWidget);
+    });
+  });
+
   group('FriendItem Widget Tests', () {
     testWidgets('renders friend name, host badge, amount text and handles tap selection',
         (WidgetTester tester) async {

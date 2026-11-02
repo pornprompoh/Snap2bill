@@ -94,13 +94,12 @@ class _DetailScreenState extends State<DetailScreen> {
     final namesById = <String, String>{};
 
     final items = <BillItemModel>[];
-    final rawItems = receipt['items'] as List<dynamic>? ?? [];
+    final rawItems = _asList(receipt['items']);
     for (var index = 0; index < rawItems.length; index++) {
       final rawItem = _asMap(rawItems[index]);
       final personalQuantities = <String, int>{};
       final sharedUsers = <String>{};
-      final itemSharers =
-          sharersByItem[index.toString()] as List<dynamic>? ?? [];
+      final itemSharers = _asList(sharersByItem[index.toString()]);
 
       for (final rawSharer in itemSharers) {
         final sharer = _asMap(rawSharer);
@@ -369,6 +368,11 @@ class _DetailScreenState extends State<DetailScreen> {
     return {};
   }
 
+  List<dynamic> _asList(Object? value) {
+    if (value is List) return List<dynamic>.from(value);
+    return const [];
+  }
+
   Widget _buildReceiptImage(Object? rawImageUrl) {
     final imageUrl = rawImageUrl?.toString().trim() ?? '';
     final uri = Uri.tryParse(imageUrl);
@@ -532,7 +536,7 @@ class _DetailScreenState extends State<DetailScreen> {
         widget.billData['created_at']?.toString().split('T')[0] ?? '';
     final imageUrl = widget.billData['image_url'];
     final receiptJson = _asMap(widget.billData['receipt_json']);
-    final items = receiptJson['items'] as List<dynamic>? ?? [];
+    final items = _asList(receiptJson['items']);
     final sharersJson = _asMap(widget.billData['sharers_json']);
 
     final subTotal =
@@ -734,8 +738,7 @@ class _DetailScreenState extends State<DetailScreen> {
                           rawItem['total_price']?.toString() ?? '',
                         ) ??
                         qty * unitPrice;
-                    final itemSharers =
-                        sharersJson[index.toString()] as List<dynamic>? ?? [];
+                    final itemSharers = _asList(sharersJson[index.toString()]);
                     final userQuantities = <String, int>{};
                     final namesByUserId = <String, String>{};
                     final sharedUsers = <String, String>{};

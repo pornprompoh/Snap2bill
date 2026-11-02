@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
@@ -93,6 +94,42 @@ void main() {
     },
   );
 
+  test(
+    'service follows connectivity transitions and keeps failed work queued',
+    () async {
+      final connectivity = _MockConnectivity();
+      final changes = StreamController<List<ConnectivityResult>>.broadcast();
+      when(
+        connectivity.checkConnectivity,
+      ).thenAnswer((_) async => [ConnectivityResult.wifi]);
+      when(
+        () => connectivity.onConnectivityChanged,
+      ).thenAnswer((_) => changes.stream);
+
+      final queue = OfflineQueue();
+      await queue.enqueue(type: 'not_supported', payload: {'id': 'operation'});
+      final service = OfflineService(connectivity: connectivity, queue: queue);
+      await service.start();
+
+      expect(service.isOnline, isTrue);
+      expect(service.isSyncing, isFalse);
+      expect(await queue.readAll(), hasLength(1));
+
+      changes.add([ConnectivityResult.none]);
+      await Future<void>.delayed(Duration.zero);
+      expect(service.isOffline, isTrue);
+
+      changes.add([ConnectivityResult.mobile]);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(service.isOnline, isTrue);
+      expect(service.isSyncing, isFalse);
+      expect(await queue.readAll(), hasLength(1));
+
+      await service.disposeService();
+      await changes.close();
+    },
+  );
+
   testWidgets('banner renders its child', (tester) async {
     final service = OfflineService();
     await tester.pumpWidget(
@@ -107,4 +144,5 @@ void main() {
     expect(find.text('content'), findsOneWidget);
     await service.disposeService();
   });
+
 }

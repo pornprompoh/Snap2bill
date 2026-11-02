@@ -56,6 +56,7 @@ dependencies:
   sqlite3_flutter_libs: ^0.5.24
   path_provider: ^2.1.4
   path: ^1.9.0
+  connectivity_plus: ^6.1.4
 
 dev_dependencies:
   flutter_test:
@@ -65,6 +66,7 @@ dev_dependencies:
   mocktail: ^1.0.4
   drift_dev: ^2.20.0
   build_runner: ^2.4.13
+  shared_preferences_platform_interface: ^2.4.1
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -89,6 +91,7 @@ flutter:
   assets:
     - .env
     - assets/images/
+    - assets/images/mascots/
     - assets/fonts/
 
   fonts:

@@ -11,6 +11,7 @@ import '../../../providers/bill_provider.dart';
 import '../../../providers/user_provider.dart';
 import '../../../routes/app_routes.dart';
 import '../../../services/storage/supabase_storage_service.dart';
+import '../../../services/offline/offline_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_theme_colors.dart';
 import '../../../utils/formatters.dart';
@@ -307,6 +308,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
 
   Future<void> _saveAndFinish() async {
     if (_isFinishing) return;
+    final offline = context.read<OfflineService>();
     final splitType = context.read<BillProvider>().splitType;
     setState(() => _isFinishing = true);
 
@@ -317,6 +319,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
     }
 
     var savedSuccessfully = false;
+    Map<String, dynamic>? pendingBill;
+    List<Map<String, dynamic>> pendingParticipants = [];
 
     try {
       final supabase = Supabase.instance.client;
@@ -376,6 +380,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
       if (validImageUrl) {
         billPayload['image_url'] = imageUrl!.trim();
       }
+      pendingBill = billPayload;
 
       final insertedBill = await supabase
           .from('bills')
@@ -395,6 +400,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
             'amount_owed': amount,
             'status': 'pending',
           });
+          pendingParticipants = participantsData;
         }
       });
 
@@ -403,13 +409,30 @@ class _SummaryScreenState extends State<SummaryScreen> {
       }
       savedSuccessfully = true;
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('เกิดข้อผิดพลาด: $e'),
-            backgroundColor: Colors.red,
-          ),
+      if (pendingBill != null &&
+          (offline.isOffline || OfflineService.isLikelyNetworkError(e))) {
+        await offline.queue.enqueue(
+          type: 'create_bill',
+          payload: {'bill': pendingBill, 'participants': pendingParticipants},
         );
+        savedSuccessfully = true;
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('บันทึกบิลไว้แล้ว จะซิงก์เมื่อกลับมาออนไลน์'),
+            ),
+          );
+        }
+      }
+      if (mounted) {
+        if (!savedSuccessfully) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('เกิดข้อผิดพลาด: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     } finally {
       if (mounted && !savedSuccessfully) {
@@ -499,6 +522,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
 
     await showDialog(
       context: context,
+      barrierColor: Colors.transparent,
+      useSafeArea: true,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (dialogCtx, setDialogState) {
           final currentPaid = _isParticipantPaid(memberId);

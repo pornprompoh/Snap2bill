@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -13,6 +14,7 @@ import '../../utils/menu_icon_helper.dart';
 import '../../utils/promptpay_helper.dart';
 import '../../widgets/bill/member_summary_list.dart';
 import '../../services/media/qr_image_saver.dart';
+import '../../services/offline/offline_service.dart';
 
 class PersonalPaymentDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> billData;
@@ -131,6 +133,7 @@ class _PersonalPaymentDetailsScreenState
         );
       }
     } catch (e) {
+      await _queueLocalBillChanges(e, participantStatus: 'reviewing');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -219,6 +222,7 @@ class _PersonalPaymentDetailsScreenState
         );
       }
     } catch (e) {
+      await _queueLocalBillChanges(e, participantStatus: 'paid');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -276,6 +280,7 @@ class _PersonalPaymentDetailsScreenState
         );
       }
     } catch (e) {
+      await _queueLocalBillChanges(e, participantStatus: 'pending');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -388,7 +393,45 @@ class _PersonalPaymentDetailsScreenState
           .update({'status': newBillStatus})
           .eq('id', billId);
       widget.billData['status'] = newBillStatus;
-    } catch (_) {}
+    } catch (error) {
+      await _queueLocalBillChanges(
+        error,
+        participantStatus: null,
+        statusOverride: widget.billData['status']?.toString(),
+      );
+    }
+  }
+
+  Future<void> _queueLocalBillChanges(
+    Object error, {
+    required String? participantStatus,
+    String? statusOverride,
+  }) async {
+    final offline = context.read<OfflineService>();
+    final billId = widget.billData['id']?.toString();
+    if (billId == null ||
+        (!offline.isOffline && !OfflineService.isLikelyNetworkError(error))) {
+      return;
+    }
+
+    final receipt = _asMap(widget.billData['receipt_json']);
+    final billData = <String, dynamic>{'receipt_json': receipt};
+    final status = statusOverride ?? widget.billData['status']?.toString();
+    if (status != null && status.isNotEmpty) billData['status'] = status;
+    await offline.queue.enqueue(
+      type: 'update_bill',
+      payload: {'id': billId, 'data': billData},
+    );
+    if (participantStatus != null && !widget.member.isGuest) {
+      await offline.queue.enqueue(
+        type: 'update_participant',
+        payload: {
+          'bill_id': billId,
+          'profile_id': widget.member.id,
+          'data': {'status': participantStatus},
+        },
+      );
+    }
   }
 
   // 🔍 เปิดดูภาพสลิปแบบขยายเต็มจอ

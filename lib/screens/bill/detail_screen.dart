@@ -11,6 +11,8 @@ import '../../widgets/bill/member_summary_list.dart';
 import '../../utils/bill_progress_helper.dart';
 import '../../widgets/bill/poke_reminder_dialog.dart';
 import '../../widgets/bill/shareable_receipt_preview_dialog.dart';
+import '../../services/offline/offline_service.dart';
+import '../../widgets/common/mascot_state_view.dart';
 import 'personal_payment_details_screen.dart';
 
 class DetailScreen extends StatefulWidget {
@@ -80,12 +82,18 @@ class _DetailScreenState extends State<DetailScreen> {
     final receipt = _asMap(widget.billData['receipt_json']);
     final sharersByItem = _asMap(widget.billData['sharers_json']);
     final billId = widget.billData['id']?.toString();
-    final participantRows = billId == null
-        ? <dynamic>[]
-        : await Supabase.instance.client
-              .from('bill_participants')
-              .select('profile_id, amount_owed, status')
-              .eq('bill_id', billId);
+    List<dynamic> participantRows = [];
+    if (billId != null) {
+      try {
+        participantRows = await Supabase.instance.client
+            .from('bill_participants')
+            .select('profile_id, amount_owed, status')
+            .eq('bill_id', billId);
+      } catch (error) {
+        if (!OfflineService.isLikelyNetworkError(error)) rethrow;
+        debugPrint('Using cached bill participants: $error');
+      }
+    }
 
     final profileIds = participantRows
         .map((row) => row['profile_id']?.toString() ?? '')
@@ -166,14 +174,19 @@ class _DetailScreenState extends State<DetailScreen> {
     }
     final profilesById = <String, Map<String, dynamic>>{};
     if (profileIds.isNotEmpty) {
-      final profiles = await Supabase.instance.client
-          .from('profiles')
-          .select('id, display_name, email')
-          .inFilter('id', profileIds.toList());
-      for (final profile in profiles) {
-        profilesById[profile['id'].toString()] = Map<String, dynamic>.from(
-          profile,
-        );
+      try {
+        final profiles = await Supabase.instance.client
+            .from('profiles')
+            .select('id, display_name, email')
+            .inFilter('id', profileIds.toList());
+        for (final profile in profiles) {
+          profilesById[profile['id'].toString()] = Map<String, dynamic>.from(
+            profile,
+          );
+        }
+      } catch (error) {
+        if (!OfflineService.isLikelyNetworkError(error)) rethrow;
+        debugPrint('Using cached member names: $error');
       }
     }
     for (final profile in profilesById.entries) {
@@ -974,11 +987,13 @@ class _DetailScreenState extends State<DetailScreen> {
                   future: _membersFuture,
                   builder: (context, snapshot) {
                     if (snapshot.hasError) {
-                      return Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Text(
-                          'โหลดสรุปยอดของสมาชิกไม่สำเร็จ: ${snapshot.error}',
-                          style: const TextStyle(color: Colors.red),
+                      return const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: MascotStateView(
+                          state: MascotState.error,
+                          message: 'โหลดสรุปยอดไม่สำเร็จ',
+                          detail: 'ลองเปิดหน้านี้ใหม่อีกครั้ง',
+                          size: 96,
                         ),
                       );
                     }

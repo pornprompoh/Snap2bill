@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import '../screens/auth/login_screen.dart';
 import '../screens/common/loading_screen.dart';
 import '../screens/common/splash_screen.dart';
+import '../screens/common/onboarding_screen.dart';
 import '../screens/bill/review_screen.dart';
 import '../screens/bill/lobby_screen.dart';
 import '../screens/bill/claim_screen.dart';
@@ -14,6 +15,7 @@ import '../screens/main/main_screen.dart';
 
 class AppRoutes {
   static const String splash = '/splash';
+  static const String onboarding = '/onboarding';
   static const String login = '/login';
   static const String home = '/home';
   static const String scan = '/scan';
@@ -35,6 +37,11 @@ class AppRoutes {
     switch (routeName) {
       case splash:
         return MaterialPageRoute(builder: (_) => const SplashScreen());
+      case onboarding:
+        final destinationRoute = settings.arguments as String? ?? login;
+        return MaterialPageRoute(
+          builder: (_) => OnboardingScreen(destinationRoute: destinationRoute),
+        );
       case '/':
       case login:
         return MaterialPageRoute(builder: (_) => const LoginScreen());

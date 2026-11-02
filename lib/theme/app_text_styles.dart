@@ -26,7 +26,7 @@ class AppTextStyles {
   static const TextStyle body = TextStyle(
     fontFamily: fontFamily,
     color: AppColors.textPrimary,
-    fontSize: 18,
+    fontSize: 16.5,
     fontWeight: FontWeight.w400,
     height: 1.45,
   );
@@ -34,7 +34,7 @@ class AppTextStyles {
   static const TextStyle caption = TextStyle(
     fontFamily: fontFamily,
     color: AppColors.textSecondary,
-    fontSize: 15,
+    fontSize: 13.5,
     fontWeight: FontWeight.w400,
     height: 1.4,
   );

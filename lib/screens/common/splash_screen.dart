@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../routes/app_routes.dart';
+import '../../services/onboarding/onboarding_service.dart';
 import '../../theme/app_colors.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -24,10 +25,7 @@ class _SplashScreenState extends State<SplashScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1100),
     );
-    _scale = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.elasticOut,
-    );
+    _scale = CurvedAnimation(parent: _controller, curve: Curves.elasticOut);
     _opacity = CurvedAnimation(
       parent: _controller,
       curve: const Interval(0, 0.65, curve: Curves.easeOut),
@@ -40,10 +38,20 @@ class _SplashScreenState extends State<SplashScreen>
     await Future<void>.delayed(const Duration(milliseconds: 1200));
     if (!mounted) return;
 
-    final route = Supabase.instance.client.auth.currentSession == null
+    final destinationRoute =
+        Supabase.instance.client.auth.currentSession == null
         ? AppRoutes.login
         : AppRoutes.home;
-    Navigator.of(context).pushReplacementNamed(route);
+    final onboardingCompleted = await OnboardingService().hasCompleted();
+    if (!mounted) return;
+
+    if (!onboardingCompleted) {
+      Navigator.of(
+        context,
+      ).pushReplacementNamed(AppRoutes.onboarding, arguments: destinationRoute);
+      return;
+    }
+    Navigator.of(context).pushReplacementNamed(destinationRoute);
   }
 
   @override

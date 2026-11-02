@@ -1,15 +1,10 @@
 name: Flutter CI
 
 on:
+  # Run CI for every branch pushed to GitHub.
   push:
-    branches:
-      - main
-      - master
-      - 'dev-*'
   pull_request:
-    branches:
-      - main
-      - master
+  workflow_dispatch:
 
 jobs:
   build-and-test:
@@ -49,4 +44,3 @@ jobs:
 
       - name: Build Web Release
         run: flutter build web --release
-

@@ -522,6 +522,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
 
     await showDialog(
       context: context,
+      barrierColor: Colors.transparent,
+      useSafeArea: true,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (dialogCtx, setDialogState) {
           final currentPaid = _isParticipantPaid(memberId);

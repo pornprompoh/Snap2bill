@@ -1105,7 +1105,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
-                                  color: AppColors.primary,
+                                  color: AppColors.white,
                                 ),
                               ),
                             ),
@@ -1179,7 +1179,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                     ),
                                     child: const Icon(
                                       Icons.receipt_long_rounded,
-                                      color: AppColors.primary,
+                                      color: AppColors.white,
                                       size: 16,
                                     ),
                                   ),
@@ -1223,7 +1223,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                       : '⚡ คำนวณ Service & VAT ตามสัดส่วนจานที่แต่ละคนทานจริง',
                                   style: const TextStyle(
                                     fontSize: 10.5,
-                                    color: AppColors.primary,
+                                    color: AppColors.tealText,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -1330,7 +1330,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                                 style: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
-                                  color: AppColors.primary,
+                                  color: AppColors.white,
                                 ),
                               ),
                             ),

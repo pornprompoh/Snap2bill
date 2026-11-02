@@ -267,7 +267,10 @@ class _ClaimScreenState extends State<ClaimScreen> {
           children: [
             Icon(Icons.person_add_alt_1_rounded, color: AppColors.primary),
             SizedBox(width: 8),
-            Text('เพิ่มเพื่อนที่ไม่มีแอป', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(
+              'เพิ่มเพื่อนที่ไม่มีแอป',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         content: Column(
@@ -287,7 +290,9 @@ class _ClaimScreenState extends State<ClaimScreen> {
                 hintText: 'เช่น ต้น, นนท์',
                 filled: true,
                 fillColor: AppColors.surface,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ],
@@ -295,7 +300,10 @@ class _ClaimScreenState extends State<ClaimScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('ยกเลิก', style: TextStyle(color: AppColors.textSecondary)),
+            child: const Text(
+              'ยกเลิก',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -305,7 +313,9 @@ class _ClaimScreenState extends State<ClaimScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             child: const Text('เพิ่มเพื่อน'),
           ),
@@ -332,7 +342,9 @@ class _ClaimScreenState extends State<ClaimScreen> {
       if (mounted) {
         messenger.showSnackBar(
           SnackBar(
-            content: Text('เพิ่มเพื่อน "${newMember.name}" แล้ว สามารถเลือกอาหารแทนเพื่อนได้ทันที ✅'),
+            content: Text(
+              'เพิ่มเพื่อน "${newMember.name}" แล้ว สามารถเลือกอาหารแทนเพื่อนได้ทันที ✅',
+            ),
             backgroundColor: AppColors.success,
           ),
         );
@@ -416,7 +428,9 @@ class _ClaimScreenState extends State<ClaimScreen> {
     final rawItems = widget.receiptData['items'] as List<dynamic>? ?? [];
     final items = rawItems.where((it) {
       if (it is! Map) return false;
-      final price = double.tryParse((it['unit_price'] ?? it['price'] ?? 0).toString()) ?? 0.0;
+      final price =
+          double.tryParse((it['unit_price'] ?? it['price'] ?? 0).toString()) ??
+          0.0;
       final total = double.tryParse((it['total_price'] ?? 0).toString()) ?? 0.0;
       final name = (it['item_name'] ?? it['name'])?.toString().trim() ?? '';
       return name.isNotEmpty && (price > 0 || total > 0);
@@ -427,15 +441,21 @@ class _ClaimScreenState extends State<ClaimScreen> {
     int selectedDishCount = 0;
     for (int i = 0; i < items.length; i++) {
       final item = items[i];
-      final price = double.tryParse(item['unit_price']?.toString() ?? '0') ?? 0.0;
+      final price =
+          double.tryParse(item['unit_price']?.toString() ?? '0') ?? 0.0;
       final myQty = _claimedItems[i]?[claimingUserId] ?? 0;
       if (myQty > 0) {
         currentClaimingTotal += (myQty * price);
         selectedDishCount++;
       }
       if (_sharedItems[i]?.contains(claimingUserId) == true) {
-        final totalPersonal = (_claimedItems[i]?.values ?? []).fold<int>(0, (a, b) => a + b);
-        final maxQty = int.tryParse((item['qty'] ?? item['quantity'] ?? 1).toString()) ?? 1;
+        final totalPersonal = (_claimedItems[i]?.values ?? []).fold<int>(
+          0,
+          (a, b) => a + b,
+        );
+        final maxQty =
+            int.tryParse((item['qty'] ?? item['quantity'] ?? 1).toString()) ??
+            1;
         final remaining = (maxQty - totalPersonal).clamp(0, maxQty);
         final sharersCount = _sharedItems[i]?.length ?? 1;
         if (sharersCount > 0) {
@@ -462,18 +482,28 @@ class _ClaimScreenState extends State<ClaimScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.secondary,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Text(
                     'ขั้นตอน 4/6',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.white,
+                    ),
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     borderRadius: BorderRadius.circular(14),
@@ -481,9 +511,19 @@ class _ClaimScreenState extends State<ClaimScreen> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.restaurant_menu_rounded, size: 14, color: AppColors.primary),
+                      const Icon(
+                        Icons.restaurant_menu_rounded,
+                        size: 14,
+                        color: AppColors.primary,
+                      ),
                       const SizedBox(width: 4),
-                      Text(shopName, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
+                      Text(
+                        shopName,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -507,12 +547,19 @@ class _ClaimScreenState extends State<ClaimScreen> {
                 const SizedBox(width: 6),
                 const Text(
                   'ซิงค์สด Real-time',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
                 ),
                 const Spacer(),
                 Text(
                   'ห้อง #${widget.lobbyId}',
-                  style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -532,7 +579,9 @@ class _ClaimScreenState extends State<ClaimScreen> {
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.3),
+              ),
             ),
             child: Row(
               children: [
@@ -542,18 +591,29 @@ class _ClaimScreenState extends State<ClaimScreen> {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.receipt_rounded, size: 16, color: AppColors.primary),
+                          const Icon(
+                            Icons.receipt_rounded,
+                            size: 16,
+                            color: AppColors.primary,
+                          ),
                           const SizedBox(width: 6),
                           Text(
                             'ยอดของ ${_userNames[claimingUserId] ?? "คุณ"} ตอนนี้',
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.tealText,
+                            ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 2),
                       Text(
                         'รายการที่เลือก ($selectedDishCount รายการ)',
-                        style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.tealText,
+                        ),
                       ),
                     ],
                   ),
@@ -566,12 +626,12 @@ class _ClaimScreenState extends State<ClaimScreen> {
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w900,
-                        color: AppColors.primary,
+                        color: AppColors.tealText,
                       ),
                     ),
                     const Text(
                       'ยังไม่รวม Vat/Svc',
-                      style: TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                      style: TextStyle(fontSize: 10, color: AppColors.tealText),
                     ),
                   ],
                 ),
@@ -591,7 +651,11 @@ class _ClaimScreenState extends State<ClaimScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.switch_account_rounded, size: 18, color: AppColors.primary),
+                  const Icon(
+                    Icons.switch_account_rounded,
+                    size: 18,
+                    color: AppColors.primary,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: DropdownButton<String>(
@@ -607,7 +671,10 @@ class _ClaimScreenState extends State<ClaimScreen> {
                               child: Text(
                                 'เลือกจานให้: ${entry.value}'
                                 '${entry.key == _currentUserId ? ' (คุณ)' : ''}',
-                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
                               ),
                             ),
                           )
@@ -621,14 +688,30 @@ class _ClaimScreenState extends State<ClaimScreen> {
                   ),
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       visualDensity: VisualDensity.compact,
                       side: const BorderSide(color: AppColors.primary),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                     onPressed: () => _showAddGuestDialog(context),
-                    icon: const Icon(Icons.person_add_alt, size: 14, color: AppColors.primary),
-                    label: const Text('+ เพื่อน', style: TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.bold)),
+                    icon: const Icon(
+                      Icons.person_add_alt,
+                      size: 14,
+                      color: AppColors.primary,
+                    ),
+                    label: const Text(
+                      '+ เพื่อน',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -693,7 +776,13 @@ class _ClaimScreenState extends State<ClaimScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text('ยอดของคุณตอนนี้', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                        const Text(
+                          'ยอดของคุณตอนนี้',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
                         Text(
                           AppFormatters.formatCurrency(currentClaimingTotal),
                           style: const TextStyle(
@@ -712,7 +801,10 @@ class _ClaimScreenState extends State<ClaimScreen> {
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 14,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
@@ -721,8 +813,13 @@ class _ClaimScreenState extends State<ClaimScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          widget.isHost ? 'สรุปยอดและเคลียร์บิล' : 'รอเจ้ามือสรุปยอด...',
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                          widget.isHost
+                              ? 'สรุปยอดและเคลียร์บิล'
+                              : 'รอเจ้ามือสรุปยอด...',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                         if (widget.isHost) ...[
                           const SizedBox(width: 6),

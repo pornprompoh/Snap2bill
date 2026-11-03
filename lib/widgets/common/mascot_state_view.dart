@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/app_colors.dart';
+import '../../theme/app_theme_colors.dart';
 import '../../utils/mascot_assets.dart';
 
 enum MascotState { empty, offline, error, success, scan, thinking }
@@ -40,6 +40,8 @@ class MascotStateView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -62,8 +64,8 @@ class MascotStateView extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: AppColors.textPrimary,
+            style: TextStyle(
+              color: colors.textPrimary,
               fontSize: 15,
               fontWeight: FontWeight.w700,
             ),
@@ -74,7 +76,7 @@ class MascotStateView extends StatelessWidget {
           Text(
             detail!,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.gray, fontSize: 12),
+            style: TextStyle(color: colors.textMuted, fontSize: 12),
           ),
         ],
         if (onRetry != null) ...[

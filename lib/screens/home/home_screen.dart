@@ -267,7 +267,7 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             const Text(
               'กรอกรหัส 6 หลักที่เพื่อนแชร์มาให้',
-              style: TextStyle(fontSize: 13, color: AppColors.gray),
+              style: TextStyle(fontSize: 13),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -283,7 +283,7 @@ class _HomeScreenState extends State<HomeScreen> {
               decoration: InputDecoration(
                 hintText: '123456',
                 filled: true,
-                fillColor: AppColors.white,
+                fillColor: Theme.of(dialogContext).colorScheme.surface,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
                   borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
@@ -295,10 +295,7 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text(
-              'ยกเลิก',
-              style: TextStyle(color: AppColors.gray),
-            ),
+            child: const Text('ยกเลิก'),
           ),
           ElevatedButton(
             onPressed: _isCheckingRoom

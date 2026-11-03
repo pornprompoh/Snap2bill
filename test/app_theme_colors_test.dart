@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:snap2bill/theme/app_theme_colors.dart';
+import 'package:snap2bill/widgets/common/mascot_state_view.dart';
 
 void main() {
   test('light and dark semantic palettes expose their configured colors', () {
@@ -100,4 +101,31 @@ void main() {
       expect(fallback.textPrimary, AppThemeColors.light().textPrimary);
     },
   );
+
+  testWidgets('mascot state text follows the active theme', (tester) async {
+    final darkColors = AppThemeColors.dark();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark().copyWith(
+          extensions: <ThemeExtension<dynamic>>[darkColors],
+        ),
+        home: const Scaffold(
+          body: MascotStateView(
+            state: MascotState.scan,
+            message: 'Ready to scan',
+            detail: 'Choose a receipt image',
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester.widget<Text>(find.text('Ready to scan')).style?.color,
+      darkColors.textPrimary,
+    );
+    expect(
+      tester.widget<Text>(find.text('Choose a receipt image')).style?.color,
+      darkColors.textMuted,
+    );
+  });
 }

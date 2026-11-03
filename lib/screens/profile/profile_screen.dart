@@ -187,7 +187,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             backgroundColor: isDark
                 ? AppColors.darkBackground
                 : AppColors.background,
-            foregroundColor: isDark ? AppColors.white : AppColors.black,
+            foregroundColor: themeColors.textPrimary,
           ),
           body: SafeArea(
             child: Column(
@@ -224,9 +224,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   Text(
                                     'ข้อมูลบัญชีของคุณ',
                                     style: TextStyle(
-                                      color: isDark
-                                          ? AppColors.white
-                                          : AppColors.black,
+                                      color: themeColors.textPrimary,
                                       fontSize: 16,
                                       fontWeight: FontWeight.w800,
                                     ),
@@ -234,8 +232,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   const SizedBox(height: 4),
                                   Text(
                                     email,
-                                    style: const TextStyle(
-                                      color: AppColors.gray,
+                                    style: TextStyle(
+                                      color: themeColors.textMuted,
                                       fontSize: 12,
                                     ),
                                   ),
@@ -255,7 +253,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   'ข้อมูลส่วนตัว',
                                   style: Theme.of(context).textTheme.titleSmall
                                       ?.copyWith(
-                                        color: AppColors.textPrimary,
+                                        color: themeColors.textPrimary,
                                         fontWeight: FontWeight.w700,
                                       ),
                                 ),
@@ -278,7 +276,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   'ข้อมูล PromptPay',
                                   style: Theme.of(context).textTheme.titleSmall
                                       ?.copyWith(
-                                        color: AppColors.textPrimary,
+                                        color: themeColors.textPrimary,
                                         fontWeight: FontWeight.w700,
                                       ),
                                 ),
@@ -356,7 +354,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   'ระบุเพื่อให้เพื่อนสามารถโอนผ่านเลขบัญชีธนาคารได้',
                                   style: Theme.of(context).textTheme.bodySmall
                                       ?.copyWith(
-                                        color: AppColors.textSecondary,
+                                        color: themeColors.textSecondary,
                                       ),
                                 ),
                                 const SizedBox(height: AppConstants.paddingS),
@@ -428,10 +426,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   icon: const Icon(Icons.close),
                                   label: const Text('ยกเลิก'),
                                   style: OutlinedButton.styleFrom(
-                                    foregroundColor: AppColors.textSecondary,
-                                    side: const BorderSide(
-                                      color: AppColors.border,
-                                    ),
+                                    foregroundColor: themeColors.textSecondary,
+                                    side: BorderSide(color: themeColors.border),
                                     minimumSize: const Size.fromHeight(48),
                                   ),
                                 ),
@@ -455,10 +451,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
+                                Text(
                                   'Display Name',
                                   style: TextStyle(
-                                    color: AppColors.gray,
+                                    color: themeColors.textMuted,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -473,18 +469,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       ? userProvider.currentUser!.displayName!
                                       : 'ยังไม่ได้ตั้งชื่อ',
                                   style: TextStyle(
-                                    color: isDark
-                                        ? AppColors.white
-                                        : AppColors.black,
+                                    color: themeColors.textPrimary,
                                     fontSize: 16,
                                     fontWeight: FontWeight.w800,
                                   ),
                                 ),
                                 const SizedBox(height: 24),
-                                const Text(
+                                Text(
                                   'PromptPay',
                                   style: TextStyle(
-                                    color: AppColors.gray,
+                                    color: themeColors.textMuted,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -504,9 +498,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                   .promptPayNumber!
                                             : 'ยังไม่ได้ตั้งค่า',
                                         style: TextStyle(
-                                          color: isDark
-                                              ? AppColors.white
-                                              : AppColors.black,
+                                          color: themeColors.textPrimary,
                                           fontSize: 16,
                                           fontWeight: FontWeight.w800,
                                         ),
@@ -541,8 +533,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 .currentUser
                                                 ?.promptPayType,
                                           ),
-                                          style: const TextStyle(
-                                            color: AppColors.black,
+                                          style: TextStyle(
+                                            color: themeColors.textPrimary,
                                             fontSize: 11,
                                             fontWeight: FontWeight.w700,
                                           ),
@@ -608,7 +600,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         .textTheme
                                         .labelMedium
                                         ?.copyWith(
-                                          color: AppColors.textSecondary,
+                                          color: themeColors.textSecondary,
                                         ),
                                   ),
                                   const SizedBox(height: 2),
@@ -626,7 +618,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         .textTheme
                                         .labelMedium
                                         ?.copyWith(
-                                          color: AppColors.textSecondary,
+                                          color: themeColors.textSecondary,
                                         ),
                                   ),
                                   const SizedBox(height: 2),
@@ -677,7 +669,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         .textTheme
                                         .labelMedium
                                         ?.copyWith(
-                                          color: AppColors.textSecondary,
+                                          color: themeColors.textSecondary,
                                         ),
                                   ),
                                   const SizedBox(height: 2),
@@ -696,7 +688,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         .textTheme
                                         .bodyMedium
                                         ?.copyWith(
-                                          color: AppColors.textSecondary,
+                                          color: themeColors.textSecondary,
                                         ),
                                   ),
                                   const SizedBox(height: 4),
@@ -704,7 +696,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     'กด "แก้ไขโปรไฟล์" ด้านล่างเพื่อเพิ่มทางเลือกโอนด้วยเลขบัญชีธนาคาร',
                                     style: Theme.of(context).textTheme.bodySmall
                                         ?.copyWith(
-                                          color: AppColors.textSecondary
+                                          color: themeColors.textSecondary
                                               .withValues(alpha: 0.8),
                                         ),
                                   ),
@@ -762,7 +754,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         : 'เปิดใช้งานธีมสว่าง คมชัด',
                                     style: Theme.of(context).textTheme.bodySmall
                                         ?.copyWith(
-                                          color: AppColors.textSecondary,
+                                          color: themeColors.textSecondary,
                                         ),
                                   ),
                                   value: themeProvider.isDarkMode,

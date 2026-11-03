@@ -11,6 +11,7 @@ import '../../../models/user_model.dart';
 import '../../../providers/bill_provider.dart';
 import '../../../routes/app_routes.dart';
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_theme_colors.dart';
 import '../../../utils/formatters.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../../widgets/bill/guest_dialog.dart';
@@ -331,32 +332,36 @@ class _LobbyScreenState extends State<LobbyScreen> {
 
   Future<void> _shareToLine() async {
     final shop = widget.receiptData?['shop_name'] ?? 'โต๊ะนี้';
-    final message = '🍲 เข้าตี้หารบิลร้าน $shop กัน!\n'
+    final message =
+        '🍲 เข้าตี้หารบิลร้าน $shop กัน!\n'
         '📲 แตะลิงก์เพื่อเข้าห้องทันที: $_joinLink\n'
         '🔢 หรือใส่รหัส 6 หลัก: $_roomId\n'
         '✨ ไม่ต้องโหลดแอป เปิดผ่านเบราว์เซอร์แล้วจิ้มอาหารได้เลย!';
     await SharePlus.instance.share(
-      ShareParams(
-        title: 'แชร์เข้ากลุ่ม LINE',
-        text: message,
-      ),
+      ShareParams(title: 'แชร์เข้ากลุ่ม LINE', text: message),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     final billProvider = context.watch<BillProvider>();
     final roomParticipants = _buildRoomParticipantMaps(billProvider);
     final shopName = widget.receiptData?['shop_name'] ?? 'ไม่ระบุชื่อร้าน';
-    final totalAmount = double.tryParse(
-      (widget.receiptData?['final_total'] ?? widget.receiptData?['total_amount'])?.toString() ?? '0',
-    ) ?? 0.0;
+    final totalAmount =
+        double.tryParse(
+          (widget.receiptData?['final_total'] ??
+                      widget.receiptData?['total_amount'])
+                  ?.toString() ??
+              '0',
+        ) ??
+        0.0;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('ชวนเพื่อนเข้าห้องตี้'),
-        backgroundColor: AppColors.background,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -368,31 +373,48 @@ class _LobbyScreenState extends State<LobbyScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color: AppColors.secondary,
+                    color: colors.successContainer,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Text(
+                  child: Text(
                     'ขั้นตอน 3/6  ห้องล็อบบี้ตี้',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
+                      color: colors.onSuccessContainer,
                     ),
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
-                    color: AppColors.success.withValues(alpha: 0.12),
+                    color: colors.successContainer,
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Row(
+                  child: Row(
                     children: [
-                      Icon(Icons.circle, size: 8, color: AppColors.success),
+                      Icon(
+                        Icons.circle,
+                        size: 8,
+                        color: colors.onSuccessContainer,
+                      ),
                       SizedBox(width: 4),
-                      Text('ห้องเปิดอยู่', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.success)),
+                      Text(
+                        'ห้องเปิดอยู่',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: colors.onSuccessContainer,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -404,9 +426,9 @@ class _LobbyScreenState extends State<LobbyScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: colors.surface,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: colors.border),
               ),
               child: Row(
                 children: [
@@ -414,10 +436,14 @@ class _LobbyScreenState extends State<LobbyScreen> {
                     width: 36,
                     height: 36,
                     decoration: BoxDecoration(
-                      color: AppColors.secondary,
+                      color: colors.successContainer,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.restaurant_rounded, color: AppColors.primary, size: 18),
+                    child: Icon(
+                      Icons.restaurant_rounded,
+                      color: colors.onSuccessContainer,
+                      size: 18,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -426,23 +452,29 @@ class _LobbyScreenState extends State<LobbyScreen> {
                       children: [
                         Text(
                           shopName,
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const Text(
+                        Text(
                           'ยอดสุทธิจากใบเสร็จ',
-                          style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: colors.textSecondary,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   Text(
                     AppFormatters.formatCurrency(totalAmount),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 16,
-                      color: AppColors.primary,
+                      color: colors.tealText,
                     ),
                   ),
                 ],
@@ -455,9 +487,9 @@ class _LobbyScreenState extends State<LobbyScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: colors.surface,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: colors.border),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.04),
@@ -469,19 +501,30 @@ class _LobbyScreenState extends State<LobbyScreen> {
               child: Column(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: AppColors.secondary,
+                      color: colors.successContainer,
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.qr_code_2_rounded, size: 14, color: AppColors.primary),
+                        Icon(
+                          Icons.qr_code_2_rounded,
+                          size: 14,
+                          color: colors.onSuccessContainer,
+                        ),
                         SizedBox(width: 4),
                         Text(
                           'สแกนเข้าห้องได้ทันที',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: colors.onSuccessContainer,
+                          ),
                         ),
                       ],
                     ),
@@ -492,10 +535,14 @@ class _LobbyScreenState extends State<LobbyScreen> {
                     style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
+                  Text(
                     'หรือให้เพื่อนเปิดกล้องสแกนได้ทันทีโดยไม่ต้องโหลดแอปก็ได้ สะดวก รวดเร็ว',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.3),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: colors.textSecondary,
+                      height: 1.3,
+                    ),
                   ),
                   const SizedBox(height: 16),
 
@@ -505,7 +552,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: AppColors.border),
+                      border: Border.all(color: colors.border),
                     ),
                     child: QrImageView(
                       data: _joinLink,
@@ -513,11 +560,11 @@ class _LobbyScreenState extends State<LobbyScreen> {
                       size: 190,
                       eyeStyle: const QrEyeStyle(
                         eyeShape: QrEyeShape.square,
-                        color: AppColors.primary,
+                        color: Colors.black,
                       ),
                       dataModuleStyle: const QrDataModuleStyle(
                         dataModuleShape: QrDataModuleShape.square,
-                        color: AppColors.primaryDark,
+                        color: Colors.black,
                       ),
                     ),
                   ),
@@ -528,26 +575,39 @@ class _LobbyScreenState extends State<LobbyScreen> {
                     borderRadius: BorderRadius.circular(14),
                     onTap: _copyJoinLink,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
-                        color: AppColors.secondary.withValues(alpha: 0.6),
+                        color: colors.successContainer,
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text('รหัสตี้: ', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                          Text(
+                            'รหัสตี้: ',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: colors.onSuccessContainer,
+                            ),
+                          ),
                           Text(
                             '#SB-$_roomId',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w900,
-                              color: AppColors.primary,
+                              color: colors.onSuccessContainer,
                               letterSpacing: 1.2,
                             ),
                           ),
                           const SizedBox(width: 6),
-                          const Icon(Icons.copy_rounded, size: 14, color: AppColors.primary),
+                          Icon(
+                            Icons.copy_rounded,
+                            size: 14,
+                            color: colors.onSuccessContainer,
+                          ),
                         ],
                       ),
                     ),
@@ -560,8 +620,8 @@ class _LobbyScreenState extends State<LobbyScreen> {
             // Quick Actions Cards
             _buildActionCard(
               icon: Icons.link_rounded,
-              iconBg: AppColors.secondary,
-              iconColor: AppColors.primary,
+              iconBg: colors.successContainer,
+              iconColor: colors.onSuccessContainer,
               title: 'คัดลอกลิงก์ Copy Link',
               subtitle: 'snap2bill.app/party/$_roomId',
               trailingIcon: Icons.copy_rounded,
@@ -597,19 +657,37 @@ class _LobbyScreenState extends State<LobbyScreen> {
               children: [
                 Text(
                   'เพื่อนที่เข้าร่วมแล้ว ${roomParticipants.length} คน',
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: colors.textPrimary,
+                  ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
-                    color: AppColors.success.withValues(alpha: 0.12),
+                    color: colors.successContainer,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Row(
+                  child: Row(
                     children: [
-                      Icon(Icons.circle, size: 7, color: AppColors.success),
+                      Icon(
+                        Icons.circle,
+                        size: 7,
+                        color: colors.onSuccessContainer,
+                      ),
                       SizedBox(width: 4),
-                      Text('Real-time', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.success)),
+                      Text(
+                        'Real-time',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: colors.onSuccessContainer,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -627,24 +705,33 @@ class _LobbyScreenState extends State<LobbyScreen> {
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: colors.surface,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: isSelf ? AppColors.primary.withValues(alpha: 0.4) : AppColors.border,
+                    color: isSelf
+                        ? AppColors.primary.withValues(alpha: 0.55)
+                        : colors.border,
                   ),
                 ),
                 child: Row(
                   children: [
                     CircleAvatar(
                       radius: 18,
-                      backgroundColor: isHostUser ? AppColors.paleYellow : AppColors.lightGreen,
+                      backgroundColor: isHostUser
+                          ? AppColors.paleYellow
+                          : AppColors.lightGreen,
                       child: Text(
                         userName.isNotEmpty ? userName[0].toUpperCase() : '?',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: isHostUser ? AppColors.primaryOrange : AppColors.tealGreen,
+                          color: isHostUser
+                              ? AppColors.primaryOrange
+                              : colors.tealText,
                         ),
                       ),
                     ),
@@ -657,19 +744,39 @@ class _LobbyScreenState extends State<LobbyScreen> {
                             children: [
                               Text(
                                 userName,
-                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                ),
                               ),
                               if (isSelf)
-                                const Text(' (คุณ)', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 12)),
+                                Text(
+                                  ' (คุณ)',
+                                  style: TextStyle(
+                                    color: colors.tealText,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
                               if (isHostUser) ...[
                                 const SizedBox(width: 4),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 5,
+                                    vertical: 1,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: AppColors.primary,
+                                    color: colors.accentContainer,
                                     borderRadius: BorderRadius.circular(6),
                                   ),
-                                  child: const Text('เจ้ามือ', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                                  child: Text(
+                                    'เจ้ามือ',
+                                    style: TextStyle(
+                                      color: colors.onAccentContainer,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ],
@@ -681,18 +788,21 @@ class _LobbyScreenState extends State<LobbyScreen> {
                                 : 'กำลังออนไลน์ในห้อง...',
                             style: TextStyle(
                               fontSize: 11.5,
-                              color: isHostUser ? AppColors.success : AppColors.textSecondary,
+                              color: isHostUser
+                                  ? colors.tealText
+                                  : colors.textSecondary,
                             ),
                           ),
                         ],
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
-                        color: isHostUser
-                            ? AppColors.success.withValues(alpha: 0.12)
-                            : AppColors.secondary,
+                        color: colors.successContainer,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -700,7 +810,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
                         style: TextStyle(
                           fontSize: 10.5,
                           fontWeight: FontWeight.w600,
-                          color: isHostUser ? AppColors.success : AppColors.primary,
+                          color: colors.onSuccessContainer,
                         ),
                       ),
                     ),
@@ -710,9 +820,9 @@ class _LobbyScreenState extends State<LobbyScreen> {
             }),
 
             const SizedBox(height: 12),
-            const Text(
+            Text(
               '👥 เพื่อนเข้าเกือบครบแล้ว สามารถเริ่มจิ้มอาหารได้เลย',
-              style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+              style: TextStyle(fontSize: 11.5, color: colors.textSecondary),
             ),
             const SizedBox(height: 16),
 
@@ -726,17 +836,28 @@ class _LobbyScreenState extends State<LobbyScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.secondary,
+                  color: colors.successContainer,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: colors.onSuccessContainer,
+                      ),
+                    ),
                     SizedBox(width: 10),
                     Text(
                       'รอเจ้ามือกดเริ่มจิ้มอาหาร...',
-                      style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 14),
+                      style: TextStyle(
+                        color: colors.onSuccessContainer,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
                     ),
                   ],
                 ),
@@ -757,15 +878,16 @@ class _LobbyScreenState extends State<LobbyScreen> {
     required IconData trailingIcon,
     required VoidCallback onTap,
   }) {
+    final colors = context.appColors;
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: colors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: colors.border),
         ),
         child: Row(
           children: [
@@ -782,13 +904,23 @@ class _LobbyScreenState extends State<LobbyScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13.5,
+                      color: colors.textPrimary,
+                    ),
+                  ),
                   const SizedBox(height: 1),
-                  Text(subtitle, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                  Text(
+                    subtitle,
+                    style: TextStyle(fontSize: 11, color: colors.textSecondary),
+                  ),
                 ],
               ),
             ),
-            Icon(trailingIcon, size: 18, color: AppColors.textSecondary),
+            Icon(trailingIcon, size: 18, color: colors.textSecondary),
           ],
         ),
       ),

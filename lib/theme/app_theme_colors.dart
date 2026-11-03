@@ -18,6 +18,9 @@ class AppThemeColors extends ThemeExtension<AppThemeColors> {
   final Color onBrand;
   final Color onSuccess;
   final Color successContainer;
+  final Color onSuccessContainer;
+  final Color accentContainer;
+  final Color onAccentContainer;
   final Color onWarning;
   final Color warningContainer;
   final Color onError;
@@ -35,6 +38,9 @@ class AppThemeColors extends ThemeExtension<AppThemeColors> {
     required this.onBrand,
     required this.onSuccess,
     required this.successContainer,
+    required this.onSuccessContainer,
+    required this.accentContainer,
+    required this.onAccentContainer,
     required this.onWarning,
     required this.warningContainer,
     required this.onError,
@@ -54,6 +60,9 @@ class AppThemeColors extends ThemeExtension<AppThemeColors> {
         onBrand: AppColors.white,
         onSuccess: AppColors.white,
         successContainer: Color(0xFFD8F3ED),
+        onSuccessContainer: AppColors.tealText,
+        accentContainer: AppColors.lightPink,
+        onAccentContainer: AppColors.black,
         onWarning: AppColors.white,
         warningContainer: AppColors.paleYellow,
         onError: AppColors.white,
@@ -73,6 +82,9 @@ class AppThemeColors extends ThemeExtension<AppThemeColors> {
         onBrand: AppColors.white,
         onSuccess: AppColors.white,
         successContainer: Color(0xFF075C4E),
+        onSuccessContainer: AppColors.white,
+        accentContainer: Color(0xFF54213D),
+        onAccentContainer: AppColors.white,
         onWarning: AppColors.white,
         warningContainer: Color(0xFF5A4210),
         onError: AppColors.white,
@@ -99,6 +111,9 @@ class AppThemeColors extends ThemeExtension<AppThemeColors> {
     Color? onBrand,
     Color? onSuccess,
     Color? successContainer,
+    Color? onSuccessContainer,
+    Color? accentContainer,
+    Color? onAccentContainer,
     Color? onWarning,
     Color? warningContainer,
     Color? onError,
@@ -116,6 +131,9 @@ class AppThemeColors extends ThemeExtension<AppThemeColors> {
       onBrand: onBrand ?? this.onBrand,
       onSuccess: onSuccess ?? this.onSuccess,
       successContainer: successContainer ?? this.successContainer,
+      onSuccessContainer: onSuccessContainer ?? this.onSuccessContainer,
+      accentContainer: accentContainer ?? this.accentContainer,
+      onAccentContainer: onAccentContainer ?? this.onAccentContainer,
       onWarning: onWarning ?? this.onWarning,
       warningContainer: warningContainer ?? this.warningContainer,
       onError: onError ?? this.onError,
@@ -140,6 +158,17 @@ class AppThemeColors extends ThemeExtension<AppThemeColors> {
       successContainer: Color.lerp(
         successContainer,
         other.successContainer,
+        t,
+      )!,
+      onSuccessContainer: Color.lerp(
+        onSuccessContainer,
+        other.onSuccessContainer,
+        t,
+      )!,
+      accentContainer: Color.lerp(accentContainer, other.accentContainer, t)!,
+      onAccentContainer: Color.lerp(
+        onAccentContainer,
+        other.onAccentContainer,
         t,
       )!,
       onWarning: Color.lerp(onWarning, other.onWarning, t)!,

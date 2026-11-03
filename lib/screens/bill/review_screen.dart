@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/bill_provider.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_theme_colors.dart';
 import '../../utils/formatters.dart';
 import '../../utils/menu_icon_helper.dart';
 
@@ -131,6 +132,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
   }
 
   Future<void> _showEditHeaderDialog() async {
+    final colors = context.appColors;
     final shopCtrl = TextEditingController(text: _shopName);
     final discCtrl = TextEditingController(text: _discount.toString());
 
@@ -165,9 +167,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
+            child: Text(
               'ยกเลิก',
-              style: TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: colors.textSecondary),
             ),
           ),
           ElevatedButton(
@@ -182,7 +184,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
+              foregroundColor: Colors.black,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -195,6 +197,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
   }
 
   Future<void> _showEditItemDialog(int index) async {
+    final colors = context.appColors;
     final isNew = index == -1;
     final item = isNew
         ? {'item_name': '', 'qty': 1, 'unit_price': 0.0}
@@ -256,9 +259,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
+            child: Text(
               'ยกเลิก',
-              style: TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: colors.textSecondary),
             ),
           ),
           ElevatedButton(
@@ -304,7 +307,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
+              foregroundColor: Colors.black,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -376,20 +379,21 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     final subTotal = _calculateSubtotal();
     final total = _calculateTotal();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('ตรวจสอบใบเสร็จ'),
-        backgroundColor: AppColors.background,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(
+            icon: Icon(
               Icons.add_circle_outline_rounded,
-              color: AppColors.primary,
+              color: colors.tealText,
             ),
             tooltip: 'เพิ่มเมนูเอง',
             onPressed: () => _showEditItemDialog(-1),
@@ -410,39 +414,43 @@ class _ReviewScreenState extends State<ReviewScreen> {
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppColors.warningLight,
+                        color: colors.warningContainer,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: AppColors.warning),
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(
-                            Icons.info_outline,
-                            color: AppColors.warning,
-                          ),
+                          Icon(Icons.info_outline, color: colors.textPrimary),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
+                                Text(
                                   'ยอดรายการไม่ตรงกับยอดสุทธิที่พิมพ์บนใบเสร็จ อาจเกิดจากร้านค้าคำนวณหรือพิมพ์ยอดคลาดเคลื่อน ไม่ใช่ความผิดพลาดของการอ่านข้อมูล',
-                                  style: TextStyle(fontSize: 13),
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: colors.textPrimary,
+                                  ),
                                 ),
                                 if (_receiptDifference > 0.05) ...[
                                   const SizedBox(height: 8),
                                   Text(
                                     'รายการรวม ${AppFormatters.formatCurrency(_calculatedComponents)} บาท แต่ TOTAL บนใบเสร็จเป็น ${AppFormatters.formatCurrency(_finalTotal)} บาท (ต่างกัน ${AppFormatters.formatCurrency(_receiptDifference)} บาท)',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w700,
+                                      color: colors.textPrimary,
                                     ),
                                   ),
                                   const SizedBox(height: 4),
-                                  const Text(
+                                  Text(
                                     'กรณีนี้อาจเป็นการพิมพ์ยอดรวมของร้านค้าผิด ระบบจะไม่เพิ่มส่วนต่างให้อัตโนมัติ',
-                                    style: TextStyle(fontSize: 12),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: colors.textPrimary,
+                                    ),
                                   ),
                                   const SizedBox(height: 8),
                                   Wrap(
@@ -475,9 +483,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
                                   const SizedBox(height: 8),
                                   Text(
                                     'ยอดรายการสูงกว่ายอดสุทธิบนใบเสร็จ ${AppFormatters.formatCurrency(_receiptDifference.abs())} กรุณาตรวจสอบรายการ ส่วนลด และค่าธรรมเนียม',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w700,
+                                      color: colors.textPrimary,
                                     ),
                                   ),
                                 ],
@@ -497,15 +506,15 @@ class _ReviewScreenState extends State<ReviewScreen> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.secondary,
+                          color: colors.successContainer,
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: const Text(
+                        child: Text(
                           'ขั้นตอน 2 จาก 6  ตรวจสอบใบเสร็จ',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.primary,
+                            color: colors.onSuccessContainer,
                           ),
                         ),
                       ),
@@ -515,10 +524,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
                           padding: EdgeInsets.zero,
                           visualDensity: VisualDensity.compact,
                         ),
-                        child: const Text(
+                        child: Text(
                           'ยกเลิกบิล',
                           style: TextStyle(
-                            color: AppColors.textSecondary,
+                            color: colors.textSecondary,
                             fontSize: 12,
                           ),
                         ),
@@ -534,9 +543,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: AppColors.surface,
+                        color: colors.surface,
                         borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: AppColors.border),
+                        border: Border.all(color: colors.border),
                       ),
                       child: Row(
                         children: [
@@ -544,12 +553,12 @@ class _ReviewScreenState extends State<ReviewScreen> {
                             width: 44,
                             height: 44,
                             decoration: BoxDecoration(
-                              color: AppColors.secondary,
+                              color: colors.successContainer,
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.storefront_rounded,
-                              color: AppColors.primary,
+                              color: colors.onSuccessContainer,
                               size: 22,
                             ),
                           ),
@@ -560,28 +569,28 @@ class _ReviewScreenState extends State<ReviewScreen> {
                               children: [
                                 Text(
                                   _shopName,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w800,
-                                    color: AppColors.textPrimary,
+                                    color: colors.textPrimary,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 const SizedBox(height: 2),
-                                const Text(
+                                Text(
                                   'แตะเพื่อแก้ไขชื่อร้าน หรือใส่ส่วนลด',
                                   style: TextStyle(
                                     fontSize: 11,
-                                    color: AppColors.textSecondary,
+                                    color: colors.textSecondary,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          const Icon(
+                          Icon(
                             Icons.edit_note_rounded,
-                            color: AppColors.textSecondary,
+                            color: colors.textSecondary,
                           ),
                         ],
                       ),
@@ -594,17 +603,17 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppColors.warmCream,
+                      color: colors.surfaceVariant,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.butterPeach),
+                      border: Border.all(color: colors.border),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.auto_awesome,
                           size: 18,
-                          color: AppColors.primary,
+                          color: colors.tealText,
                         ),
                         const SizedBox(width: 10),
                         Expanded(
@@ -613,12 +622,12 @@ class _ReviewScreenState extends State<ReviewScreen> {
                             children: [
                               Row(
                                 children: [
-                                  const Text(
+                                  Text(
                                     'AI ถอดข้อมูลสำเร็จใน ~1.8 วินาที',
                                     style: TextStyle(
                                       fontWeight: FontWeight.w700,
                                       fontSize: 12.5,
-                                      color: AppColors.textPrimary,
+                                      color: colors.textPrimary,
                                     ),
                                   ),
                                   const SizedBox(width: 6),
@@ -628,26 +637,26 @@ class _ReviewScreenState extends State<ReviewScreen> {
                                       vertical: 1,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: AppColors.blushPink,
+                                      color: colors.accentContainer,
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: Text(
                                       '${_items.length} รายการ',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 10,
                                         fontWeight: FontWeight.bold,
-                                        color: AppColors.primary,
+                                        color: colors.onAccentContainer,
                                       ),
                                     ),
                                   ),
                                 ],
                               ),
                               const SizedBox(height: 3),
-                              const Text(
+                              Text(
                                 'ตรวจสอบยอดถูกต้องครบถ้วน และกดไอคอนดินสอเพื่อปรับปรุงจำนวนหรือราคาได้ทันที',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: AppColors.textSecondary,
+                                  color: colors.textSecondary,
                                   height: 1.3,
                                 ),
                               ),
@@ -665,12 +674,12 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     children: [
                       Row(
                         children: [
-                          const Text(
+                          Text(
                             'รายการอาหาร',
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w800,
-                              color: AppColors.textPrimary,
+                              color: colors.textPrimary,
                             ),
                           ),
                           const SizedBox(width: 6),
@@ -680,25 +689,25 @@ class _ReviewScreenState extends State<ReviewScreen> {
                               vertical: 1,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.secondary,
+                              color: colors.successContainer,
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(
                               '${_items.length}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
+                                color: colors.onSuccessContainer,
                               ),
                             ),
                           ),
                         ],
                       ),
-                      const Text(
+                      Text(
                         'ราคาต่อหน่วย x จำนวน',
                         style: TextStyle(
                           fontSize: 11,
-                          color: AppColors.textSecondary,
+                          color: colors.textSecondary,
                         ),
                       ),
                     ],
@@ -718,9 +727,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
                             color: Colors.grey.shade400,
                           ),
                           const SizedBox(height: 6),
-                          const Text(
+                          Text(
                             'ไม่มีรายการอาหาร',
-                            style: TextStyle(color: AppColors.textSecondary),
+                            style: TextStyle(color: colors.textSecondary),
                           ),
                         ],
                       ),
@@ -742,9 +751,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
                           vertical: 10,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.surface,
+                          color: colors.surface,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.border),
+                          border: Border.all(color: colors.border),
                         ),
                         child: Row(
                           children: [
@@ -769,10 +778,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
                                 children: [
                                   Text(
                                     name,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w700,
-                                      color: AppColors.textPrimary,
+                                      color: colors.textPrimary,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -780,9 +789,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
                                   const SizedBox(height: 2),
                                   Text(
                                     '$qty ชุด • ${AppFormatters.formatCurrency(unitPrice)} / ชุด',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 11.5,
-                                      color: AppColors.textSecondary,
+                                      color: colors.textSecondary,
                                     ),
                                   ),
                                 ],
@@ -790,18 +799,18 @@ class _ReviewScreenState extends State<ReviewScreen> {
                             ),
                             Text(
                               AppFormatters.formatCurrency(itemTotal),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800,
-                                color: AppColors.textPrimary,
+                                color: colors.textPrimary,
                               ),
                             ),
                             const SizedBox(width: 6),
                             IconButton(
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.edit_outlined,
                                 size: 16,
-                                color: AppColors.textSecondary,
+                                color: colors.textSecondary,
                               ),
                               tooltip: 'แก้ไข',
                               visualDensity: VisualDensity.compact,
@@ -848,11 +857,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
                       ),
                     ),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      side: const BorderSide(
-                        color: AppColors.primary,
-                        width: 1.2,
-                      ),
+                      foregroundColor: colors.tealText,
+                      side: BorderSide(color: colors.tealText, width: 1.2),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
@@ -866,9 +872,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: AppColors.surface,
+                      color: colors.surface,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.border),
+                      border: Border.all(color: colors.border),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -876,12 +882,12 @@ class _ReviewScreenState extends State<ReviewScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
+                            Text(
                               '⚙️ ตั้งค่าการคิดเงิน',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w800,
-                                color: AppColors.textPrimary,
+                                color: colors.textPrimary,
                               ),
                             ),
                             Text(
@@ -919,19 +925,17 @@ class _ReviewScreenState extends State<ReviewScreen> {
                                             vertical: 1,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: AppColors.success.withValues(
-                                              alpha: 0.12,
-                                            ),
+                                            color: colors.successContainer,
                                             borderRadius: BorderRadius.circular(
                                               8,
                                             ),
                                           ),
                                           child: Text(
                                             '+${AppFormatters.formatCurrency(_sc)}',
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 10,
                                               fontWeight: FontWeight.bold,
-                                              color: AppColors.success,
+                                              color: colors.onSuccessContainer,
                                             ),
                                           ),
                                         ),
@@ -939,11 +943,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
                                     ],
                                   ),
                                   const SizedBox(height: 2),
-                                  const Text(
+                                  Text(
                                     'คำนวณอัตโนมัติจากค่าอาหาร',
                                     style: TextStyle(
                                       fontSize: 11,
-                                      color: AppColors.textSecondary,
+                                      color: colors.textSecondary,
                                     ),
                                   ),
                                 ],
@@ -959,7 +963,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                             ),
                           ],
                         ),
-                        const Divider(height: 18, color: AppColors.border),
+                        Divider(height: 18, color: colors.divider),
 
                         // VAT 7%
                         Row(
@@ -985,19 +989,17 @@ class _ReviewScreenState extends State<ReviewScreen> {
                                             vertical: 1,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: AppColors.success.withValues(
-                                              alpha: 0.12,
-                                            ),
+                                            color: colors.successContainer,
                                             borderRadius: BorderRadius.circular(
                                               8,
                                             ),
                                           ),
                                           child: Text(
                                             '+${AppFormatters.formatCurrency(_vat)}',
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 10,
                                               fontWeight: FontWeight.bold,
-                                              color: AppColors.success,
+                                              color: colors.onSuccessContainer,
                                             ),
                                           ),
                                         ),
@@ -1005,11 +1007,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
                                     ],
                                   ),
                                   const SizedBox(height: 2),
-                                  const Text(
+                                  Text(
                                     'คำนวณจากค่าอาหารรวม Service Charge',
                                     style: TextStyle(
                                       fontSize: 11,
-                                      color: AppColors.textSecondary,
+                                      color: colors.textSecondary,
                                     ),
                                   ),
                                 ],
@@ -1025,7 +1027,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                             ),
                           ],
                         ),
-                        const Divider(height: 18, color: AppColors.border),
+                        Divider(height: 18, color: colors.divider),
 
                         // โหมดการหาร
                         const Text(
@@ -1046,13 +1048,13 @@ class _ReviewScreenState extends State<ReviewScreen> {
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: _splitModel == 'proportional'
-                                  ? AppColors.secondary
-                                  : AppColors.background,
+                                  ? colors.successContainer
+                                  : colors.surfaceVariant,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: _splitModel == 'proportional'
                                     ? AppColors.primary
-                                    : AppColors.border,
+                                    : colors.border,
                               ),
                             ),
                             child: Row(
@@ -1062,8 +1064,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
                                       ? Icons.check_circle_rounded
                                       : Icons.radio_button_unchecked_rounded,
                                   color: _splitModel == 'proportional'
-                                      ? AppColors.primary
-                                      : AppColors.textSecondary,
+                                      ? colors.onSuccessContainer
+                                      : colors.textSecondary,
                                   size: 20,
                                 ),
                                 const SizedBox(width: 10),
@@ -1088,27 +1090,27 @@ class _ReviewScreenState extends State<ReviewScreen> {
                                               vertical: 1,
                                             ),
                                             decoration: BoxDecoration(
-                                              color: AppColors.primary,
+                                              color: colors.accentContainer,
                                               borderRadius:
                                                   BorderRadius.circular(6),
                                             ),
-                                            child: const Text(
+                                            child: Text(
                                               'แนะนำ',
                                               style: TextStyle(
                                                 fontSize: 9,
                                                 fontWeight: FontWeight.bold,
-                                                color: Colors.white,
+                                                color: colors.onAccentContainer,
                                               ),
                                             ),
                                           ),
                                         ],
                                       ),
                                       const SizedBox(height: 2),
-                                      const Text(
+                                      Text(
                                         'จ่ายเฉพาะสิ่งที่เลือกกินจริง แฟร์ที่สุด',
                                         style: TextStyle(
                                           fontSize: 11,
-                                          color: AppColors.textSecondary,
+                                          color: colors.textSecondary,
                                         ),
                                       ),
                                     ],
@@ -1128,13 +1130,13 @@ class _ReviewScreenState extends State<ReviewScreen> {
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: _splitModel == 'equal'
-                                  ? AppColors.secondary
-                                  : AppColors.background,
+                                  ? colors.successContainer
+                                  : colors.surfaceVariant,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: _splitModel == 'equal'
                                     ? AppColors.primary
-                                    : AppColors.border,
+                                    : colors.border,
                               ),
                             ),
                             child: Row(
@@ -1144,12 +1146,12 @@ class _ReviewScreenState extends State<ReviewScreen> {
                                       ? Icons.check_circle_rounded
                                       : Icons.radio_button_unchecked_rounded,
                                   color: _splitModel == 'equal'
-                                      ? AppColors.primary
-                                      : AppColors.textSecondary,
+                                      ? colors.onSuccessContainer
+                                      : colors.textSecondary,
                                   size: 20,
                                 ),
                                 const SizedBox(width: 10),
-                                const Expanded(
+                                Expanded(
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
@@ -1166,7 +1168,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                                         'นำยอดรวมสุทธิมาแบ่งเท่ากันตามจำนวนคน',
                                         style: TextStyle(
                                           fontSize: 11,
-                                          color: AppColors.textSecondary,
+                                          color: colors.textSecondary,
                                         ),
                                       ),
                                     ],
@@ -1189,15 +1191,15 @@ class _ReviewScreenState extends State<ReviewScreen> {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.secondary.withValues(alpha: 0.5),
+                      color: colors.successContainer,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Row(
+                    child: Row(
                       children: [
                         Icon(
                           Icons.handshake_outlined,
                           size: 16,
-                          color: AppColors.primary,
+                          color: colors.onSuccessContainer,
                         ),
                         SizedBox(width: 6),
                         Expanded(
@@ -1205,7 +1207,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                             'เพื่อนร่วมโต๊ะจะสแกนเลือกจานตัวเองได้ในหน้าถัดไป',
                             style: TextStyle(
                               fontSize: 11.5,
-                              color: AppColors.primary,
+                              color: colors.onSuccessContainer,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -1223,8 +1225,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
           Container(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
             decoration: BoxDecoration(
-              color: AppColors.surface,
-              border: const Border(top: BorderSide(color: AppColors.border)),
+              color: colors.surface,
+              border: Border(top: BorderSide(color: colors.border)),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.05),
@@ -1243,44 +1245,44 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     children: [
                       Text(
                         'ยอดอาหาร ${AppFormatters.formatCurrency(subTotal)}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
-                          color: AppColors.textSecondary,
+                          color: colors.textSecondary,
                         ),
                       ),
                       if (_sc > 0) ...[
                         const SizedBox(width: 6),
-                        const Text(
+                        Text(
                           '•',
                           style: TextStyle(
                             fontSize: 10,
-                            color: AppColors.textMuted,
+                            color: colors.textMuted,
                           ),
                         ),
                         const SizedBox(width: 6),
                         Text(
                           'SVC ${AppFormatters.formatCurrency(_sc)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
-                            color: AppColors.textSecondary,
+                            color: colors.textSecondary,
                           ),
                         ),
                       ],
                       if (_vat > 0) ...[
                         const SizedBox(width: 6),
-                        const Text(
+                        Text(
                           '•',
                           style: TextStyle(
                             fontSize: 10,
-                            color: AppColors.textMuted,
+                            color: colors.textMuted,
                           ),
                         ),
                         const SizedBox(width: 6),
                         Text(
                           'VAT ${AppFormatters.formatCurrency(_vat)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
-                            color: AppColors.textSecondary,
+                            color: colors.textSecondary,
                           ),
                         ),
                       ],
@@ -1291,7 +1293,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.success.withValues(alpha: 0.1),
+                          color: colors.successContainer,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -1304,8 +1306,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                             color: _hasCalculationMismatch
-                                ? AppColors.warning
-                                : AppColors.success,
+                                ? colors.textPrimary
+                                : colors.onSuccessContainer,
                           ),
                         ),
                       ),
@@ -1320,19 +1322,19 @@ class _ReviewScreenState extends State<ReviewScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'ยอดรวมสุทธิ',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: AppColors.textSecondary,
+                                color: colors.textSecondary,
                               ),
                             ),
                             Text(
                               AppFormatters.formatCurrency(total),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.w900,
-                                color: AppColors.primary,
+                                color: colors.tealText,
                               ),
                             ),
                           ],
@@ -1343,7 +1345,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                         onPressed: _confirmAndGoNext,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
+                          foregroundColor: Colors.black,
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 24,

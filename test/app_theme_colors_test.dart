@@ -19,6 +19,21 @@ void main() {
     expect(light.onBrand, dark.onBrand);
   });
 
+  test('status and accent containers have readable foreground colors', () {
+    final palettes = [AppThemeColors.light(), AppThemeColors.dark()];
+
+    for (final palette in palettes) {
+      expect(
+        _contrastRatio(palette.onSuccessContainer, palette.successContainer),
+        greaterThanOrEqualTo(4.5),
+      );
+      expect(
+        _contrastRatio(palette.onAccentContainer, palette.accentContainer),
+        greaterThanOrEqualTo(4.5),
+      );
+    }
+  });
+
   test('copyWith preserves omitted colors and replaces supplied colors', () {
     final original = AppThemeColors.light();
     const replacement = Colors.purple;
@@ -128,4 +143,12 @@ void main() {
       darkColors.textMuted,
     );
   });
+}
+
+double _contrastRatio(Color foreground, Color background) {
+  final luminances = [
+    foreground.computeLuminance(),
+    background.computeLuminance(),
+  ]..sort();
+  return (luminances[1] + 0.05) / (luminances[0] + 0.05);
 }

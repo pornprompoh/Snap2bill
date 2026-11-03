@@ -162,6 +162,22 @@ class BillProgressHelper {
     final receipt = _asMap(bill['receipt_json']);
     final sharersJson = _asMap(bill['sharers_json']);
     final paidStatuses = _asMap(receipt['paid_statuses']);
+    final paymentStatuses = <String, String>{};
+    final rawPayments = bill['bill_payments'];
+    if (rawPayments is Iterable) {
+      for (final payment in rawPayments.whereType<Map>()) {
+        final profileId = payment['profile_id']?.toString();
+        final status = payment['status']?.toString().toLowerCase();
+        if (profileId != null && status != null) {
+          paymentStatuses[profileId] = status;
+        }
+      }
+    }
+    final localPayments = _asMap(bill['payment_updates']);
+    for (final entry in localPayments.entries) {
+      final status = _asMap(entry.value)['status']?.toString().toLowerCase();
+      if (status != null) paymentStatuses[entry.key] = status;
+    }
 
     // Collect all participant IDs
     final memberIds = <String>{};
@@ -190,6 +206,7 @@ class BillProgressHelper {
     for (final gid in paidStatuses.keys) {
       if (gid.isNotEmpty) memberIds.add(gid);
     }
+    memberIds.addAll(paymentStatuses.keys);
 
     // 3. From items userQuantities / sharedUsers
     final items = receipt['items'];
@@ -290,6 +307,8 @@ class BillProgressHelper {
       bool isPaid = false;
       if (isOwner) {
         isPaid = true; // Owner is not a debtor to themselves
+      } else if (paymentStatuses.containsKey(mid)) {
+        isPaid = paymentStatuses[mid] == 'paid';
       } else if (paidStatuses.containsKey(mid)) {
         isPaid = paidStatuses[mid]?.toString().toLowerCase() == 'paid';
       } else if (participantMap.containsKey(mid)) {

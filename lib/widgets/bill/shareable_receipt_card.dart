@@ -4,6 +4,7 @@ import '../../theme/app_colors.dart';
 import '../../utils/formatters.dart';
 import '../../utils/bill_progress_helper.dart';
 import '../../utils/promptpay_helper.dart';
+import 'receipt_image.dart';
 
 class ShareableReceiptCard extends StatelessWidget {
   final Map<String, dynamic> bill;
@@ -65,7 +66,9 @@ class ShareableReceiptCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = summary;
     final createdAt = bill['created_at']?.toString() ?? '';
-    final rawImageUrl = bill['image_url']?.toString().trim();
+    final rawImageUrl = (bill['image_url'] ?? bill['receipt_image_url'])
+        ?.toString()
+        .trim();
     final parsedImageUrl = rawImageUrl == null
         ? null
         : Uri.tryParse(rawImageUrl);
@@ -188,13 +191,11 @@ class ShareableReceiptCard extends StatelessWidget {
                   const SizedBox(height: 12),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(10),
-                    child: Image.network(
-                      imageUrl,
+                    child: ReceiptImage(
+                      imageUrl: imageUrl,
                       height: 90,
                       width: double.infinity,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const SizedBox.shrink(),
                     ),
                   ),
                 ],

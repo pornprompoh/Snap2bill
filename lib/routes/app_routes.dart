@@ -33,16 +33,22 @@ class AppRoutes {
     if (routeName.contains('?')) {
       routeName = routeName.split('?')[0];
     }
+    if (routeName.contains('#')) {
+      routeName = routeName.split('#')[0];
+    }
 
     switch (routeName) {
       case splash:
+        return MaterialPageRoute(builder: (_) => const SplashScreen());
+      case '/':
+      case '=_=':
+      case '/_=_':
         return MaterialPageRoute(builder: (_) => const SplashScreen());
       case onboarding:
         final destinationRoute = settings.arguments as String? ?? login;
         return MaterialPageRoute(
           builder: (_) => OnboardingScreen(destinationRoute: destinationRoute),
         );
-      case '/':
       case login:
         return MaterialPageRoute(builder: (_) => const LoginScreen());
       case home:

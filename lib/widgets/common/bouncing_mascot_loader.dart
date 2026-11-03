@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
+import '../../theme/app_theme_colors.dart';
 
 class BouncingMascotLoader extends StatefulWidget {
   final String message;
@@ -40,6 +41,8 @@ class _BouncingMascotLoaderState extends State<BouncingMascotLoader>
   @override
   Widget build(BuildContext context) {
     final shadowWidth = widget.size * 0.48;
+    final colors = context.appColors;
+
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
@@ -72,8 +75,8 @@ class _BouncingMascotLoaderState extends State<BouncingMascotLoader>
               Text(
                 widget.message,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
+                style: TextStyle(
+                  color: colors.textPrimary,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),

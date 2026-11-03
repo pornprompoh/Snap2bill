@@ -138,6 +138,29 @@ snap2bill/
 
 แอปรองรับ custom link รูปแบบ `snap2bill://join/{roomCode}` ตัวอย่างเช่น `snap2bill://join/123456` โดย root handler จะตรวจสถานะล็อกอินและเปิด Lobby เมื่อพบห้องใน Supabase ตาราง `lobbies` ส่วน Android intent filters และ iOS URL scheme ตั้งค่าไว้ใน native project folders ด้านบน
 
+## Supabase Row Level Security
+
+เปิดใช้ policy สำหรับตารางบิล โปรไฟล์ และข้อมูลการชำระด้วย migrations:
+
+```bash
+supabase db push
+```
+
+หรือรันไฟล์ migration ในโฟลเดอร์ `supabase/migrations` ตามลำดับใน Supabase SQL Editor ด้วยสิทธิ์ผู้ดูแลฐานข้อมูล migration `20261103100000_bill_rls_and_receipt_access.sql` ตั้ง policy ให้เจ้าของและผู้ร่วมบิลอ่านบิล/ข้อมูลผู้ร่วมบิลได้ แต่มีเพียงเจ้าของที่แก้ไขบิลได้ ส่วนผู้ร่วมบิลอ่านประวัติบิลได้อย่างเดียว
+
+Migration `20261104010000_bill_payment_records.sql` สร้างตาราง `bill_payments` สำหรับสถานะและสลิป โดยอ่านได้เฉพาะเจ้าของบิลหรือผู้ร่วมบิลเจ้าของข้อมูล การส่งสลิปและการยืนยัน/ปฏิเสธสถานะทำผ่าน RPC ที่ตรวจสิทธิ์ฝั่งฐานข้อมูล และย้ายข้อมูล `paid_statuses`/`payment_slips` เดิมจาก `receipt_json` เข้าตารางใหม่นี้ก่อนนำคีย์เดิมออกจากบิล เพื่อไม่เปิดเผยสลิปให้ผู้ร่วมบิลคนอื่น
+
+Migration `20261104020000_create_bill_rpc.sql` สร้าง RPC สำหรับบันทึกบิลและผู้ร่วมบิลแบบ atomic โดยกำหนด `owner_id` จาก `auth.uid()` ในฐานข้อมูลแทนการเชื่อค่าจากไคลเอนต์ หากพบ RLS error ตอนบันทึกบิล ให้ติดตั้ง migrations ล่าสุดด้วย `supabase db push` (หรือรัน SQL ใน Supabase SQL Editor ตามลำดับ) แล้ว deploy เว็บ/แอปเวอร์ชันล่าสุด ซึ่งจะบันทึกผ่าน `create_bill_with_participants` แทนการ `INSERT` ตาราง `bills` โดยตรง
+
+ตั้ง policy ของ Storage แยกใน Dashboard ที่ **Storage → Policies → receipts → Create policy** เพราะ `storage.objects` เป็นตารางที่ Supabase จัดการ และ migration นี้ไม่แก้ policy ของตารางดังกล่าว:
+
+- **SELECT** — `bucket_id = 'receipts' AND private.can_read_receipt_object(name)`
+- **INSERT** — `bucket_id = 'receipts' AND split_part(name, '/', 1) = (SELECT auth.uid())::text`
+- **UPDATE** — ใช้ expression เดียวกับ INSERT ทั้งใน `USING` และ `WITH CHECK`
+- **DELETE** — ใช้ expression เดียวกับ INSERT ใน `USING`
+
+กำหนดทุก policy ให้ role `authenticated` หากเคยสร้าง policy แบบเปิดกว้างบน `storage.objects` ต้องตรวจและลบ policy เหล่านั้นด้วย เพราะ policy หลายรายการจะถูกรวมสิทธิ์กัน แอปใช้ signed URL เพื่อรองรับทั้งบักเก็ต `receipts` แบบ public และ private
+
 ## แนวทางทำงานร่วมกัน
 
 สร้าง branch สำหรับงานแต่ละชิ้นจาก branch ที่ทีมกำหนด และตรวจสอบ/ทดสอบก่อน merge:

@@ -70,6 +70,41 @@ class _PersonalPaymentDetailsScreenState
     _slipUrl = widget.member.slipUrl;
   }
 
+  void _cachePaymentUpdate(String status, String? slipData) {
+    final updates = _asMap(widget.billData['payment_updates']);
+    updates[widget.member.id] = {'status': status, 'slip_data': slipData};
+    widget.billData['payment_updates'] = updates;
+  }
+
+  Future<bool> _queuePaymentUpdate(
+    Object error, {
+    required String status,
+    String? slipData,
+  }) async {
+    final offline = context.read<OfflineService>();
+    final billId = widget.billData['id']?.toString();
+    if (billId == null ||
+        (!offline.isOffline && !OfflineService.isLikelyNetworkError(error))) {
+      return false;
+    }
+    if (status == 'reviewing' && slipData == null) return false;
+
+    final payload = {'bill_id': billId, 'profile_id': widget.member.id};
+    if (status == 'reviewing' && slipData != null) {
+      await offline.queue.enqueue(
+        type: 'submit_bill_payment',
+        payload: {...payload, 'slip_data': slipData},
+      );
+    } else {
+      await offline.queue.enqueue(
+        type: 'set_bill_payment_status',
+        payload: {...payload, 'status': status},
+      );
+    }
+    _cachePaymentUpdate(status, slipData);
+    return true;
+  }
+
   bool get _isPaid => _status == 'paid';
   bool get _isReviewing =>
       _status == 'reviewing' || _status == 'pending_verification';
@@ -133,7 +168,6 @@ class _PersonalPaymentDetailsScreenState
         );
       }
     } catch (e) {
-      await _queueLocalBillChanges(e, participantStatus: 'reviewing');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -172,39 +206,23 @@ class _PersonalPaymentDetailsScreenState
     if (file == null) return;
 
     setState(() => _isUpdating = true);
+    String? slipDataUri;
     try {
       final bytes = await file.readAsBytes();
-      final slipDataUri = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+      slipDataUri = 'data:image/jpeg;base64,${base64Encode(bytes)}';
 
       final billId = widget.billData['id']?.toString();
-      if (billId != null) {
-        final receipt = _asMap(widget.billData['receipt_json']);
-        final paymentSlips = _asMap(receipt['payment_slips']);
-        paymentSlips[widget.member.id] = slipDataUri;
-        receipt['payment_slips'] = paymentSlips;
+      if (billId == null) throw StateError('ไม่พบรหัสบิล');
 
-        final paidStatuses = _asMap(receipt['paid_statuses']);
-        paidStatuses[widget.member.id] = 'reviewing';
-        receipt['paid_statuses'] = paidStatuses;
-
-        // อัปเดต bills table
-        await Supabase.instance.client
-            .from('bills')
-            .update({'receipt_json': receipt})
-            .eq('id', billId);
-        widget.billData['receipt_json'] = receipt;
-
-        // ถ้าเป็นสมาชิกที่ลงทะเบียน ให้อัปเดต bill_participants ด้วย
-        if (!widget.member.isGuest) {
-          try {
-            await Supabase.instance.client
-                .from('bill_participants')
-                .update({'status': 'reviewing'})
-                .eq('bill_id', billId)
-                .eq('profile_id', widget.member.id);
-          } catch (_) {}
-        }
-      }
+      await Supabase.instance.client.rpc(
+        'submit_bill_payment',
+        params: {
+          'p_bill_id': billId,
+          'p_profile_id': widget.member.id,
+          'p_slip_data': slipDataUri,
+        },
+      );
+      _cachePaymentUpdate('reviewing', slipDataUri);
 
       setState(() {
         _status = 'reviewing';
@@ -222,14 +240,31 @@ class _PersonalPaymentDetailsScreenState
         );
       }
     } catch (e) {
-      await _queueLocalBillChanges(e, participantStatus: 'paid');
+      final queued =
+          slipDataUri != null &&
+          await _queuePaymentUpdate(
+            e,
+            status: 'reviewing',
+            slipData: slipDataUri,
+          );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('แนบสลิปไม่สำเร็จ: $e'),
-            backgroundColor: AppColors.error,
+            content: Text(
+              queued
+                  ? 'บันทึกสลิปไว้แล้ว รอซิงก์เมื่อกลับมาออนไลน์'
+                  : 'แนบสลิปไม่สำเร็จ: $e',
+            ),
+            backgroundColor: queued ? AppColors.warning : AppColors.error,
           ),
         );
+      }
+      if (queued && mounted) {
+        setState(() {
+          _status = 'reviewing';
+          _slipUrl = slipDataUri;
+        });
+        widget.onStatusChanged?.call('reviewing', _slipUrl);
       }
     } finally {
       if (mounted) setState(() => _isUpdating = false);
@@ -242,31 +277,16 @@ class _PersonalPaymentDetailsScreenState
     setState(() => _isUpdating = true);
     try {
       final billId = widget.billData['id']?.toString();
-      if (billId != null) {
-        final receipt = _asMap(widget.billData['receipt_json']);
-        final paidStatuses = _asMap(receipt['paid_statuses']);
-        paidStatuses[widget.member.id] = 'paid';
-        receipt['paid_statuses'] = paidStatuses;
-
-        await Supabase.instance.client
-            .from('bills')
-            .update({'receipt_json': receipt})
-            .eq('id', billId);
-        widget.billData['receipt_json'] = receipt;
-
-        if (!widget.member.isGuest) {
-          try {
-            await Supabase.instance.client
-                .from('bill_participants')
-                .update({'status': 'paid'})
-                .eq('bill_id', billId)
-                .eq('profile_id', widget.member.id);
-          } catch (_) {}
-        }
-
-        // ตรวจสอบว่าสมาชิกทุกคนชำระครบแล้วหรือไม่ เพื่อเปลี่ยนสถานะบิลเป็น completed
-        _checkAndAutoSettleBill(billId, receipt);
-      }
+      if (billId == null) throw StateError('ไม่พบรหัสบิล');
+      await Supabase.instance.client.rpc(
+        'set_bill_payment_status',
+        params: {
+          'p_bill_id': billId,
+          'p_profile_id': widget.member.id,
+          'p_status': 'paid',
+        },
+      );
+      _cachePaymentUpdate('paid', _slipUrl);
 
       setState(() => _status = 'paid');
       widget.onStatusChanged?.call('paid', _slipUrl);
@@ -280,14 +300,26 @@ class _PersonalPaymentDetailsScreenState
         );
       }
     } catch (e) {
-      await _queueLocalBillChanges(e, participantStatus: 'pending');
+      final queued = await _queuePaymentUpdate(
+        e,
+        status: 'paid',
+        slipData: _slipUrl,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('ยืนยันไม่สำเร็จ: $e'),
-            backgroundColor: AppColors.error,
+            content: Text(
+              queued
+                  ? 'บันทึกสถานะไว้ รอซิงก์เมื่อออนไลน์'
+                  : 'ยืนยันไม่สำเร็จ: $e',
+            ),
+            backgroundColor: queued ? AppColors.warning : AppColors.error,
           ),
         );
+      }
+      if (queued && mounted) {
+        setState(() => _status = 'paid');
+        widget.onStatusChanged?.call('paid', _slipUrl);
       }
     } finally {
       if (mounted) setState(() => _isUpdating = false);
@@ -300,33 +332,16 @@ class _PersonalPaymentDetailsScreenState
     setState(() => _isUpdating = true);
     try {
       final billId = widget.billData['id']?.toString();
-      if (billId != null) {
-        final receipt = _asMap(widget.billData['receipt_json']);
-        final paidStatuses = _asMap(receipt['paid_statuses']);
-        paidStatuses[widget.member.id] = 'pending';
-        receipt['paid_statuses'] = paidStatuses;
-
-        final paymentSlips = _asMap(receipt['payment_slips']);
-        paymentSlips.remove(widget.member.id);
-        receipt['payment_slips'] = paymentSlips;
-
-        await Supabase.instance.client
-            .from('bills')
-            .update({'receipt_json': receipt, 'status': 'pending'})
-            .eq('id', billId);
-        widget.billData['receipt_json'] = receipt;
-        widget.billData['status'] = 'pending';
-
-        if (!widget.member.isGuest) {
-          try {
-            await Supabase.instance.client
-                .from('bill_participants')
-                .update({'status': 'pending'})
-                .eq('bill_id', billId)
-                .eq('profile_id', widget.member.id);
-          } catch (_) {}
-        }
-      }
+      if (billId == null) throw StateError('ไม่พบรหัสบิล');
+      await Supabase.instance.client.rpc(
+        'set_bill_payment_status',
+        params: {
+          'p_bill_id': billId,
+          'p_profile_id': widget.member.id,
+          'p_status': 'pending',
+        },
+      );
+      _cachePaymentUpdate('pending', null);
 
       setState(() {
         _status = 'pending';
@@ -343,94 +358,28 @@ class _PersonalPaymentDetailsScreenState
         );
       }
     } catch (e) {
+      final queued = await _queuePaymentUpdate(e, status: 'pending');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('ดำเนินการไม่สำเร็จ: $e'),
-            backgroundColor: AppColors.error,
+            content: Text(
+              queued
+                  ? 'บันทึกสถานะไว้ รอซิงก์เมื่อออนไลน์'
+                  : 'ดำเนินการไม่สำเร็จ: $e',
+            ),
+            backgroundColor: queued ? AppColors.warning : AppColors.error,
           ),
         );
       }
+      if (queued && mounted) {
+        setState(() {
+          _status = 'pending';
+          _slipUrl = null;
+        });
+        widget.onStatusChanged?.call('pending', null);
+      }
     } finally {
       if (mounted) setState(() => _isUpdating = false);
-    }
-  }
-
-  Future<void> _checkAndAutoSettleBill(
-    String billId,
-    Map<String, dynamic> receipt,
-  ) async {
-    try {
-      final paidStatuses = _asMap(receipt['paid_statuses']);
-      final rows = await Supabase.instance.client
-          .from('bill_participants')
-          .select('profile_id, status')
-          .eq('bill_id', billId);
-
-      bool allSettled = true;
-      for (final r in rows) {
-        final pid = r['profile_id']?.toString();
-        final s = r['status']?.toString();
-        if (pid != null &&
-            pid != widget.billData['owner_id'] &&
-            s != 'paid' &&
-            paidStatuses[pid] != 'paid') {
-          allSettled = false;
-          break;
-        }
-      }
-
-      for (final entry in paidStatuses.entries) {
-        if (entry.key != widget.billData['owner_id'] && entry.value != 'paid') {
-          allSettled = false;
-          break;
-        }
-      }
-
-      final newBillStatus = allSettled ? 'completed' : 'pending';
-      await Supabase.instance.client
-          .from('bills')
-          .update({'status': newBillStatus})
-          .eq('id', billId);
-      widget.billData['status'] = newBillStatus;
-    } catch (error) {
-      await _queueLocalBillChanges(
-        error,
-        participantStatus: null,
-        statusOverride: widget.billData['status']?.toString(),
-      );
-    }
-  }
-
-  Future<void> _queueLocalBillChanges(
-    Object error, {
-    required String? participantStatus,
-    String? statusOverride,
-  }) async {
-    final offline = context.read<OfflineService>();
-    final billId = widget.billData['id']?.toString();
-    if (billId == null ||
-        (!offline.isOffline && !OfflineService.isLikelyNetworkError(error))) {
-      return;
-    }
-
-    final receipt = _asMap(widget.billData['receipt_json']);
-    final billData = <String, dynamic>{'receipt_json': receipt};
-    final status = statusOverride ?? widget.billData['status']?.toString();
-    if (status != null && status.isNotEmpty) billData['status'] = status;
-    await offline.queue.enqueue(
-      type: 'update_bill',
-      payload: {'id': billId, 'data': billData},
-    );
-    if (participantStatus != null && !widget.member.isGuest) {
-      await offline.queue.enqueue(
-        type: 'update_participant',
-        payload: {
-          'bill_id': billId,
-          'profile_id': widget.member.id,
-          'data': {'status': participantStatus},
-        },
-      );
     }
   }
 
@@ -1407,7 +1356,8 @@ class _PersonalPaymentDetailsScreenState
           ],
 
           // ปุ่มแนบสลิป (Upload Payment Slip)
-          if (!_isPaid) ...[
+          if (!_isPaid &&
+              (!widget.member.isGuest || widget.isCurrentViewerOwner)) ...[
             FilledButton.icon(
               onPressed: _isUpdating ? null : _handleUploadSlip,
               icon: const Icon(Icons.upload_file_rounded, size: 18),

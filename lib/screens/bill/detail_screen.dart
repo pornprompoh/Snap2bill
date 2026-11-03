@@ -11,6 +11,7 @@ import '../../widgets/bill/member_summary_list.dart';
 import '../../utils/bill_progress_helper.dart';
 import '../../widgets/bill/poke_reminder_dialog.dart';
 import '../../widgets/bill/shareable_receipt_preview_dialog.dart';
+import '../../widgets/bill/receipt_image.dart';
 import '../../services/offline/offline_service.dart';
 import '../../widgets/common/mascot_state_view.dart';
 import 'personal_payment_details_screen.dart';
@@ -83,17 +84,29 @@ class _DetailScreenState extends State<DetailScreen> {
     final sharersByItem = _asMap(widget.billData['sharers_json']);
     final billId = widget.billData['id']?.toString();
     List<dynamic> participantRows = [];
+    List<dynamic> paymentRows = [];
     if (billId != null) {
       try {
         participantRows = await Supabase.instance.client
             .from('bill_participants')
             .select('profile_id, amount_owed, status')
             .eq('bill_id', billId);
+        paymentRows = await Supabase.instance.client
+            .from('bill_payments')
+            .select('profile_id, status, slip_data')
+            .eq('bill_id', billId);
       } catch (error) {
         if (!OfflineService.isLikelyNetworkError(error)) rethrow;
         debugPrint('Using cached bill participants: $error');
       }
     }
+    final paymentsByProfileId = <String, Map<String, dynamic>>{
+      for (final row in paymentRows)
+        if (row['profile_id'] != null)
+          row['profile_id'].toString(): Map<String, dynamic>.from(row),
+    };
+    widget.billData['bill_payments'] = paymentRows;
+    final cachedPayments = _asMap(widget.billData['payment_updates']);
 
     final profileIds = participantRows
         .map((row) => row['profile_id']?.toString() ?? '')
@@ -247,6 +260,7 @@ class _DetailScreenState extends State<DetailScreen> {
           profile?['display_name']?.toString() ??
           (id.startsWith('guest_') ? 'Guest' : 'เพื่อน');
       final isOwner = checkIsOwner(id);
+      final payment = paymentsByProfileId[id] ?? _asMap(cachedPayments[id]);
 
       // Extract this member's dishes
       final memberDishes = <MemberDishItem>[];
@@ -291,9 +305,13 @@ class _DetailScreenState extends State<DetailScreen> {
         }
       }
 
+      final paymentStatus = payment['status']?.toString().toLowerCase();
       final rawStatus =
-          receiptPaidStatuses[id]?.toString().toLowerCase() ?? 'pending';
-      final slipUrl = paymentSlips[id]?.toString();
+          paymentStatus ??
+          receiptPaidStatuses[id]?.toString().toLowerCase() ??
+          'pending';
+      final slipUrl =
+          payment['slip_data']?.toString() ?? paymentSlips[id]?.toString();
       final effectiveStatus = isOwner
           ? 'owner'
           : (rawStatus == 'paid'
@@ -324,21 +342,32 @@ class _DetailScreenState extends State<DetailScreen> {
       final existing = entriesById[id];
       if (existing == null) continue;
       final isOwner = existing.isOwner;
-      final slipUrl = existing.slipUrl ?? paymentSlips[id]?.toString();
+      final payment = paymentsByProfileId[id] ?? _asMap(cachedPayments[id]);
+      final paymentStatus = payment['status']?.toString().toLowerCase();
+      final slipUrl =
+          payment['slip_data']?.toString() ??
+          existing.slipUrl ??
+          paymentSlips[id]?.toString();
 
       final effectiveStatus = isOwner
           ? 'owner'
-          : (rowStatus == 'paid' ||
-                    rowStatus == 'cleared' ||
-                    rowStatus == 'settled' ||
-                    existing.status == 'paid'
-                ? 'paid'
-                : (rowStatus == 'reviewing' ||
-                          rowStatus == 'pending_verification' ||
-                          existing.status == 'reviewing' ||
-                          (slipUrl != null && slipUrl.isNotEmpty)
-                      ? 'reviewing'
-                      : 'pending'));
+          : (paymentStatus != null
+                ? (paymentStatus == 'paid'
+                      ? 'paid'
+                      : (paymentStatus == 'reviewing'
+                            ? 'reviewing'
+                            : 'pending'))
+                : (rowStatus == 'paid' ||
+                          rowStatus == 'cleared' ||
+                          rowStatus == 'settled' ||
+                          existing.status == 'paid'
+                      ? 'paid'
+                      : (rowStatus == 'reviewing' ||
+                                rowStatus == 'pending_verification' ||
+                                existing.status == 'reviewing' ||
+                                (slipUrl != null && slipUrl.isNotEmpty)
+                            ? 'reviewing'
+                            : 'pending')));
 
       entriesById[id] = existing.copyWith(
         amount:
@@ -450,54 +479,48 @@ class _DetailScreenState extends State<DetailScreen> {
     return Semantics(
       button: true,
       label: 'แตะเพื่อดูรูปใบเสร็จแบบเต็ม',
-      child: GestureDetector(
-        onTap: () => _openReceiptFullView(imageUrl),
-        child: Stack(
-          alignment: Alignment.bottomRight,
-          children: [
-            Image.network(
-              imageUrl,
-              height: 300,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                debugPrint('Receipt image failed to load: $imageUrl - $error');
-                return _buildMissingReceiptImage();
-              },
-            ),
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.zoom_in_rounded,
+      child: Stack(
+        alignment: Alignment.bottomRight,
+        children: [
+          ReceiptImage(
+            imageUrl: imageUrl,
+            height: 300,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            onTap: _openReceiptFullView,
+            errorBuilder: (context, error) {
+              debugPrint('Receipt image failed to load: $imageUrl - $error');
+              return _buildMissingReceiptImage();
+            },
+          ),
+          Padding(
+            padding: const EdgeInsets.all(10),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.zoom_in_rounded, color: Colors.white, size: 18),
+                    SizedBox(width: 4),
+                    Text(
+                      'ดูรูปเต็ม',
+                      style: TextStyle(
                         color: Colors.white,
-                        size: 18,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
-                      SizedBox(width: 4),
-                      Text(
-                        'ดูรูปเต็ม',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -552,39 +575,22 @@ class _DetailScreenState extends State<DetailScreen> {
 
     final newStatus = member.isPaid ? 'pending' : 'paid';
     try {
-      if (member.isGuest) {
-        final receipt = _asMap(widget.billData['receipt_json']);
-        final paidStatuses = _asMap(receipt['paid_statuses']);
-        paidStatuses[member.id] = newStatus;
-        receipt['paid_statuses'] = paidStatuses;
-        await Supabase.instance.client
-            .from('bills')
-            .update({'receipt_json': receipt})
-            .eq('id', billId);
-        widget.billData['receipt_json'] = receipt;
-      } else {
-        await Supabase.instance.client
-            .from('bill_participants')
-            .update({'status': newStatus})
-            .eq('bill_id', billId)
-            .eq('profile_id', member.id);
-      }
+      await Supabase.instance.client.rpc(
+        'set_bill_payment_status',
+        params: {
+          'p_bill_id': billId,
+          'p_profile_id': member.id,
+          'p_status': newStatus,
+        },
+      );
+      final paymentUpdates = _asMap(widget.billData['payment_updates']);
+      paymentUpdates[member.id] = {
+        'status': newStatus,
+        'slip_data': newStatus == 'pending' ? null : member.slipUrl,
+      };
+      widget.billData['payment_updates'] = paymentUpdates;
 
       final updatedMembers = await _loadMemberSummary();
-      final nonOwnerPaying = updatedMembers.where((m) => !m.isOwner).toList();
-      final allPayingSettled =
-          nonOwnerPaying.isNotEmpty && nonOwnerPaying.every((m) => m.isPaid);
-      final newBillStatus = allPayingSettled ? 'completed' : 'pending';
-
-      try {
-        await Supabase.instance.client
-            .from('bills')
-            .update({'status': newBillStatus})
-            .eq('id', billId);
-        widget.billData['status'] = newBillStatus;
-      } catch (e) {
-        debugPrint('Error updating bill status: $e');
-      }
 
       setState(() {
         _membersFuture = Future.value(updatedMembers);
@@ -607,6 +613,14 @@ class _DetailScreenState extends State<DetailScreen> {
       }
     } catch (e) {
       debugPrint('Error updating payment status: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('อัปเดตสถานะไม่สำเร็จ: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 
@@ -639,7 +653,8 @@ class _DetailScreenState extends State<DetailScreen> {
     final shopName = widget.billData['shop_name'] ?? 'ไม่ระบุชื่อร้าน';
     final createdAt =
         widget.billData['created_at']?.toString().split('T')[0] ?? '';
-    final imageUrl = widget.billData['image_url'];
+    final imageUrl =
+        widget.billData['image_url'] ?? widget.billData['receipt_image_url'];
     final receiptJson = _asMap(widget.billData['receipt_json']);
     final items = _asList(receiptJson['items']);
     final sharersJson = _asMap(widget.billData['sharers_json']);
@@ -989,11 +1004,13 @@ class _DetailScreenState extends State<DetailScreen> {
                     if (snapshot.hasError) {
                       return const Padding(
                         padding: EdgeInsets.all(16),
-                        child: MascotStateView(
-                          state: MascotState.error,
-                          message: 'โหลดสรุปยอดไม่สำเร็จ',
-                          detail: 'ลองเปิดหน้านี้ใหม่อีกครั้ง',
-                          size: 96,
+                        child: Center(
+                          child: MascotStateView(
+                            state: MascotState.error,
+                            message: 'โหลดสรุปยอดไม่สำเร็จ',
+                            detail: 'ลองเปิดหน้านี้ใหม่อีกครั้ง',
+                            size: 96,
+                          ),
                         ),
                       );
                     }

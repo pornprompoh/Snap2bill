@@ -44,6 +44,12 @@ class AppTheme {
     ),
   );
 
+  static ThemeData lightWithDynamicColors(ColorScheme? dynamicColors) =>
+      _withDynamicColors(light, dynamicColors);
+
+  static ThemeData darkWithDynamicColors(ColorScheme? dynamicColors) =>
+      _withDynamicColors(dark, dynamicColors);
+
   static ThemeData get dark => AppDesignSystem.apply(
     ThemeData(
       fontFamily: AppTextStyles.fontFamily,
@@ -80,6 +86,80 @@ class AppTheme {
       extensions: [AppThemeColors.dark()],
     ),
   );
+
+  static ThemeData _withDynamicColors(
+    ThemeData base,
+    ColorScheme? dynamicColors,
+  ) {
+    if (dynamicColors == null) return base;
+
+    final scheme = base.colorScheme.copyWith(
+      surface: dynamicColors.surface,
+      onSurface: dynamicColors.onSurface,
+      onSurfaceVariant: dynamicColors.onSurfaceVariant,
+      surfaceTint: dynamicColors.surfaceTint,
+      inverseSurface: dynamicColors.inverseSurface,
+      onInverseSurface: dynamicColors.onInverseSurface,
+      outline: dynamicColors.outline,
+      outlineVariant: dynamicColors.outlineVariant,
+      surfaceContainerLowest: dynamicColors.surfaceContainerLowest,
+      surfaceContainerLow: dynamicColors.surfaceContainerLow,
+      surfaceContainer: dynamicColors.surfaceContainer,
+      surfaceContainerHigh: dynamicColors.surfaceContainerHigh,
+      surfaceContainerHighest: dynamicColors.surfaceContainerHighest,
+    );
+    final isDark = scheme.brightness == Brightness.dark;
+    final colors = isDark ? AppThemeColors.dark() : AppThemeColors.light();
+    final borderRadius = BorderRadius.circular(AppRadius.lg);
+
+    return base.copyWith(
+      colorScheme: scheme,
+      scaffoldBackgroundColor: scheme.surface,
+      textTheme: base.textTheme.apply(
+        bodyColor: scheme.onSurface,
+        displayColor: scheme.onSurface,
+      ),
+      appBarTheme: base.appBarTheme.copyWith(
+        backgroundColor: scheme.surface,
+        foregroundColor: scheme.onSurface,
+      ),
+      inputDecorationTheme: base.inputDecorationTheme.copyWith(
+        fillColor: scheme.surfaceContainerLow,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: scheme.outlineVariant),
+        ),
+      ),
+      cardTheme: base.cardTheme.copyWith(
+        color: scheme.surfaceContainerLow,
+        shape: RoundedRectangleBorder(
+          borderRadius: borderRadius,
+          side: BorderSide(color: scheme.outlineVariant),
+        ),
+      ),
+      dialogTheme: base.dialogTheme.copyWith(
+        backgroundColor: scheme.surfaceContainerHigh,
+      ),
+      bottomSheetTheme: base.bottomSheetTheme.copyWith(
+        backgroundColor: scheme.surfaceContainer,
+      ),
+      navigationBarTheme: base.navigationBarTheme.copyWith(
+        backgroundColor: scheme.surface,
+      ),
+      dividerTheme: base.dividerTheme.copyWith(color: scheme.outlineVariant),
+      extensions: [
+        colors.copyWith(
+          textPrimary: scheme.onSurface,
+          textSecondary: scheme.onSurfaceVariant,
+          textMuted: scheme.onSurfaceVariant,
+          surface: scheme.surface,
+          surfaceVariant: scheme.surfaceContainerLow,
+          border: scheme.outlineVariant,
+          divider: scheme.outlineVariant,
+        ),
+      ],
+    );
+  }
 
   static final ColorScheme _lightColorScheme =
       ColorScheme.fromSeed(

@@ -1,8 +1,50 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:snap2bill/theme/app_colors.dart';
+import 'package:snap2bill/theme/app_theme.dart';
 import 'package:snap2bill/theme/app_theme_colors.dart';
+import 'package:snap2bill/widgets/common/mascot_state_view.dart';
 
 void main() {
+  test('dynamic neutral colors do not replace Snap2Bill brand colors', () {
+    final dynamicLight = ColorScheme.fromSeed(
+      seedColor: Colors.deepPurple,
+      brightness: Brightness.light,
+    );
+    final dynamicDark = ColorScheme.fromSeed(
+      seedColor: Colors.deepPurple,
+      brightness: Brightness.dark,
+    );
+    final lightTheme = AppTheme.lightWithDynamicColors(dynamicLight);
+    final darkTheme = AppTheme.darkWithDynamicColors(dynamicDark);
+
+    expect(lightTheme.colorScheme.primary, AppTheme.light.colorScheme.primary);
+    expect(lightTheme.colorScheme.secondary, AppColors.secondary);
+    expect(lightTheme.colorScheme.tertiary, AppColors.accent);
+    expect(lightTheme.colorScheme.surface, dynamicLight.surface);
+    expect(
+      lightTheme.extension<AppThemeColors>()!.surface,
+      dynamicLight.surface,
+    );
+
+    expect(darkTheme.colorScheme.primary, AppTheme.dark.colorScheme.primary);
+    expect(darkTheme.colorScheme.secondary, AppColors.secondary);
+    expect(darkTheme.colorScheme.tertiary, AppColors.accent);
+    expect(darkTheme.colorScheme.surface, dynamicDark.surface);
+    expect(darkTheme.extension<AppThemeColors>()!.surface, dynamicDark.surface);
+  });
+
+  test('dynamic color absence leaves the original app palette unchanged', () {
+    final theme = AppTheme.lightWithDynamicColors(null);
+
+    expect(theme.colorScheme.primary, AppTheme.light.colorScheme.primary);
+    expect(theme.colorScheme.surface, AppTheme.light.colorScheme.surface);
+    expect(
+      theme.extension<AppThemeColors>()!.surface,
+      AppTheme.light.extension<AppThemeColors>()!.surface,
+    );
+  });
+
   test('light and dark semantic palettes expose their configured colors', () {
     final light = AppThemeColors.light();
     final dark = AppThemeColors.dark();
@@ -16,6 +58,21 @@ void main() {
     expect(light.warningContainer, isNot(dark.warningContainer));
     expect(light.errorContainer, isNot(dark.errorContainer));
     expect(light.onBrand, dark.onBrand);
+  });
+
+  test('status and accent containers have readable foreground colors', () {
+    final palettes = [AppThemeColors.light(), AppThemeColors.dark()];
+
+    for (final palette in palettes) {
+      expect(
+        _contrastRatio(palette.onSuccessContainer, palette.successContainer),
+        greaterThanOrEqualTo(4.5),
+      );
+      expect(
+        _contrastRatio(palette.onAccentContainer, palette.accentContainer),
+        greaterThanOrEqualTo(4.5),
+      );
+    }
   });
 
   test('copyWith preserves omitted colors and replaces supplied colors', () {
@@ -100,4 +157,39 @@ void main() {
       expect(fallback.textPrimary, AppThemeColors.light().textPrimary);
     },
   );
+
+  testWidgets('mascot state text follows the active theme', (tester) async {
+    final darkColors = AppThemeColors.dark();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark().copyWith(
+          extensions: <ThemeExtension<dynamic>>[darkColors],
+        ),
+        home: const Scaffold(
+          body: MascotStateView(
+            state: MascotState.scan,
+            message: 'Ready to scan',
+            detail: 'Choose a receipt image',
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester.widget<Text>(find.text('Ready to scan')).style?.color,
+      darkColors.textPrimary,
+    );
+    expect(
+      tester.widget<Text>(find.text('Choose a receipt image')).style?.color,
+      darkColors.textMuted,
+    );
+  });
+}
+
+double _contrastRatio(Color foreground, Color background) {
+  final luminances = [
+    foreground.computeLuminance(),
+    background.computeLuminance(),
+  ]..sort();
+  return (luminances[1] + 0.05) / (luminances[0] + 0.05);
 }

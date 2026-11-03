@@ -56,9 +56,12 @@ Uint8List _compressImage(Uint8List sourceBytes) {
 }
 
 class SupabaseStorageService {
-  final _supabase = Supabase.instance.client;
+  SupabaseStorageService({SupabaseClient? client})
+    : _supabase = client ?? Supabase.instance.client;
 
-  Future<String?> uploadReceiptXFile(XFile imageFile, String lobbyId) async {
+  final SupabaseClient _supabase;
+
+  Future<String> uploadReceiptXFile(XFile imageFile, String lobbyId) async {
     return uploadReceiptBytes(await imageFile.readAsBytes(), lobbyId);
   }
 
@@ -66,16 +69,29 @@ class SupabaseStorageService {
     return compute(_compressImage, imageBytes);
   }
 
-  Future<String?> uploadReceiptBytes(
+  Future<String> uploadReceiptBytes(
     Uint8List imageBytes,
     String lobbyId, {
     String? fileName,
   }) async {
     try {
-      final compressedBytes = await compressImageBytes(imageBytes);
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) throw StateError('ผู้ใช้ยังไม่ได้ล็อกอิน');
       final resolvedFileName =
           fileName ?? '${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final filePath = 'receipts/$lobbyId/$resolvedFileName';
+      bool isInvalidPathSegment(String value) =>
+          value.isEmpty ||
+          value == '.' ||
+          value == '..' ||
+          value.contains('/') ||
+          value.contains('\\');
+      if (isInvalidPathSegment(lobbyId) ||
+          isInvalidPathSegment(resolvedFileName)) {
+        throw ArgumentError('เส้นทางไฟล์ใบเสร็จไม่ถูกต้อง');
+      }
+
+      final compressedBytes = await compressImageBytes(imageBytes);
+      final filePath = '$userId/$lobbyId/$resolvedFileName';
 
       await _supabase.storage
           .from('receipts')
@@ -91,7 +107,36 @@ class SupabaseStorageService {
       return _supabase.storage.from('receipts').getPublicUrl(filePath);
     } catch (error) {
       debugPrint('เกิดข้อผิดพลาดในการบีบอัด/อัปโหลดรูปภาพ: $error');
-      return null;
+      rethrow;
     }
+  }
+
+  Future<String> resolveReceiptImageUrl(String imageUrl) async {
+    final uri = Uri.tryParse(imageUrl);
+    if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
+      throw FormatException('URL รูปใบเสร็จไม่ถูกต้อง', imageUrl);
+    }
+
+    final segments = uri.pathSegments;
+    final objectIndex = segments.indexOf('object');
+    if (objectIndex < 0 ||
+        segments.length <= objectIndex + 3 ||
+        !{
+          'public',
+          'sign',
+          'authenticated',
+        }.contains(segments[objectIndex + 1]) ||
+        segments[objectIndex + 2] != 'receipts') {
+      return imageUrl;
+    }
+
+    final objectPath = segments.skip(objectIndex + 3).join('/');
+    if (objectPath.isEmpty) {
+      throw FormatException('ไม่พบตำแหน่งไฟล์ใบเสร็จ', imageUrl);
+    }
+
+    return _supabase.storage
+        .from('receipts')
+        .createSignedUrl(objectPath, 60 * 60);
   }
 }

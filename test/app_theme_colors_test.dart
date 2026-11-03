@@ -1,9 +1,50 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:snap2bill/theme/app_colors.dart';
+import 'package:snap2bill/theme/app_theme.dart';
 import 'package:snap2bill/theme/app_theme_colors.dart';
 import 'package:snap2bill/widgets/common/mascot_state_view.dart';
 
 void main() {
+  test('dynamic neutral colors do not replace Snap2Bill brand colors', () {
+    final dynamicLight = ColorScheme.fromSeed(
+      seedColor: Colors.deepPurple,
+      brightness: Brightness.light,
+    );
+    final dynamicDark = ColorScheme.fromSeed(
+      seedColor: Colors.deepPurple,
+      brightness: Brightness.dark,
+    );
+    final lightTheme = AppTheme.lightWithDynamicColors(dynamicLight);
+    final darkTheme = AppTheme.darkWithDynamicColors(dynamicDark);
+
+    expect(lightTheme.colorScheme.primary, AppTheme.light.colorScheme.primary);
+    expect(lightTheme.colorScheme.secondary, AppColors.secondary);
+    expect(lightTheme.colorScheme.tertiary, AppColors.accent);
+    expect(lightTheme.colorScheme.surface, dynamicLight.surface);
+    expect(
+      lightTheme.extension<AppThemeColors>()!.surface,
+      dynamicLight.surface,
+    );
+
+    expect(darkTheme.colorScheme.primary, AppTheme.dark.colorScheme.primary);
+    expect(darkTheme.colorScheme.secondary, AppColors.secondary);
+    expect(darkTheme.colorScheme.tertiary, AppColors.accent);
+    expect(darkTheme.colorScheme.surface, dynamicDark.surface);
+    expect(darkTheme.extension<AppThemeColors>()!.surface, dynamicDark.surface);
+  });
+
+  test('dynamic color absence leaves the original app palette unchanged', () {
+    final theme = AppTheme.lightWithDynamicColors(null);
+
+    expect(theme.colorScheme.primary, AppTheme.light.colorScheme.primary);
+    expect(theme.colorScheme.surface, AppTheme.light.colorScheme.surface);
+    expect(
+      theme.extension<AppThemeColors>()!.surface,
+      AppTheme.light.extension<AppThemeColors>()!.surface,
+    );
+  });
+
   test('light and dark semantic palettes expose their configured colors', () {
     final light = AppThemeColors.light();
     final dark = AppThemeColors.dark();

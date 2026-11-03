@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // 🚀 นำเข้า dotenv
@@ -62,25 +63,27 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
 
-    return MaterialApp(
-      title: 'Snap2Bill',
-      onGenerateTitle: (context) => 'Snap2Bill',
-      builder: (context, child) {
-        return OfflineStatusBanner(
-          child: Title(
-            title: 'Snap2Bill',
-            color: Theme.of(context).colorScheme.primary,
-            child: child ?? const SizedBox(),
-          ),
-        );
-      },
-      navigatorKey: _navigatorKey,
-      scaffoldMessengerKey: _scaffoldMessengerKey,
-      themeMode: themeProvider.themeMode,
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      initialRoute: AppRoutes.splash,
-      onGenerateRoute: AppRoutes.generateRoute,
+    return DynamicColorBuilder(
+      builder: (lightDynamic, darkDynamic) => MaterialApp(
+        title: 'Snap2Bill',
+        onGenerateTitle: (context) => 'Snap2Bill',
+        builder: (context, child) {
+          return OfflineStatusBanner(
+            child: Title(
+              title: 'Snap2Bill',
+              color: Theme.of(context).colorScheme.primary,
+              child: child ?? const SizedBox(),
+            ),
+          );
+        },
+        navigatorKey: _navigatorKey,
+        scaffoldMessengerKey: _scaffoldMessengerKey,
+        themeMode: themeProvider.themeMode,
+        theme: AppTheme.lightWithDynamicColors(lightDynamic),
+        darkTheme: AppTheme.darkWithDynamicColors(darkDynamic),
+        initialRoute: AppRoutes.splash,
+        onGenerateRoute: AppRoutes.generateRoute,
+      ),
     );
   }
 }

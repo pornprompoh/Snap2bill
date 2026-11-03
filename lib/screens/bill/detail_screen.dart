@@ -11,6 +11,7 @@ import '../../widgets/bill/member_summary_list.dart';
 import '../../utils/bill_progress_helper.dart';
 import '../../widgets/bill/poke_reminder_dialog.dart';
 import '../../widgets/bill/shareable_receipt_preview_dialog.dart';
+import '../../widgets/bill/receipt_image.dart';
 import '../../services/offline/offline_service.dart';
 import '../../widgets/common/mascot_state_view.dart';
 import 'personal_payment_details_screen.dart';
@@ -450,54 +451,48 @@ class _DetailScreenState extends State<DetailScreen> {
     return Semantics(
       button: true,
       label: 'แตะเพื่อดูรูปใบเสร็จแบบเต็ม',
-      child: GestureDetector(
-        onTap: () => _openReceiptFullView(imageUrl),
-        child: Stack(
-          alignment: Alignment.bottomRight,
-          children: [
-            Image.network(
-              imageUrl,
-              height: 300,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                debugPrint('Receipt image failed to load: $imageUrl - $error');
-                return _buildMissingReceiptImage();
-              },
-            ),
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.zoom_in_rounded,
+      child: Stack(
+        alignment: Alignment.bottomRight,
+        children: [
+          ReceiptImage(
+            imageUrl: imageUrl,
+            height: 300,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            onTap: _openReceiptFullView,
+            errorBuilder: (context, error) {
+              debugPrint('Receipt image failed to load: $imageUrl - $error');
+              return _buildMissingReceiptImage();
+            },
+          ),
+          Padding(
+            padding: const EdgeInsets.all(10),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.zoom_in_rounded, color: Colors.white, size: 18),
+                    SizedBox(width: 4),
+                    Text(
+                      'ดูรูปเต็ม',
+                      style: TextStyle(
                         color: Colors.white,
-                        size: 18,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
-                      SizedBox(width: 4),
-                      Text(
-                        'ดูรูปเต็ม',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -639,7 +634,8 @@ class _DetailScreenState extends State<DetailScreen> {
     final shopName = widget.billData['shop_name'] ?? 'ไม่ระบุชื่อร้าน';
     final createdAt =
         widget.billData['created_at']?.toString().split('T')[0] ?? '';
-    final imageUrl = widget.billData['image_url'];
+    final imageUrl =
+        widget.billData['image_url'] ?? widget.billData['receipt_image_url'];
     final receiptJson = _asMap(widget.billData['receipt_json']);
     final items = _asList(receiptJson['items']);
     final sharersJson = _asMap(widget.billData['sharers_json']);
@@ -989,11 +985,13 @@ class _DetailScreenState extends State<DetailScreen> {
                     if (snapshot.hasError) {
                       return const Padding(
                         padding: EdgeInsets.all(16),
-                        child: MascotStateView(
-                          state: MascotState.error,
-                          message: 'โหลดสรุปยอดไม่สำเร็จ',
-                          detail: 'ลองเปิดหน้านี้ใหม่อีกครั้ง',
-                          size: 96,
+                        child: Center(
+                          child: MascotStateView(
+                            state: MascotState.error,
+                            message: 'โหลดสรุปยอดไม่สำเร็จ',
+                            detail: 'ลองเปิดหน้านี้ใหม่อีกครั้ง',
+                            size: 96,
+                          ),
                         ),
                       );
                     }

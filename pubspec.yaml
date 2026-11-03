@@ -58,6 +58,7 @@ dependencies:
   path: ^1.9.0
   connectivity_plus: ^6.1.4
   camera: ^0.12.2
+  dynamic_color: ^1.9.0
 
 dev_dependencies:
   flutter_test:

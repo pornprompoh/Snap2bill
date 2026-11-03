@@ -12,7 +12,11 @@ Future<Uint8List?> captureReceiptPhoto(BuildContext context) async {
     final mediaDevices = web.window.navigator.mediaDevices;
     final stream = await mediaDevices.getUserMedia(
       web.MediaStreamConstraints(
-        video: true.toJS,
+        video: web.MediaTrackConstraints(
+          facingMode: web.ConstrainDOMStringParameters(
+            exact: 'environment'.toJS,
+          ),
+        ),
         audio: false.toJS,
       ),
     ).toDart;

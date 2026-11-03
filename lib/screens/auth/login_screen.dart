@@ -5,6 +5,7 @@ import '../../data/repositories/supabase_auth_repository.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/usecases/auth_use_cases.dart';
 import '../../routes/app_routes.dart';
+import '../../services/onboarding/onboarding_service.dart';
 import '../../theme/app_colors.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -30,10 +31,28 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   late final StreamSubscription<AuthState> _authStateSubscription;
 
-  void _navigateToHome() {
+  Future<void> _navigateToHome() async {
     if (!mounted || _isNavigatingHome) return;
     _isNavigatingHome = true;
-    Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.home, (route) => false);
+    try {
+      final onboardingCompleted = await const OnboardingService().hasCompleted();
+      if (!mounted) return;
+
+      final destinationRoute = onboardingCompleted
+          ? AppRoutes.home
+          : AppRoutes.onboarding;
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        destinationRoute,
+        (route) => false,
+        arguments: onboardingCompleted ? null : AppRoutes.home,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      _isNavigatingHome = false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('ไม่สามารถตรวจสอบสถานะบทสอนได้: $error')),
+      );
+    }
   }
 
   @override

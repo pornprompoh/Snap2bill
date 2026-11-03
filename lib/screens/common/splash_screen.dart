@@ -38,20 +38,21 @@ class _SplashScreenState extends State<SplashScreen>
     await Future<void>.delayed(const Duration(milliseconds: 1200));
     if (!mounted) return;
 
-    final destinationRoute =
-        Supabase.instance.client.auth.currentSession == null
-        ? AppRoutes.login
-        : AppRoutes.home;
+    if (Supabase.instance.client.auth.currentSession == null) {
+      Navigator.of(context).pushReplacementNamed(AppRoutes.login);
+      return;
+    }
+
     final onboardingCompleted = await OnboardingService().hasCompleted();
     if (!mounted) return;
 
     if (!onboardingCompleted) {
       Navigator.of(
         context,
-      ).pushReplacementNamed(AppRoutes.onboarding, arguments: destinationRoute);
+      ).pushReplacementNamed(AppRoutes.onboarding, arguments: AppRoutes.home);
       return;
     }
-    Navigator.of(context).pushReplacementNamed(destinationRoute);
+    Navigator.of(context).pushReplacementNamed(AppRoutes.home);
   }
 
   @override

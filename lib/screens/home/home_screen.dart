@@ -118,7 +118,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final ownedBills = await _supabase
           .from('bills')
-          .select('*, bill_participants(*)')
+          .select('*, bill_participants(*), bill_payments(profile_id, status)')
           .eq('owner_id', userId);
       _addBillRows(uniqueBills, ownedBills);
     } catch (error, stackTrace) {
@@ -156,7 +156,9 @@ class _HomeScreenState extends State<HomeScreen> {
       if (billIds.isNotEmpty) {
         final participatedBills = await _supabase
             .from('bills')
-            .select('*, bill_participants(*)')
+            .select(
+              '*, bill_participants(*), bill_payments(profile_id, status)',
+            )
             .inFilter('id', billIds);
         _addBillRows(uniqueBills, participatedBills);
       }
@@ -321,7 +323,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   bool _isBillSettled(Map<String, dynamic> bill) {
     final summary = BillProgressHelper.calculate(bill);
+    final isOwner =
+        bill['owner_id']?.toString() == _supabase.auth.currentUser?.id;
     if (summary.isSettled &&
+        isOwner &&
         bill['status'] != 'completed' &&
         bill['id'] != null) {
       final offline = context.read<OfflineService>();

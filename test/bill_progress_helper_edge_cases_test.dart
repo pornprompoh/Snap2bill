@@ -146,4 +146,32 @@ void main() {
     expect(summary.waitingText, contains('รออีก'));
     expect(summary.paidCountText, contains('จ่ายแล้ว'));
   });
+
+  test(
+    'uses private payment records ahead of participant and legacy statuses',
+    () {
+      final summary = BillProgressHelper.calculate({
+        'owner_id': 'owner',
+        'total_amount': 200,
+        'receipt_json': {
+          'paid_statuses': {'friend': 'paid'},
+        },
+        'bill_participants': [
+          {'profile_id': 'owner', 'amount_owed': 0},
+          {'profile_id': 'friend', 'status': 'paid', 'amount_owed': 100},
+        ],
+        'bill_payments': [
+          {'profile_id': 'friend', 'status': 'reviewing'},
+          {'profile_id': 'guest_1', 'status': 'paid'},
+        ],
+      });
+
+      final membersById = {
+        for (final member in summary.allMembers) member.id: member,
+      };
+      expect(membersById['friend']!.isPaid, isFalse);
+      expect(membersById['guest_1']!.isPaid, isTrue);
+      expect(summary.isSettled, isFalse);
+    },
+  );
 }

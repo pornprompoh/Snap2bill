@@ -380,33 +380,35 @@ class _SummaryScreenState extends State<SummaryScreen> {
       if (validImageUrl) {
         billPayload['image_url'] = imageUrl!.trim();
       }
-      pendingBill = billPayload;
-
-      final insertedBill = await supabase
-          .from('bills')
-          .insert(billPayload)
-          .select('id')
-          .single();
-
-      final String newBillId = insertedBill['id'].toString();
 
       final List<Map<String, dynamic>> participantsData = [];
       userTotalsForDB.forEach((uid, amount) {
         // 🚀 กรองไม่เอา 'guest_1234' ลงตาราง เพื่อป้องกัน UUID Error
         if (!uid.startsWith('guest_')) {
           participantsData.add({
-            'bill_id': newBillId,
             'profile_id': uid,
             'amount_owed': amount,
             'status': 'pending',
           });
-          pendingParticipants = participantsData;
         }
       });
+      pendingBill = billPayload;
+      pendingParticipants = participantsData;
 
-      if (participantsData.isNotEmpty) {
-        await supabase.from('bill_participants').insert(participantsData);
-      }
+      await supabase.rpc(
+        'create_bill_with_participants',
+        params: {
+          'p_bill': billPayload,
+          'p_participants': participantsData
+              .map(
+                (participant) => {
+                  'profile_id': participant['profile_id'],
+                  'amount_owed': participant['amount_owed'],
+                },
+              )
+              .toList(),
+        },
+      );
       savedSuccessfully = true;
     } catch (e) {
       if (pendingBill != null &&

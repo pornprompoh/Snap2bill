@@ -160,23 +160,21 @@ class OfflineService extends ChangeNotifier {
     switch (operation.type) {
       case 'create_bill':
         final payload = operation.payload;
-        final inserted = await _client
-            .from('bills')
-            .insert(Map<String, dynamic>.from(payload['bill'] as Map))
-            .select('id')
-            .single();
         final participants = (payload['participants'] as List<dynamic>? ?? [])
             .whereType<Map>()
             .map(
-              (value) => <String, dynamic>{
-                ...Map<String, dynamic>.from(value),
-                'bill_id': inserted['id'],
-              },
+              (value) => Map<String, dynamic>.from(value)
+                ..remove('bill_id')
+                ..remove('status'),
             )
             .toList();
-        if (participants.isNotEmpty) {
-          await _client.from('bill_participants').insert(participants);
-        }
+        await _client.rpc(
+          'create_bill_with_participants',
+          params: {
+            'p_bill': Map<String, dynamic>.from(payload['bill'] as Map),
+            'p_participants': participants,
+          },
+        );
         return;
       case 'update_bill':
         final payload = operation.payload;
@@ -192,6 +190,28 @@ class OfflineService extends ChangeNotifier {
             .update(Map<String, dynamic>.from(payload['data'] as Map))
             .eq('bill_id', payload['bill_id'].toString())
             .eq('profile_id', payload['profile_id'].toString());
+        return;
+      case 'submit_bill_payment':
+        final payload = operation.payload;
+        await _client.rpc(
+          'submit_bill_payment',
+          params: {
+            'p_bill_id': payload['bill_id'].toString(),
+            'p_profile_id': payload['profile_id'].toString(),
+            'p_slip_data': payload['slip_data'].toString(),
+          },
+        );
+        return;
+      case 'set_bill_payment_status':
+        final payload = operation.payload;
+        await _client.rpc(
+          'set_bill_payment_status',
+          params: {
+            'p_bill_id': payload['bill_id'].toString(),
+            'p_profile_id': payload['profile_id'].toString(),
+            'p_status': payload['status'].toString(),
+          },
+        );
         return;
       default:
         throw StateError('Unknown offline operation: ${operation.type}');

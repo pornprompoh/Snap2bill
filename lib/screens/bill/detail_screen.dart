@@ -20,7 +20,8 @@ import 'personal_payment_details_screen.dart';
 class DetailScreen extends StatefulWidget {
   final Map<String, dynamic> billData;
 
-  const DetailScreen({super.key, required this.billData});
+  DetailScreen({super.key, required Map<String, dynamic> billData})
+    : billData = Map<String, dynamic>.from(billData);
 
   @override
   State<DetailScreen> createState() => _DetailScreenState();
@@ -30,6 +31,7 @@ class _DetailScreenState extends State<DetailScreen> {
   late Future<List<MemberSummaryEntry>> _membersFuture;
   final GlobalKey _receiptCaptureKey = GlobalKey();
   RealtimeChannel? _billRealtimeChannel;
+  bool _isLoadingBill = false;
   String _hostPromptPay = '';
   String? _hostPromptPayType;
   String? _hostBankName;
@@ -41,8 +43,61 @@ class _DetailScreenState extends State<DetailScreen> {
   void initState() {
     super.initState();
     _membersFuture = _loadMemberSummary();
-    _fetchHostPromptPayInfo();
-    _setupRealtimeBillSubscription();
+    final billId = widget.billData['id']?.toString();
+    if (billId != null && billId.isNotEmpty) {
+      _isLoadingBill =
+          BillProgressHelper.extractBillTotal(widget.billData) <= 0;
+      _setupRealtimeBillSubscription();
+      unawaited(_loadBillFromSupabase());
+    } else {
+      unawaited(_fetchHostPromptPayInfo());
+    }
+  }
+
+  Future<void> _loadBillFromSupabase() async {
+    final billId = widget.billData['id']?.toString();
+    if (billId == null || billId.isEmpty) return;
+
+    try {
+      final bill = await Supabase.instance.client
+          .from('bills')
+          .select()
+          .eq('id', billId)
+          .maybeSingle();
+      if (bill == null) throw StateError('ไม่พบข้อมูลบิล');
+
+      final billData = Map<String, dynamic>.from(bill);
+      if (BillProgressHelper.extractBillTotal(billData) <= 0) {
+        try {
+          final participants = await Supabase.instance.client
+              .from('bill_participants')
+              .select('amount_owed')
+              .eq('bill_id', billId);
+          billData['bill_participants'] = participants;
+        } catch (error, stackTrace) {
+          debugPrint(
+            'Failed to load participant total fallback: $error\n$stackTrace',
+          );
+        }
+      }
+
+      widget.billData.addAll(billData);
+      if (!mounted) return;
+      setState(() {
+        _isLoadingBill = false;
+        _membersFuture = _loadMemberSummary();
+      });
+      await _fetchHostPromptPayInfo();
+    } catch (error, stackTrace) {
+      debugPrint('Failed to load bill detail: $error\n$stackTrace');
+      if (!mounted) return;
+      setState(() => _isLoadingBill = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('โหลดข้อมูลบิลไม่สำเร็จ กรุณาลองเปิดใหม่'),
+        ),
+      );
+    }
   }
 
   void _setupRealtimeBillSubscription() {
@@ -132,8 +187,8 @@ class _DetailScreenState extends State<DetailScreen> {
     try {
       final ownerId =
           widget.billData['owner_id']?.toString() ??
-          Supabase.instance.client.auth.currentUser?.id;
-      if (ownerId != null) {
+          _asMap(widget.billData['receipt_json'])['owner_id']?.toString();
+      if (ownerId != null && ownerId.isNotEmpty) {
         final profile = await Supabase.instance.client
             .from('profiles')
             .select()
@@ -745,23 +800,39 @@ class _DetailScreenState extends State<DetailScreen> {
     final items = _asList(receiptJson['items']);
     final sharersJson = _asMap(widget.billData['sharers_json']);
 
+    final receiptSubTotal = double.tryParse(
+      receiptJson['sub_total']?.toString() ?? '',
+    );
+    final itemSubTotal = items.fold<double>(0, (total, rawItem) {
+      final item = _asMap(rawItem);
+      final itemTotal = double.tryParse(item['total_price']?.toString() ?? '');
+      if (itemTotal != null) return total + itemTotal;
+
+      final quantity =
+          int.tryParse((item['qty'] ?? item['quantity'] ?? 1).toString()) ?? 1;
+      final unitPrice =
+          double.tryParse(
+            (item['unit_price'] ?? item['price'] ?? '').toString(),
+          ) ??
+          0;
+      return total + unitPrice * quantity;
+    });
     final subTotal =
-        double.tryParse(receiptJson['sub_total']?.toString() ?? '0') ?? 0;
+        receiptSubTotal ?? (itemSubTotal > 0 ? itemSubTotal : null);
     final vatAmount =
         double.tryParse(receiptJson['vat_amount']?.toString() ?? '0') ?? 0;
     final serviceCharge =
         double.tryParse(receiptJson['service_charge']?.toString() ?? '0') ?? 0;
     final discount =
         double.tryParse(receiptJson['discount']?.toString() ?? '0') ?? 0;
-    final totalAmount =
-        double.tryParse(
-          (receiptJson['final_total'] ??
-                  receiptJson['total_amount'] ??
-                  widget.billData['sub_total'] ??
-                  '0')
-              .toString(),
-        ) ??
-        0;
+    final storedTotal = BillProgressHelper.extractBillTotal(widget.billData);
+    final totalAmount = storedTotal > 0
+        ? storedTotal
+        : _isLoadingBill
+        ? 0.0
+        : BillProgressHelper.extractBillTotal({
+            'bill_participants': widget.billData['bill_participants'],
+          });
 
     return Scaffold(
       appBar: AppBar(
@@ -867,7 +938,9 @@ class _DetailScreenState extends State<DetailScreen> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                totalAmount > 0
+                                _isLoadingBill
+                                    ? 'กำลังโหลดยอดบิล...'
+                                    : totalAmount > 0
                                     ? AppFormatters.formatCurrency(totalAmount)
                                     : 'ยังไม่มีข้อมูลยอดบิล',
                                 style: const TextStyle(
@@ -1188,7 +1261,7 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  Widget _buildSummaryRow(String label, double amount, {Color? color}) {
+  Widget _buildSummaryRow(String label, double? amount, {Color? color}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
@@ -1196,7 +1269,9 @@ class _DetailScreenState extends State<DetailScreen> {
         children: [
           Text(label, style: TextStyle(color: Colors.grey.shade700)),
           Text(
-            AppFormatters.formatCurrency(amount),
+            amount == null
+                ? 'ไม่มีข้อมูล'
+                : AppFormatters.formatCurrency(amount),
             style: TextStyle(color: color ?? Colors.black87),
           ),
         ],

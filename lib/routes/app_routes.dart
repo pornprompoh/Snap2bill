@@ -35,15 +35,22 @@ class AppRoutes {
     final hashRouteIndex = name.indexOf('#');
     if (hashRouteIndex >= 0) {
       final fragment = name.substring(hashRouteIndex + 1);
+      final normalizedFragment = fragment.replaceFirst(RegExp(r'^/+'), '');
+      if (normalizedFragment == '=_=' || normalizedFragment == '_=_') {
+        return splash;
+      }
       if (fragment.startsWith('/')) {
         routeLocation = fragment;
       } else {
-        if (fragment == '=_=' || fragment == '/_=_') return splash;
         routeLocation = name.substring(0, hashRouteIndex);
       }
     }
 
-    if (routeLocation == '=_=' || routeLocation == '/_=_') return splash;
+    if (routeLocation == '=_=' ||
+        routeLocation == '_=_' ||
+        routeLocation == '/_=_') {
+      return splash;
+    }
     final uri = Uri.tryParse(routeLocation);
     final path = uri?.path;
     return path == null || path.isEmpty ? '/' : path;

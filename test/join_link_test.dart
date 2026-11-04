@@ -37,8 +37,12 @@ void main() {
   group('AppRoutes.normalizeRouteName', () {
     test('maps OAuth callback marker back to splash', () {
       expect(AppRoutes.normalizeRouteName('/#=_='), AppRoutes.splash);
+      expect(AppRoutes.normalizeRouteName('/#_=_'), AppRoutes.splash);
+      expect(AppRoutes.normalizeRouteName('/#/=_='), AppRoutes.splash);
+      expect(AppRoutes.normalizeRouteName('/#/_=_'), AppRoutes.splash);
       expect(AppRoutes.normalizeRouteName('/_=_'), AppRoutes.splash);
       expect(AppRoutes.normalizeRouteName('=_='), AppRoutes.splash);
+      expect(AppRoutes.normalizeRouteName('_=_'), AppRoutes.splash);
     });
 
     test('preserves deep-link hash routes and query parameters', () {

@@ -2,6 +2,17 @@
 
 Snap2Bill เป็นแอป Flutter สำหรับสแกนใบเสร็จ แบ่งรายการอาหารกับเพื่อน และสรุปยอดที่แต่ละคนต้องชำระ ใช้ Supabase สำหรับ Authentication, Database, Realtime และ Storage
 
+## Facebook Login (Web)
+
+เว็บจะกลับมาที่ origin ปัจจุบัน (`https://snap2bill.vercel.app`) หลัง OAuth และทำความสะอาด Facebook hash marker `#_=_`/`#=_=` ก่อน Flutter เริ่มทำงาน เพื่อไม่ให้ถูกตีความเป็น route ที่ไม่มีอยู่ ถ้าหน้า error ยังเกิดบน `m.facebook.com` ก่อนกลับเข้าเว็บ ให้ตรวจค่าฝั่ง provider:
+
+1. ใน Supabase **Authentication → URL Configuration** ตั้ง Site URL เป็น `https://snap2bill.vercel.app` และเพิ่ม `https://snap2bill.vercel.app` ใน Redirect URLs (รวม origin สำหรับ local development หากใช้)
+2. ใน Supabase **Authentication → Providers → Facebook** เปิด provider และตรวจ App ID/Secret
+3. ใน Meta for Developers ตั้ง App Domains เป็น `snap2bill.vercel.app`, เปิด Facebook Login สำหรับ Web และใส่ callback URL ที่ Supabase แสดงในช่อง **Valid OAuth Redirect URIs** ของ Meta (เป็น URL ของ Supabase `/auth/v1/callback` ไม่ใช่ URL Vercel)
+4. ถ้าแอป Meta ยังอยู่ใน Development mode ให้บัญชีที่ทดสอบเป็น App Admin/Developer/Tester หรือเปลี่ยนแอปเป็น Live ตามเงื่อนไขการอนุมัติของ Meta
+
+`redirect_uri` ของ OAuth provider คือ callback ของ Supabase; Supabase จะ redirect กลับมายัง origin ของเว็บภายหลัง ดังนั้นการเพิ่ม URL Vercel ใน Valid OAuth Redirect URIs ของ Meta อย่างเดียวไม่ทดแทน callback ของ Supabase ได้
+
 ## ฟีเจอร์หลัก
 
 - เข้าสู่ระบบด้วย Supabase และ Google Sign-In

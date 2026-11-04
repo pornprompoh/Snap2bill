@@ -15,91 +15,43 @@ Snap2Bill เป็นแอป Flutter สำหรับสแกนใบเ�
 
 ## ฟีเจอร์หลัก
 
-- เข้าสู่ระบบด้วย Supabase และ Google Sign-In
+- เข้าสู่ระบบด้วย Supabase Auth, Google Sign-In และ Facebook OAuth บนเว็บ
 - สแกน/เลือกรูปใบเสร็จ แล้วใช้ Gemini OCR แยกรายการ ราคา VAT เซอร์วิสชาร์จ และส่วนลด โดยมีโมเดลสำรองเมื่อเกิด rate limit หรือ service unavailable
 - บีบอัดรูปเป็น JPEG ก่อนอัปโหลดไป Supabase Storage
-- สร้าง Lobby แบบ Realtime, แชร์ห้องด้วย QR deep link และเลือกเพื่อนจากประวัติบิล
+- สร้าง Lobby แบบ Realtime, แชร์ห้องด้วย QR/deep link และเลือกเพื่อนจากประวัติบิล
 - QR เชิญเปิด `https://snap2bill.vercel.app/#/join?roomId=...`; เก็บรายการเข้าร่วมค้างไว้ระหว่างล็อกอิน และรองรับทั้งรหัส Lobby 6 หลักกับ UUID ของบิล
 - เลือกรายการที่แต่ละคนรับผิดชอบ คำนวณส่วนแบ่ง และสร้าง PromptPay QR ตามยอดชำระ
+- เจ้าของบิลและผู้ร่วมบิลเห็นการเปลี่ยนแปลงของบิล สถานะการชำระ และสลิปผ่าน Supabase Realtime
+- ปุ่มกระดิ่งแจ้งเตือนผู้ร่วมบิลแบบทันที พร้อมรายการแจ้งเตือนและสถานะอ่านแล้ว
 - ตั้งค่า Display Name และข้อมูล PromptPay ในโปรไฟล์
 
 ## โครงสร้างโปรเจกต์
 
 ```text
 snap2bill/
-├── android/                              # โปรเจกต์ Android และ native configuration
-│   └── app/src/main/AndroidManifest.xml  # App link และ custom URL scheme
-├── ios/                                  # โปรเจกต์ iOS
-│   └── Runner/Info.plist                 # URL scheme และการตั้งค่าแอป
-├── lib/                                  # โค้ด Flutter หลัก
-│   ├── main.dart                         # เริ่มแอป, initialize Supabase, providers และ deep-link listener
-│   ├── data/                             # Repository implementations และ local persistence
-│   │   └── repositories/                 # Supabase adapters และ LocalBillRepository
-│   ├── domain/                           # Contracts และ use cases ของแอป
-│   │   ├── repositories/                 # Repository interfaces
-│   │   └── usecases/                     # Application use cases
-│   ├── models/                           # Data models ที่ใช้ร่วมระหว่างชั้นปัจจุบัน
-│   │   ├── bill_model.dart               # Bill, item และ participant models
-│   │   └── user_model.dart               # User/Friend models รวม payment_info ของ PromptPay
-│   ├── providers/                        # State management ด้วย Provider
-│   │   ├── bill_provider.dart            # บิลและรายชื่อสมาชิกห้องปัจจุบัน
-│   │   └── user_provider.dart            # โปรไฟล์และรายชื่อเพื่อน
-│   ├── routes/
-│   │   └── app_routes.dart               # Named routes และส่ง arguments ระหว่างหน้าจอ
-│   ├── screens/                          # หน้าจอและ workflow ของแอป
-│   │   ├── auth/login_screen.dart        # เข้าสู่ระบบ
-│   │   ├── friends/friend_list_screen.dart # เลือกเพื่อนจากประวัติบิล
-│   │   ├── profile/profile_screen.dart   # ดู/แก้ไขโปรไฟล์และ PromptPay
-│   │   ├── bill/detail_screen.dart       # รายละเอียดบิลย้อนหลัง
-│   │   ├── home/home_screen.dart         # หน้าหลักและประวัติบิล
-│   │   ├── common/loading_screen.dart    # สถานะระหว่างประมวลผล OCR
-│   │   ├── main/main_screen.dart         # Navigation หลัก
-│   │   ├── bill/                         # หน้าจอ Flow การหารบิล
-│   │   │   ├── claim_screen.dart         # เลือกรายการอาหารและผู้รับผิดชอบ
-│   │   │   ├── lobby_screen.dart         # ห้อง Realtime, QR และรายชื่อสมาชิก
-│   │   │   ├── review_screen.dart        # ตรวจ/แก้ข้อมูล OCR ก่อนเริ่มหาร
-│   │   │   ├── scan_screen.dart          # ถ่ายภาพหรือเลือกรูปใบเสร็จ
-│   │   │   └── summary_screen.dart       # ยอดชำระ, PromptPay QR และบันทึกบิล
-│   ├── services/                         # Infrastructure services และ platform integrations
-│   │   ├── auth/                         # Supabase Auth และ Google Sign-In
-│   │   ├── data/                         # Supabase data source เดิม
-│   │   ├── media/                        # OCR, camera และ QR image handling
-│   │   ├── notifications/                # In-app notifications
-│   │   └── storage/                      # Supabase Storage
-│   ├── theme/                            # สีและรูปแบบตัวอักษร
-│   │   ├── app_colors.dart               # ชุดสีหลัก
-│   │   └── app_text_styles.dart          # Text styles ที่ใช้ซ้ำ
-│   ├── utils/                            # ค่าคงที่และ helper functions
-│   │   ├── constants.dart                # ระยะห่างและค่าคงที่ของ UI
-│   │   └── formatters.dart                # จัดรูปแบบตัวเลข/สกุลเงิน
-│   └── widgets/                          # Widgets ที่ใช้ซ้ำ
-│       ├── bill/bill_card.dart            # การ์ดสรุปบิล
-│       ├── common/custom_button.dart      # ปุ่มมาตรฐานพร้อม loading state
-│       ├── friends/friend_item.dart       # รายการเพื่อนและสถานะเลือก
-│       └── bill/                         # Components เฉพาะใน Bill Flow
-│           ├── claim_item_card.dart      # การ์ดเลือกรายการ/แชร์เมนู
-│           ├── guest_dialog.dart         # Dialog เพิ่มสมาชิก Guest
-│           └── promptpay_card.dart       # การ์ด PromptPay และปุ่มบันทึก QR
-├── test/
-│   └── widget_test.dart                  # Flutter widget tests
-├── web/                                  # Web manifest, icons และ HTML shell
-├── linux/                                # Linux runner
-├── macos/                                # macOS runner
-├── windows/                              # Windows runner
-├── analysis_options.yaml                 # กฎ lint/analyzer
-├── pubspec.yaml                          # Dependencies, SDK constraints และ assets
-├── pubspec.lock                          # เวอร์ชัน dependencies ที่ resolve แล้ว
-└── README.md                             # คู่มือโปรเจกต์
+├── lib/
+│   ├── data/ domain/                      # Repository implementations, contracts และ use cases
+│   ├── models/ providers/                 # Models และ state management ด้วย Provider
+│   ├── routes/ screens/ widgets/          # Navigation, หน้าจอ และ UI components
+│   ├── services/                          # Auth, data, media, notifications, offline และ storage
+│   ├── theme/ utils/                      # Design system, formatters และ helpers
+│   └── main.dart                          # Bootstrap, Supabase, providers และ auth listeners
+├── supabase/migrations/                   # Database schema, RLS, RPC และ Realtime
+├── test/                                  # Unit และ widget tests แยกตามหัวข้อ
+├── integration_test/                      # ทดสอบ application flow บนอุปกรณ์/แพลตฟอร์ม
+├── assets/                                # รูปภาพ mascot และ fonts
+├── android/ ios/ web/                     # Platform configuration และ web shell
+├── .env.example                           # ตัวอย่าง environment variables
+├── pubspec.yaml                           # Dependencies และ Dart SDK constraint
+└── README.md
 ```
 
 ## เครื่องมือและ Dependencies
 
-การเข้าร่วมบิลที่ใช้ UUID ต้องติดตั้ง migration `supabase/migrations/20261104030000_join_bill_rpc.sql` ใน Supabase ก่อน เพื่อให้ RPC เพิ่มผู้เข้าร่วมได้ตาม RLS โดยไม่เปิดสิทธิ์เขียนตารางให้ผู้ใช้ทั่วไป
-
-- Flutter SDK/Dart SDK ตาม constraints ใน `pubspec.yaml` (แพ็กเกจ `app_links` ต้องใช้ Flutter 3.44 ขึ้นไป)
+- Flutter/Dart SDK ที่รองรับ constraint ใน `pubspec.yaml` (Dart `^3.12.2`)
 - Supabase project สำหรับ Auth, Database, Realtime และ Storage
 - Gemini API key สำหรับ OCR
-- Dependencies สำคัญ: `supabase_flutter`, `google_generative_ai`, `image_picker`, `image`, `app_links` และ `provider`
+- Dependencies สำคัญ: `supabase_flutter`, `google_generative_ai`, `image_picker`, `image`, `app_links`, `provider` และ `drift`
 
 ## เริ่มต้นใช้งาน
 
@@ -110,7 +62,7 @@ snap2bill/
    cd Snap2bill
    ```
 
-2. สร้างไฟล์ `.env` ที่ root ของโปรเจกต์ โดยกำหนดค่าตาม environment ของตนเอง:
+2. คัดลอก `.env.example` เป็น `.env` ที่ root ของโปรเจกต์ แล้วกำหนดค่าตาม environment ของตนเอง:
 
    ```dotenv
    SUPABASE_URL=ใส่_URL_ของ_Supabase
@@ -147,37 +99,62 @@ snap2bill/
    flutter test
    ```
 
+   ชุดทดสอบใน `test/` ครอบคลุมการคำนวณและสถานะบิล, models/providers, widgets และ design system, Auth/deep links, Supabase services, notifications, offline, OCR และ validation ส่วน `integration_test/app_flow_test.dart` ครอบคลุม flow สร้างบิล/เคลมรายการ/คำนวณยอด และ flow เปิดการแจ้งเตือน ทำเครื่องหมายว่าอ่านแล้ว แล้วเปิดรายละเอียดบิลจาก ID โดยตรวจสถานะกำลังโหลด (ไม่แสดงยอดสุทธิเป็นศูนย์ชั่วคราว) และยอดจริงหลังโหลด โดยใช้ fake repositories และ mock Supabase REST responses ไม่เรียก OAuth, OCR หรือ backend จริง
+
+   รันทดสอบเฉพาะไฟล์ได้ เช่น:
+
+   ```bash
+   flutter test test/in_app_notification_test.dart
+   flutter test test/bill_progress_helper_edge_cases_test.dart
+   ```
+
+   รัน application flow test บน Windows:
+
+   ```bash
+   flutter test integration_test/app_flow_test.dart -d windows
+   ```
+
+6. Build เว็บ:
+
+   ```bash
+   flutter build web
+   ```
+
 
 ## Deep Links
 
 แอปรองรับ custom link รูปแบบ `snap2bill://join/{roomCode}` ตัวอย่างเช่น `snap2bill://join/123456` โดย root handler จะตรวจสถานะล็อกอินและเปิด Lobby เมื่อพบห้องใน Supabase ตาราง `lobbies` ส่วน Android intent filters และ iOS URL scheme ตั้งค่าไว้ใน native project folders ด้านบน
 
-## Supabase Row Level Security
+## Supabase Database, RLS และ Realtime
 
-เปิดใช้ policy สำหรับตารางบิล โปรไฟล์ และข้อมูลการชำระด้วย migrations:
+โฟลเดอร์ `supabase/` ใน repository มี migrations แต่ยังไม่มี `config.toml` สำหรับ Supabase CLI หากต้องการใช้ CLI ให้ initialize และเชื่อมกับโปรเจกต์ที่ถูกต้องก่อน:
 
 ```bash
+supabase init
+supabase link --project-ref <project-ref>
 supabase db push
 ```
 
-หรือรันไฟล์ migration ในโฟลเดอร์ `supabase/migrations` ตามลำดับใน Supabase SQL Editor ด้วยสิทธิ์ผู้ดูแลฐานข้อมูล migration `20261103100000_bill_rls_and_receipt_access.sql` ตั้ง policy ให้เจ้าของและผู้ร่วมบิลอ่านบิล/ข้อมูลผู้ร่วมบิลได้ แต่มีเพียงเจ้าของที่แก้ไขบิลได้ ส่วนผู้ร่วมบิลอ่านประวัติบิลได้อย่างเดียว
+หรือเปิดไฟล์ใน `supabase/migrations/` ด้วย Supabase SQL Editor แล้วรันตามลำดับชื่อไฟล์ โดยใช้โปรเจกต์และ environment ที่ถูกต้องทุกครั้ง
 
-Migration `20261104010000_bill_payment_records.sql` สร้างตาราง `bill_payments` สำหรับสถานะและสลิป โดยอ่านได้เฉพาะเจ้าของบิลหรือผู้ร่วมบิลเจ้าของข้อมูล การส่งสลิปและการยืนยัน/ปฏิเสธสถานะทำผ่าน RPC ที่ตรวจสิทธิ์ฝั่งฐานข้อมูล และย้ายข้อมูล `paid_statuses`/`payment_slips` เดิมจาก `receipt_json` เข้าตารางใหม่นี้ก่อนนำคีย์เดิมออกจากบิล เพื่อไม่เปิดเผยสลิปให้ผู้ร่วมบิลคนอื่น
+Migration ใน `supabase/migrations/` มีหน้าที่หลักดังนี้:
 
-Migration `20261104020000_create_bill_rpc.sql` สร้าง RPC สำหรับบันทึกบิลและผู้ร่วมบิลแบบ atomic โดยกำหนด `owner_id` จาก `auth.uid()` ในฐานข้อมูลแทนการเชื่อค่าจากไคลเอนต์ หากพบ RLS error ตอนบันทึกบิล ให้ติดตั้ง migrations ล่าสุดด้วย `supabase db push` (หรือรัน SQL ใน Supabase SQL Editor ตามลำดับ) แล้ว deploy เว็บ/แอปเวอร์ชันล่าสุด ซึ่งจะบันทึกผ่าน `create_bill_with_participants` แทนการ `INSERT` ตาราง `bills` โดยตรง
+- `20261103100000_bill_rls_and_receipt_access.sql` — helper functions และ RLS สำหรับบิล/โปรไฟล์ รวมถึงการเข้าถึงไฟล์ใบเสร็จ
+- `20261104010000_bill_payment_records.sql` — สร้าง `bill_payments`, policies และ RPC สำหรับสถานะ/สลิป พร้อมย้ายข้อมูลเดิมจาก `receipt_json`
+- `20261104020000_create_bill_rpc.sql` — สร้าง RPC `create_bill_with_participants` เพื่อบันทึกบิลและผู้ร่วมบิลแบบ atomic โดยกำหนดเจ้าของจาก `auth.uid()`
+- `20261104030000_join_bill_rpc.sql` — สร้าง RPC `join_bill` สำหรับเข้าร่วมบิลด้วย UUID ภายใต้การตรวจสอบสิทธิ์
+- `20261104100000_realtime_and_notifications.sql` — สร้างตาราง `notifications` และ RLS, เปิด publication `supabase_realtime` สำหรับ `bills`, `bill_participants`, `bill_payments`, `notifications` และตั้ง `REPLICA IDENTITY FULL`
 
-Migration `20261104100000_realtime_and_notifications.sql` เปิด Postgres Changes ใน `supabase_realtime` สำหรับ `bills`, `bill_participants`, `bill_payments` และ `notifications`, ตั้ง `REPLICA IDENTITY FULL`, และสร้างตารางแจ้งเตือนพร้อม RLS ให้เจ้าของบิลส่งการเตือนได้เฉพาะผู้ร่วมบิล ส่วนผู้รับอ่าน/ทำเครื่องหมายว่าอ่านแล้วได้เฉพาะรายการของตนเอง หน้ารายละเอียดบิลและหน้าแรกจะรีเฟรชจากการเปลี่ยนแปลงของบิล/การชำระ และแถบกระดิ่งรับแจ้งเตือนผ่าน Realtime พร้อม Snackbar เมื่อแอปเปิดอยู่ ช่อง Realtime ของหน้าบิลและบริการแจ้งเตือนจะถูกนำออกเมื่อปิดหน้าหรือเปลี่ยนบัญชี ใช้ `supabase db push` หรือรัน migration นี้ใน SQL Editor หลัง migrations ที่สร้าง `bills`, `bill_participants`, `bill_payments` และฟังก์ชัน `private.owns_bill` แล้ว
+การเปลี่ยนแปลงบิลและการชำระจะอัปเดตหน้าหลัก/หน้ารายละเอียดผ่าน Postgres Changes ส่วนบริการแจ้งเตือน subscribe ตามผู้ใช้ที่ล็อกอิน และปลด channel เมื่อออกจากระบบหรือปิดหน้าที่เกี่ยวข้อง ข้อมูลรายการอาหารเก็บใน `bills.receipt_json`/`sharers_json`; ปัจจุบันไม่มีตาราง `bill_items`
 
-สถานะก่อน migration: มี Presence/Broadcast สำหรับ Lobby และ Claim, มี Postgres Changes ที่หน้าแรกสำหรับ `bills` และ `bill_participants`, แต่ไม่มี subscription สำหรับ `bill_payments`/หน้ารายละเอียดบิลหรือ migration ที่เพิ่มตารางเหล่านี้เข้า publication; การแจ้งเตือนเดิมพึ่งพา SharedPreferences พร้อมการเขียน Supabase แบบ best-effort จึงไม่รับประกันการส่งข้ามอุปกรณ์ Realtime ของบิลอาศัยข้อมูลรายการที่เก็บใน `bills.receipt_json`/`sharers_json` (โปรเจกต์ยังไม่มีตาราง `bill_items`)
-
-ตั้ง policy ของ Storage แยกใน Dashboard ที่ **Storage → Policies → receipts → Create policy** เพราะ `storage.objects` เป็นตารางที่ Supabase จัดการ และ migration นี้ไม่แก้ policy ของตารางดังกล่าว:
+การตั้งค่า Storage bucket `receipts` และ policy ของ `storage.objects` ทำแยกใน Supabase Dashboard ที่ **Storage → Policies → receipts** (ใช้ role `authenticated`):
 
 - **SELECT** — `bucket_id = 'receipts' AND private.can_read_receipt_object(name)`
 - **INSERT** — `bucket_id = 'receipts' AND split_part(name, '/', 1) = (SELECT auth.uid())::text`
-- **UPDATE** — ใช้ expression เดียวกับ INSERT ทั้งใน `USING` และ `WITH CHECK`
-- **DELETE** — ใช้ expression เดียวกับ INSERT ใน `USING`
+- **UPDATE** — expression เดียวกับ INSERT ทั้งใน `USING` และ `WITH CHECK`
+- **DELETE** — expression เดียวกับ INSERT ใน `USING`
 
-กำหนดทุก policy ให้ role `authenticated` หากเคยสร้าง policy แบบเปิดกว้างบน `storage.objects` ต้องตรวจและลบ policy เหล่านั้นด้วย เพราะ policy หลายรายการจะถูกรวมสิทธิ์กัน แอปใช้ signed URL เพื่อรองรับทั้งบักเก็ต `receipts` แบบ public และ private
+ตรวจสอบและนำ policy แบบเปิดกว้างเดิมออกด้วย เพราะ policies สำหรับตารางเดียวกันจะถูกรวมสิทธิ์กัน แอปใช้ signed URL เพื่อรองรับ bucket `receipts` แบบ public และ private
 
 ## แนวทางทำงานร่วมกัน
 

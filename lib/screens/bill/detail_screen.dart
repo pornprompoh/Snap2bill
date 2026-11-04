@@ -20,7 +20,8 @@ import 'personal_payment_details_screen.dart';
 class DetailScreen extends StatefulWidget {
   final Map<String, dynamic> billData;
 
-  const DetailScreen({super.key, required this.billData});
+  DetailScreen({super.key, required Map<String, dynamic> billData})
+    : billData = Map<String, dynamic>.from(billData);
 
   @override
   State<DetailScreen> createState() => _DetailScreenState();

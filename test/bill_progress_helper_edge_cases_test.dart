@@ -22,6 +22,19 @@ void main() {
 
       expect(
         BillProgressHelper.extractBillTotal({
+          'total_amount': 3451,
+          'sub_total': 0,
+          'bill_participants': [
+            {'amount_owed': 1788},
+            {'amount_owed': 703},
+            {'amount_owed': 960},
+          ],
+        }),
+        3451,
+      );
+
+      expect(
+        BillProgressHelper.extractBillTotal({
           'receipt_json': {
             'items': [
               {'qty': 'bad', 'unit_price': '10'},

@@ -5,6 +5,7 @@ class UserModel {
   final String? displayName;
   final String? email;
   final String? avatarUrl;
+  final String? localAvatarPath;
   final Map<String, dynamic>? paymentInfo;
 
   UserModel({
@@ -12,6 +13,7 @@ class UserModel {
     this.displayName,
     this.email,
     this.avatarUrl,
+    this.localAvatarPath,
     this.paymentInfo,
   });
 
@@ -21,7 +23,8 @@ class UserModel {
 
   String? get bankName => paymentInfo?['bank_name']?.toString();
 
-  String? get bankAccountNumber => paymentInfo?['bank_account_number']?.toString();
+  String? get bankAccountNumber =>
+      paymentInfo?['bank_account_number']?.toString();
 
   String? get bankAccountName => paymentInfo?['bank_account_name']?.toString();
 
@@ -34,6 +37,7 @@ class UserModel {
       'display_name': displayName,
       'email': email,
       'avatar_url': avatarUrl,
+      'local_avatar_path': localAvatarPath,
       'payment_info': paymentInfo,
     };
   }
@@ -45,11 +49,13 @@ class UserModel {
       displayName: json['display_name'] as String?,
       email: json['email'] as String?,
       avatarUrl: json['avatar_url'] as String?,
+      localAvatarPath: json['local_avatar_path'] as String?,
       paymentInfo: _parsePaymentInfo(rawPaymentInfo),
     );
   }
 
-  factory UserModel.fromJson(Map<String, dynamic> json) => UserModel.fromMap(json);
+  factory UserModel.fromJson(Map<String, dynamic> json) =>
+      UserModel.fromMap(json);
 
   static Map<String, dynamic>? _parsePaymentInfo(dynamic value) {
     if (value is Map) return Map<String, dynamic>.from(value);
@@ -69,6 +75,7 @@ class UserModel {
     String? displayName,
     String? email,
     String? avatarUrl,
+    String? localAvatarPath,
     Map<String, dynamic>? paymentInfo,
   }) {
     return UserModel(
@@ -76,6 +83,7 @@ class UserModel {
       displayName: displayName ?? this.displayName,
       email: email ?? this.email,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      localAvatarPath: localAvatarPath ?? this.localAvatarPath,
       paymentInfo: paymentInfo ?? this.paymentInfo,
     );
   }

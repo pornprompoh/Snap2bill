@@ -8,10 +8,31 @@ class CachedBills extends Table {
   TextColumn get status => text().withDefault(const Constant('draft'))();
   TextColumn get receiptJson => text().nullable()();
   TextColumn get sharersJson => text().nullable()();
+  TextColumn get payloadJson => text().nullable()();
+  TextColumn get localImagePath => text().nullable()();
+  TextColumn get syncStatus => text().withDefault(const Constant('synced'))();
   DateTimeColumn get cachedAt => dateTime().withDefault(currentDateAndTime)();
 
   @override
   Set<Column> get primaryKey => {id};
+}
+
+class CachedProfiles extends Table {
+  TextColumn get id => text()();
+  TextColumn get payloadJson => text()();
+  DateTimeColumn get cachedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+class CachedRooms extends Table {
+  TextColumn get roomCode => text()();
+  TextColumn get payloadJson => text()();
+  DateTimeColumn get cachedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {roomCode};
 }
 
 class OfflineDrafts extends Table {

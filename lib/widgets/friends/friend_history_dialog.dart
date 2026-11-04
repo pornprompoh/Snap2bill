@@ -1,10 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../models/user_model.dart';
+import '../../data/repositories/local_bill_repository.dart';
 import '../../services/data/supabase_db_service.dart';
+import '../../services/offline/offline_service.dart';
+import '../../services/storage/local_receipt_storage.dart';
 import '../../theme/app_colors.dart';
 import '../common/mascot_state_view.dart';
+import '../common/cached_avatar.dart';
 
 class FriendHistoryDialog extends StatefulWidget {
   final Future<List<UserModel>> Function()? loadFriends;
@@ -46,11 +53,61 @@ class _FriendHistoryDialogState extends State<FriendHistoryDialog> {
     _friendsFuture = _fetchFriends();
   }
 
-  Future<List<UserModel>> _fetchFriends() {
+  Future<List<UserModel>> _fetchFriends() async {
     if (widget.loadFriends != null) return widget.loadFriends!();
+    final offline = context.read<OfflineService>();
     final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId == null) return Future.value(const <UserModel>[]);
-    return SupabaseDbService().getPastParticipants(userId);
+    if (userId == null) return const <UserModel>[];
+
+    final repository = LocalBillRepository();
+    List<UserModel> cachedFriends = [];
+    try {
+      cachedFriends = await repository.getCachedPastParticipants(userId);
+    } catch (error, stackTrace) {
+      debugPrint('Failed to load local friends: $error\n$stackTrace');
+    }
+    if (cachedFriends.isNotEmpty) {
+      if (!offline.isOffline) {
+        unawaited(
+          _syncFriends(repository, userId).catchError((error, stackTrace) {
+            debugPrint('Background friend sync failed: $error\n$stackTrace');
+            return cachedFriends;
+          }),
+        );
+      }
+      return cachedFriends;
+    }
+    if (offline.isOffline) return cachedFriends;
+    return _syncFriends(repository, userId);
+  }
+
+  Future<List<UserModel>> _syncFriends(
+    LocalBillRepository repository,
+    String userId,
+  ) async {
+    final friends = await SupabaseDbService().getPastParticipants(userId);
+    final cachedFriends = <UserModel>[];
+    for (final friend in friends) {
+      var cachedFriend = friend;
+      final avatarUrl = friend.avatarUrl;
+      final avatarUri = Uri.tryParse(avatarUrl ?? '');
+      if (avatarUri != null &&
+          (avatarUri.scheme == 'http' || avatarUri.scheme == 'https') &&
+          avatarUri.host.isNotEmpty) {
+        try {
+          final localPath = await cacheRemoteImage(
+            avatarUrl!,
+            'avatar-${friend.id}',
+          );
+          cachedFriend = friend.copyWith(localAvatarPath: localPath);
+        } catch (error, stackTrace) {
+          debugPrint('Failed to cache friend avatar: $error\n$stackTrace');
+        }
+      }
+      await repository.cacheProfile(cachedFriend.toMap());
+      cachedFriends.add(cachedFriend);
+    }
+    return cachedFriends;
   }
 
   void _retry() {
@@ -152,12 +209,20 @@ class _FriendHistoryDialogState extends State<FriendHistoryDialog> {
                           ),
                           leading: CircleAvatar(
                             backgroundColor: AppColors.lightPink,
-                            backgroundImage:
-                                friend.avatarUrl?.isNotEmpty == true
-                                ? NetworkImage(friend.avatarUrl!)
-                                : null,
-                            child: friend.avatarUrl?.isNotEmpty == true
-                                ? null
+                            child:
+                                friend.avatarUrl?.isNotEmpty == true ||
+                                    friend.localAvatarPath != null
+                                ? ClipOval(
+                                    child: CachedAvatar(
+                                      imageUrl: friend.avatarUrl,
+                                      localImagePath: friend.localAvatarPath,
+                                      size: 40,
+                                      placeholder: const Icon(
+                                        Icons.person,
+                                        color: AppColors.pink,
+                                      ),
+                                    ),
+                                  )
                                 : const Icon(
                                     Icons.person,
                                     color: AppColors.pink,

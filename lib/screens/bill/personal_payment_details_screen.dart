@@ -15,6 +15,9 @@ import '../../utils/promptpay_helper.dart';
 import '../../widgets/bill/member_summary_list.dart';
 import '../../services/media/qr_image_saver.dart';
 import '../../services/offline/offline_service.dart';
+import '../../services/storage/local_receipt_storage.dart';
+import '../../data/repositories/local_bill_repository.dart';
+import '../../widgets/common/cached_avatar.dart';
 
 class PersonalPaymentDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> billData;
@@ -60,6 +63,7 @@ class _PersonalPaymentDetailsScreenState
   final GlobalKey _qrCaptureKey = GlobalKey();
   late String _status;
   String? _slipUrl;
+  String? _slipLocalPath;
   bool _isSavingQr = false;
   bool _isUpdating = false;
 
@@ -68,18 +72,29 @@ class _PersonalPaymentDetailsScreenState
     super.initState();
     _status = widget.member.status;
     _slipUrl = widget.member.slipUrl;
+    _slipLocalPath = widget.member.localSlipPath;
   }
 
-  void _cachePaymentUpdate(String status, String? slipData) {
+  Future<void> _cachePaymentUpdate(
+    String status,
+    String? slipData, {
+    String? localImagePath,
+  }) async {
     final updates = _asMap(widget.billData['payment_updates']);
-    updates[widget.member.id] = {'status': status, 'slip_data': slipData};
+    updates[widget.member.id] = {
+      'status': status,
+      'slip_data': slipData,
+      'local_image_path': ?localImagePath,
+    };
     widget.billData['payment_updates'] = updates;
+    await LocalBillRepository().cacheSupabaseBills([widget.billData]);
   }
 
   Future<bool> _queuePaymentUpdate(
     Object error, {
     required String status,
     String? slipData,
+    String? localImagePath,
   }) async {
     final offline = context.read<OfflineService>();
     final billId = widget.billData['id']?.toString();
@@ -93,7 +108,12 @@ class _PersonalPaymentDetailsScreenState
     if (status == 'reviewing' && slipData != null) {
       await offline.queue.enqueue(
         type: 'submit_bill_payment',
-        payload: {...payload, 'slip_data': slipData},
+        payload: {
+          ...payload,
+          'slip_data': localImagePath == null
+              ? slipData
+              : 'local-file:$localImagePath',
+        },
       );
     } else {
       await offline.queue.enqueue(
@@ -101,7 +121,7 @@ class _PersonalPaymentDetailsScreenState
         payload: {...payload, 'status': status},
       );
     }
-    _cachePaymentUpdate(status, slipData);
+    await _cachePaymentUpdate(status, slipData, localImagePath: localImagePath);
     return true;
   }
 
@@ -205,7 +225,9 @@ class _PersonalPaymentDetailsScreenState
       imageQuality: 85,
     );
     if (file == null) return;
+    if (!mounted) return;
 
+    final offline = context.read<OfflineService>();
     setState(() => _isUpdating = true);
     String? slipDataUri;
     try {
@@ -214,16 +236,43 @@ class _PersonalPaymentDetailsScreenState
 
       final billId = widget.billData['id']?.toString();
       if (billId == null) throw StateError('ไม่พบรหัสบิล');
-
-      await Supabase.instance.client.rpc(
-        'submit_bill_payment',
-        params: {
-          'p_bill_id': billId,
-          'p_profile_id': widget.member.id,
-          'p_slip_data': slipDataUri,
-        },
+      _slipLocalPath = await saveLocalReceipt(
+        bytes,
+        'slip-$billId-${widget.member.id}',
       );
-      _cachePaymentUpdate('reviewing', slipDataUri);
+
+      if (offline.isOffline) {
+        await _queuePaymentUpdate(
+          StateError('Device is offline'),
+          status: 'reviewing',
+          slipData: slipDataUri,
+          localImagePath: _slipLocalPath,
+        );
+      } else {
+        try {
+          await Supabase.instance.client.rpc(
+            'submit_bill_payment',
+            params: {
+              'p_bill_id': billId,
+              'p_profile_id': widget.member.id,
+              'p_slip_data': slipDataUri,
+            },
+          );
+        } catch (error) {
+          final queued = await _queuePaymentUpdate(
+            error,
+            status: 'reviewing',
+            slipData: slipDataUri,
+            localImagePath: _slipLocalPath,
+          );
+          if (!queued) rethrow;
+        }
+      }
+      await _cachePaymentUpdate(
+        'reviewing',
+        slipDataUri,
+        localImagePath: _slipLocalPath,
+      );
 
       setState(() {
         _status = 'reviewing';
@@ -248,6 +297,7 @@ class _PersonalPaymentDetailsScreenState
             e,
             status: 'reviewing',
             slipData: slipDataUri,
+            localImagePath: _slipLocalPath,
           );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -288,7 +338,11 @@ class _PersonalPaymentDetailsScreenState
           'p_status': 'paid',
         },
       );
-      _cachePaymentUpdate('paid', _slipUrl);
+      await _cachePaymentUpdate(
+        'paid',
+        _slipUrl,
+        localImagePath: _slipLocalPath,
+      );
 
       setState(() => _status = 'paid');
       widget.onStatusChanged?.call('paid', _slipUrl);
@@ -344,7 +398,11 @@ class _PersonalPaymentDetailsScreenState
           'p_status': 'pending',
         },
       );
-      _cachePaymentUpdate('pending', null);
+      await _cachePaymentUpdate(
+        'pending',
+        null,
+        localImagePath: _slipLocalPath,
+      );
 
       setState(() {
         _status = 'pending';
@@ -429,6 +487,29 @@ class _PersonalPaymentDetailsScreenState
   }
 
   Widget _buildSlipImageWidget(String slipUrl) {
+    if (_slipLocalPath != null) {
+      return FutureBuilder(
+        future: readLocalReceipt(_slipLocalPath!),
+        builder: (context, snapshot) {
+          if (snapshot.data != null) {
+            return Image.memory(
+              snapshot.data!,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) =>
+                  _buildNetworkSlip(slipUrl),
+            );
+          }
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          return _buildNetworkSlip(slipUrl);
+        },
+      );
+    }
+    return _buildNetworkSlip(slipUrl);
+  }
+
+  Widget _buildNetworkSlip(String slipUrl) {
     if (slipUrl.startsWith('data:image')) {
       final base64String = slipUrl.split(',').last;
       return Image.memory(base64Decode(base64String), fit: BoxFit.contain);
@@ -536,15 +617,15 @@ class _PersonalPaymentDetailsScreenState
                       : (_isReviewing
                             ? Colors.blue.shade50
                             : Colors.orange.shade50)),
-            child: _isValidImageUrl(member.avatarUrl)
+            child:
+                _isValidImageUrl(member.avatarUrl) ||
+                    member.localAvatarPath != null
                 ? ClipOval(
-                    child: Image.network(
-                      member.avatarUrl!,
-                      width: 56,
-                      height: 56,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
-                          _buildMemberInitial(member),
+                    child: CachedAvatar(
+                      imageUrl: member.avatarUrl,
+                      localImagePath: member.localAvatarPath,
+                      size: 56,
+                      placeholder: _buildMemberInitial(member),
                     ),
                   )
                 : _buildMemberInitial(member),

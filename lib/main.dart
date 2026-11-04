@@ -40,12 +40,21 @@ void main() async {
       providers: [
         ChangeNotifierProvider<OfflineService>.value(value: offlineService),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
-        ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProxyProvider<OfflineService, UserProvider>(
+          create: (_) => UserProvider(),
+          update: (_, offline, user) =>
+              (user ?? UserProvider())..setOfflineService(offline),
+        ),
         ChangeNotifierProvider(create: (_) => ContactProvider()),
-        ChangeNotifierProxyProvider<ContactProvider, BillProvider>(
+        ChangeNotifierProxyProvider2<
+          ContactProvider,
+          OfflineService,
+          BillProvider
+        >(
           create: (_) => BillProvider(),
-          update: (_, contacts, bills) =>
-              (bills ?? BillProvider())..setContactProvider(contacts),
+          update: (_, contacts, offline, bills) => (bills ?? BillProvider())
+            ..setContactProvider(contacts)
+            ..setOfflineService(offline),
         ),
       ],
       child: DeepLinkHandler(

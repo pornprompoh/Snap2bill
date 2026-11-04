@@ -8,6 +8,7 @@ Snap2Bill เป็นแอป Flutter สำหรับสแกนใบเ�
 - สแกน/เลือกรูปใบเสร็จ แล้วใช้ Gemini OCR แยกรายการ ราคา VAT เซอร์วิสชาร์จ และส่วนลด โดยมีโมเดลสำรองเมื่อเกิด rate limit หรือ service unavailable
 - บีบอัดรูปเป็น JPEG ก่อนอัปโหลดไป Supabase Storage
 - สร้าง Lobby แบบ Realtime, แชร์ห้องด้วย QR deep link และเลือกเพื่อนจากประวัติบิล
+- QR เชิญเปิด `https://snap2bill.vercel.app/#/join?roomId=...`; เก็บรายการเข้าร่วมค้างไว้ระหว่างล็อกอิน และรองรับทั้งรหัส Lobby 6 หลักกับ UUID ของบิล
 - เลือกรายการที่แต่ละคนรับผิดชอบ คำนวณส่วนแบ่ง และสร้าง PromptPay QR ตามยอดชำระ
 - ตั้งค่า Display Name และข้อมูล PromptPay ในโปรไฟล์
 
@@ -81,6 +82,8 @@ snap2bill/
 ```
 
 ## เครื่องมือและ Dependencies
+
+การเข้าร่วมบิลที่ใช้ UUID ต้องติดตั้ง migration `supabase/migrations/20261104030000_join_bill_rpc.sql` ใน Supabase ก่อน เพื่อให้ RPC เพิ่มผู้เข้าร่วมได้ตาม RLS โดยไม่เปิดสิทธิ์เขียนตารางให้ผู้ใช้ทั่วไป
 
 - Flutter SDK/Dart SDK ตาม constraints ใน `pubspec.yaml` (แพ็กเกจ `app_links` ต้องใช้ Flutter 3.44 ขึ้นไป)
 - Supabase project สำหรับ Auth, Database, Realtime และ Storage

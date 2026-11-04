@@ -11,6 +11,7 @@ import '../screens/bill/claim_screen.dart';
 import '../screens/bill/summary_screen.dart';
 import '../screens/friends/friend_list_screen.dart';
 import '../screens/bill/detail_screen.dart';
+import '../screens/bill/join_room_screen.dart';
 import '../screens/main/main_screen.dart';
 
 class AppRoutes {
@@ -27,14 +28,18 @@ class AppRoutes {
   static const String profile = '/profile';
   static const String friends = '/friends';
   static const String detail = '/detail';
+  static const String join = '/join';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     String routeName = settings.name ?? '/';
+    final hashRouteIndex = routeName.indexOf('#');
+    if (hashRouteIndex >= 0) {
+      routeName = routeName.substring(hashRouteIndex + 1);
+    }
+    final routeUri = Uri.tryParse(routeName);
+    final queryParameters = routeUri?.queryParameters ?? const {};
     if (routeName.contains('?')) {
       routeName = routeName.split('?')[0];
-    }
-    if (routeName.contains('#')) {
-      routeName = routeName.split('#')[0];
     }
 
     switch (routeName) {
@@ -51,6 +56,19 @@ class AppRoutes {
         );
       case login:
         return MaterialPageRoute(builder: (_) => const LoginScreen());
+      case join:
+        final args = settings.arguments;
+        final arguments = args is Map ? args : const {};
+        final roomId =
+            arguments['roomId']?.toString() ??
+            arguments['billId']?.toString() ??
+            queryParameters['roomId'] ??
+            queryParameters['billId'] ??
+            queryParameters['roomCode'] ??
+            queryParameters['room_code'];
+        return MaterialPageRoute(
+          builder: (_) => JoinRoomScreen(roomId: roomId),
+        );
       case home:
         return MaterialPageRoute(builder: (_) => const MainScreen());
       case scan:

@@ -1,12 +1,14 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:app_links/app_links.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../routes/app_routes.dart';
 import '../services/auth/supabase_auth_service.dart';
+import '../services/join/pending_join_store.dart';
+import '../utils/join_link.dart';
 
 class DeepLinkHandler extends StatefulWidget {
   final Widget child;
@@ -28,8 +30,8 @@ class _DeepLinkHandlerState extends State<DeepLinkHandler> {
   final AppLinks _appLinks = AppLinks();
   StreamSubscription<Uri>? _linkSubscription;
   StreamSubscription<AuthState>? _authSubscription;
-  String? _pendingRoomCode;
-  bool _isOpeningRoom = false;
+  final _pendingJoinStore = const PendingJoinStore();
+  bool _isRoutingJoin = false;
 
   @override
   void initState() {
@@ -41,59 +43,44 @@ class _DeepLinkHandlerState extends State<DeepLinkHandler> {
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((
       state,
     ) {
-      if (state.session != null && _pendingRoomCode != null) {
-        unawaited(_openPendingRoom());
-      }
+      if (state.session != null) unawaited(_resumePendingJoin());
     });
-  }
-
-  String? _roomCodeFromUri(Uri uri) {
-    final queryCode =
-        uri.queryParameters['roomCode'] ??
-        uri.queryParameters['room_code'];
-    if (queryCode != null && queryCode.isNotEmpty) return queryCode;
-
-    final pathSegments = uri.pathSegments
-        .where((segment) => segment.isNotEmpty)
-        .toList();
-    if (uri.scheme == 'snap2bill' &&
-        uri.host == 'join' &&
-        pathSegments.isNotEmpty) {
-      return pathSegments.last;
+    if (kIsWeb) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleIncomingLink(Uri.base);
+      });
     }
-    if ((uri.scheme == 'http' || uri.scheme == 'https') &&
-        uri.host == 'join' &&
-        pathSegments.isNotEmpty) {
-      return pathSegments.last;
-    }
-    return null;
-  }
-
-  bool _isRoomLink(Uri uri) {
-    if (uri.scheme == 'snap2bill' && uri.host == 'join') {
-      return true;
-    }
-    if ((uri.scheme == 'http' || uri.scheme == 'https') &&
-        uri.host == 'join') {
-      return true;
-    }
-    return uri.queryParameters.containsKey('roomCode') ||
-        uri.queryParameters.containsKey('room_code');
   }
 
   void _handleIncomingLink(Uri uri) {
     if (uri.scheme == 'snap2bill' && uri.host == 'login-callback') {
       return;
     }
-    if (!_isRoomLink(uri)) return;
+    if (!JoinLink.isJoinUri(uri)) return;
 
-    final roomCode = _roomCodeFromUri(uri);
-    if (roomCode == null || !RegExp(r'^\d{6}$').hasMatch(roomCode)) {
-      _showLinkMessage('ลิงก์เข้าห้องไม่ถูกต้อง');
+    final roomId = JoinLink.roomIdFromUri(uri);
+    final isRoomCode = roomId != null && RegExp(r'^\d{6}$').hasMatch(roomId);
+    final isBillId =
+        roomId != null &&
+        RegExp(
+          r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+        ).hasMatch(roomId);
+    if (!isRoomCode && !isBillId) {
+      _showLinkMessage('ลิงก์เข้าบิลหรือห้องไม่ถูกต้อง');
       return;
     }
 
-    _pendingRoomCode = roomCode;
+    unawaited(_saveAndRouteJoin(roomId));
+  }
+
+  Future<void> _saveAndRouteJoin(String roomId) async {
+    try {
+      await _pendingJoinStore.save(roomId);
+    } catch (error, stackTrace) {
+      debugPrint('บันทึกลิงก์เข้าบิลไม่สำเร็จ: $error\n$stackTrace');
+      _showLinkMessage('บันทึกลิงก์ไม่สำเร็จ กรุณาลองเปิดอีกครั้ง');
+      return;
+    }
     if (SupabaseAuthService().currentUser == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         widget.navigatorKey.currentState?.pushNamedAndRemoveUntil(
@@ -104,61 +91,31 @@ class _DeepLinkHandlerState extends State<DeepLinkHandler> {
       return;
     }
 
-    unawaited(_openPendingRoom());
+    _routeToJoin(roomId);
   }
 
-  Map<String, dynamic> _receiptDataFrom(dynamic value) {
-    if (value is Map) return Map<String, dynamic>.from(value);
-    if (value is String && value.isNotEmpty) {
-      try {
-        final decoded = jsonDecode(value);
-        if (decoded is Map) return Map<String, dynamic>.from(decoded);
-      } on FormatException {
-        return <String, dynamic>{};
-      }
-    }
-    return <String, dynamic>{};
+  Future<void> _resumePendingJoin() async {
+    if (_isRoutingJoin) return;
+    final roomId = await _pendingJoinStore.read();
+    if (roomId == null || SupabaseAuthService().currentUser == null) return;
+    _routeToJoin(roomId);
   }
 
-  Future<void> _openPendingRoom() async {
-    final roomCode = _pendingRoomCode;
-    final currentUser = SupabaseAuthService().currentUser;
-    if (roomCode == null || currentUser == null || _isOpeningRoom) return;
-
-    _isOpeningRoom = true;
-    try {
-      final room = await Supabase.instance.client
-          .from('lobbies')
-          .select('host_id, receipt_json')
-          .eq('room_code', roomCode)
-          .maybeSingle();
-
-      if (room == null) {
-        _pendingRoomCode = null;
-        _showLinkMessage('ไม่พบห้องรหัส $roomCode');
+  void _routeToJoin(String roomId) {
+    if (_isRoutingJoin) return;
+    _isRoutingJoin = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        _isRoutingJoin = false;
         return;
       }
-
-      final hostId = room['host_id']?.toString();
-      final receiptData = _receiptDataFrom(room['receipt_json']);
-      if (hostId != null) receiptData['owner_id'] = hostId;
-      _pendingRoomCode = null;
-
       widget.navigatorKey.currentState?.pushNamedAndRemoveUntil(
-        AppRoutes.lobby,
+        AppRoutes.join,
         (route) => false,
-        arguments: {
-          'lobbyId': roomCode,
-          'receiptData': receiptData,
-          'isHost': hostId == currentUser.id,
-        },
+        arguments: {'roomId': roomId},
       );
-    } catch (error, stackTrace) {
-      debugPrint('Failed to open room from deep link: $error\n$stackTrace');
-      _showLinkMessage('เปิดห้องไม่สำเร็จ กรุณาลองอีกครั้ง');
-    } finally {
-      _isOpeningRoom = false;
-    }
+      _isRoutingJoin = false;
+    });
   }
 
   void _showLinkMessage(String message) {

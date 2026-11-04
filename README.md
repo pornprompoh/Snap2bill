@@ -155,6 +155,10 @@ Migration `20261104010000_bill_payment_records.sql` สร้างตารา�
 
 Migration `20261104020000_create_bill_rpc.sql` สร้าง RPC สำหรับบันทึกบิลและผู้ร่วมบิลแบบ atomic โดยกำหนด `owner_id` จาก `auth.uid()` ในฐานข้อมูลแทนการเชื่อค่าจากไคลเอนต์ หากพบ RLS error ตอนบันทึกบิล ให้ติดตั้ง migrations ล่าสุดด้วย `supabase db push` (หรือรัน SQL ใน Supabase SQL Editor ตามลำดับ) แล้ว deploy เว็บ/แอปเวอร์ชันล่าสุด ซึ่งจะบันทึกผ่าน `create_bill_with_participants` แทนการ `INSERT` ตาราง `bills` โดยตรง
 
+Migration `20261104100000_realtime_and_notifications.sql` เปิด Postgres Changes ใน `supabase_realtime` สำหรับ `bills`, `bill_participants`, `bill_payments` และ `notifications`, ตั้ง `REPLICA IDENTITY FULL`, และสร้างตารางแจ้งเตือนพร้อม RLS ให้เจ้าของบิลส่งการเตือนได้เฉพาะผู้ร่วมบิล ส่วนผู้รับอ่าน/ทำเครื่องหมายว่าอ่านแล้วได้เฉพาะรายการของตนเอง หน้ารายละเอียดบิลและหน้าแรกจะรีเฟรชจากการเปลี่ยนแปลงของบิล/การชำระ และแถบกระดิ่งรับแจ้งเตือนผ่าน Realtime พร้อม Snackbar เมื่อแอปเปิดอยู่ ช่อง Realtime ของหน้าบิลและบริการแจ้งเตือนจะถูกนำออกเมื่อปิดหน้าหรือเปลี่ยนบัญชี ใช้ `supabase db push` หรือรัน migration นี้ใน SQL Editor หลัง migrations ที่สร้าง `bills`, `bill_participants`, `bill_payments` และฟังก์ชัน `private.owns_bill` แล้ว
+
+สถานะก่อน migration: มี Presence/Broadcast สำหรับ Lobby และ Claim, มี Postgres Changes ที่หน้าแรกสำหรับ `bills` และ `bill_participants`, แต่ไม่มี subscription สำหรับ `bill_payments`/หน้ารายละเอียดบิลหรือ migration ที่เพิ่มตารางเหล่านี้เข้า publication; การแจ้งเตือนเดิมพึ่งพา SharedPreferences พร้อมการเขียน Supabase แบบ best-effort จึงไม่รับประกันการส่งข้ามอุปกรณ์ Realtime ของบิลอาศัยข้อมูลรายการที่เก็บใน `bills.receipt_json`/`sharers_json` (โปรเจกต์ยังไม่มีตาราง `bill_items`)
+
 ตั้ง policy ของ Storage แยกใน Dashboard ที่ **Storage → Policies → receipts → Create policy** เพราะ `storage.objects` เป็นตารางที่ Supabase จัดการ และ migration นี้ไม่แก้ policy ของตารางดังกล่าว:
 
 - **SELECT** — `bucket_id = 'receipts' AND private.can_read_receipt_object(name)`

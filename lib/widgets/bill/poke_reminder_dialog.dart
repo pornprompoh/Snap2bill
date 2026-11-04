@@ -64,32 +64,46 @@ class _PokeReminderDialogState extends State<PokeReminderDialog> {
     final s = widget.summary;
     final buffer = StringBuffer();
     buffer.writeln('📢 สะกิดเตือนเพื่อนตี้ "${s.shopName}" จ้า! 🍲');
-    buffer.writeln('💰 ยอดรวมบิล: ฿${AppFormatters.formatCurrency(s.totalAmount)}');
-    buffer.writeln('👥 สมาชิกทั้งหมด: ${s.totalMembers} คน (ตกคนละ ฿${s.formattedAverage})');
+    buffer.writeln(
+      '💰 ยอดรวมบิล: ฿${AppFormatters.formatCurrency(s.totalAmount)}',
+    );
+    buffer.writeln(
+      '👥 สมาชิกทั้งหมด: ${s.totalMembers} คน (ตกคนละ ฿${s.formattedAverage})',
+    );
     buffer.writeln('📊 สถานะ: ${s.paidCountText} | ${s.waitingText}');
     buffer.writeln('');
 
     buffer.writeln('📌 สมาชิกที่ยังรอชำระเงิน:');
     for (final m in s.unpaidMembers) {
-      buffer.writeln('• ${m.name}: ฿${AppFormatters.formatCurrency(m.amount)} (⏳ รอจ่าย)');
+      buffer.writeln(
+        '• ${m.name}: ฿${AppFormatters.formatCurrency(m.amount)} (⏳ รอจ่าย)',
+      );
     }
     buffer.writeln('');
 
-    final hasPromptPay = widget.hostPromptPay != null && widget.hostPromptPay!.isNotEmpty;
-    final hasBank = widget.hostBankAccount != null && widget.hostBankAccount!.isNotEmpty;
+    final hasPromptPay =
+        widget.hostPromptPay != null && widget.hostPromptPay!.isNotEmpty;
+    final hasBank =
+        widget.hostBankAccount != null && widget.hostBankAccount!.isNotEmpty;
 
     if (hasPromptPay || hasBank) {
       buffer.writeln('💳 ช่องทางโอนเงิน:');
       if (hasPromptPay) {
-        buffer.writeln('• พร้อมเพย์: ${widget.hostPromptPay} (${widget.hostName ?? "เจ้าของบิล"})');
+        buffer.writeln(
+          '• พร้อมเพย์: ${widget.hostPromptPay} (${widget.hostName ?? "เจ้าของบิล"})',
+        );
       }
       if (hasBank) {
-        buffer.writeln('• บัญชี: ${widget.hostBankName ?? ""} ${widget.hostBankAccount} (${widget.hostName ?? "เจ้าของบิล"})');
+        buffer.writeln(
+          '• บัญชี: ${widget.hostBankName ?? ""} ${widget.hostBankAccount} (${widget.hostName ?? "เจ้าของบิล"})',
+        );
       }
       buffer.writeln('');
     }
 
-    buffer.writeln('✨ ใครโอนแล้วรบกวนแจ้งหรือส่งสลิปด้วยน้า ขอบคุณมากครับ/ค่ะ 🙏');
+    buffer.writeln(
+      '✨ ใครโอนแล้วรบกวนแจ้งหรือส่งสลิปด้วยน้า ขอบคุณมากครับ/ค่ะ 🙏',
+    );
     buffer.writeln('📲 จัดการบิลผ่าน Snap2Bill');
     return buffer.toString();
   }
@@ -98,29 +112,51 @@ class _PokeReminderDialogState extends State<PokeReminderDialog> {
     final s = widget.summary;
     final buffer = StringBuffer();
     buffer.writeln('📋 สรุปรายละเอียดบิล: ${s.shopName}');
-    buffer.writeln('💰 ยอดรวมตามบิล: ฿${AppFormatters.formatCurrency(s.totalAmount)} (ตกคนละ ฿${s.formattedAverage})');
-    buffer.writeln('👥 สมาชิกทั้งหมด: ${s.totalMembers} คน (ผู้ชำระจริง ${s.totalPayingCount} คน)');
-    buffer.writeln('📊 สถานะการเก็บเงิน: ${s.percentage}% (${s.paidCountText})');
+    buffer.writeln(
+      '💰 ยอดรวมตามบิล: ฿${AppFormatters.formatCurrency(s.totalAmount)} (ตกคนละ ฿${s.formattedAverage})',
+    );
+    buffer.writeln(
+      '👥 สมาชิกทั้งหมด: ${s.totalMembers} คน (ผู้ชำระจริง ${s.totalPayingCount} คน)',
+    );
+    buffer.writeln(
+      '📊 สถานะการเก็บเงิน: ${s.percentage}% (${s.paidCountText})',
+    );
     buffer.writeln('');
 
     buffer.writeln('📌 รายการยอดและสถานะแต่ละคน:');
     for (final m in s.allMembers) {
       if (m.isOwner) {
-        buffer.writeln('• ${m.name}: ฿${AppFormatters.formatCurrency(m.amount)} 👑 [เจ้าของบิล]');
+        buffer.writeln(
+          '• ${m.name}: ฿${AppFormatters.formatCurrency(m.amount)} 👑 [เจ้าของบิล]',
+        );
       } else if (m.isPaid) {
-        buffer.writeln('• ${m.name}: ฿${AppFormatters.formatCurrency(m.amount)} ✅ [จ่ายแล้ว]');
+        buffer.writeln(
+          '• ${m.name}: ฿${AppFormatters.formatCurrency(m.amount)} ✅ [จ่ายแล้ว]',
+        );
       } else {
-        buffer.writeln('• ${m.name}: ฿${AppFormatters.formatCurrency(m.amount)} ⏳ [รอจ่าย]');
+        buffer.writeln(
+          '• ${m.name}: ฿${AppFormatters.formatCurrency(m.amount)} ⏳ [รอจ่าย]',
+        );
       }
     }
     buffer.writeln('');
 
-    final hasPromptPay = widget.hostPromptPay != null && widget.hostPromptPay!.isNotEmpty;
-    final hasBank = widget.hostBankAccount != null && widget.hostBankAccount!.isNotEmpty;
+    final hasPromptPay =
+        widget.hostPromptPay != null && widget.hostPromptPay!.isNotEmpty;
+    final hasBank =
+        widget.hostBankAccount != null && widget.hostBankAccount!.isNotEmpty;
     if (hasPromptPay || hasBank) {
       buffer.writeln('💳 โอนเงินได้ที่:');
-      if (hasPromptPay) buffer.writeln('• พร้อมเพย์: ${widget.hostPromptPay} (${widget.hostName ?? "เจ้าของบิล"})');
-      if (hasBank) buffer.writeln('• บัญชีธนาคาร: ${widget.hostBankName ?? ""} ${widget.hostBankAccount}');
+      if (hasPromptPay) {
+        buffer.writeln(
+          '• พร้อมเพย์: ${widget.hostPromptPay} (${widget.hostName ?? "เจ้าของบิล"})',
+        );
+      }
+      if (hasBank) {
+        buffer.writeln(
+          '• บัญชีธนาคาร: ${widget.hostBankName ?? ""} ${widget.hostBankAccount}',
+        );
+      }
       buffer.writeln('');
     }
     buffer.writeln('แชร์จาก Snap2Bill 🧾✨');
@@ -135,16 +171,22 @@ class _PokeReminderDialogState extends State<PokeReminderDialog> {
     });
 
     final text = _buildReminderText();
-    final lineUrl = Uri.parse('https://line.me/R/msg/text/?${Uri.encodeComponent(text)}');
+    final lineUrl = Uri.parse(
+      'https://line.me/R/msg/text/?${Uri.encodeComponent(text)}',
+    );
 
     try {
-      final launched = await launchUrl(lineUrl, mode: LaunchMode.externalApplication);
+      final launched = await launchUrl(
+        lineUrl,
+        mode: LaunchMode.externalApplication,
+      );
       if (!launched) {
         await launchUrl(lineUrl, mode: LaunchMode.platformDefault);
       }
       if (mounted) {
         setState(() {
-          _statusFeedback = 'เปิดหน้าแชร์ LINE เรียบร้อย ให้เลือกเพื่อนหรือกลุ่มเพื่อส่งข้อความ';
+          _statusFeedback =
+              'เปิดหน้าแชร์ LINE เรียบร้อย ให้เลือกเพื่อนหรือกลุ่มเพื่อส่งข้อความ';
           _feedbackColor = AppColors.tealGreen;
         });
       }
@@ -189,9 +231,10 @@ class _PokeReminderDialogState extends State<PokeReminderDialog> {
         });
       }
     } catch (e) {
+      debugPrint('แชร์สรุปบิลไม่สำเร็จ: $e');
       if (mounted) {
         setState(() {
-          _statusFeedback = 'เกิดข้อผิดพลาดในการแชร์: $e';
+          _statusFeedback = 'แชร์สรุปบิลไม่สำเร็จ กรุณาลองอีกครั้ง';
           _feedbackColor = Colors.red;
         });
       }
@@ -211,26 +254,30 @@ class _PokeReminderDialogState extends State<PokeReminderDialog> {
     final billId = widget.bill['id']?.toString() ?? '';
 
     try {
-      final sentCount = await InAppNotificationService.instance.sendBillReminders(
-        billId: billId,
-        shopName: s.shopName,
-        unpaidMembers: s.unpaidMembers,
-        senderId: s.ownerId,
-        senderName: widget.hostName ?? 'เจ้าของบิล',
-        promptPay: widget.hostPromptPay,
-        bankAccount: widget.hostBankAccount,
-      );
+      final sentCount = await InAppNotificationService.instance
+          .sendBillReminders(
+            billId: billId,
+            shopName: s.shopName,
+            unpaidMembers: s.unpaidMembers,
+            senderId: s.ownerId,
+            senderName: widget.hostName ?? 'เจ้าของบิล',
+            promptPay: widget.hostPromptPay,
+            bankAccount: widget.hostBankAccount,
+          );
 
       if (mounted) {
         setState(() {
-          _statusFeedback = 'ส่งการแจ้งเตือนภายในแอปให้เพื่อน $sentCount คนเรียบร้อยแล้ว ✅';
+          _statusFeedback = sentCount > 0
+              ? 'ส่งการแจ้งเตือนภายในแอปให้เพื่อน $sentCount คนเรียบร้อยแล้ว ✅'
+              : 'ไม่มีผู้ร่วมบิลที่มีบัญชีผู้ใช้ให้ส่งการแจ้งเตือน';
           _feedbackColor = AppColors.tealGreen;
         });
       }
     } catch (e) {
+      debugPrint('ส่งการแจ้งเตือนภายในแอปไม่สำเร็จ: $e');
       if (mounted) {
         setState(() {
-          _statusFeedback = 'ไม่สามารถส่งการแจ้งเตือนภายในแอปได้: $e';
+          _statusFeedback = 'ส่งการแจ้งเตือนภายในแอปไม่สำเร็จ กรุณาลองอีกครั้ง';
           _feedbackColor = Colors.red;
         });
       }
@@ -244,7 +291,8 @@ class _PokeReminderDialogState extends State<PokeReminderDialog> {
     await Clipboard.setData(ClipboardData(text: text));
     if (mounted) {
       setState(() {
-        _statusFeedback = 'คัดลอกข้อความทวงเงินเรียบร้อยแล้ว สามารถนำไปส่งได้ทันที 📋';
+        _statusFeedback =
+            'คัดลอกข้อความทวงเงินเรียบร้อยแล้ว สามารถนำไปส่งได้ทันที 📋';
         _feedbackColor = AppColors.tealGreen;
       });
     }
@@ -313,7 +361,10 @@ class _PokeReminderDialogState extends State<PokeReminderDialog> {
                     ),
                     Text(
                       s.shopName,
-                      style: const TextStyle(fontSize: 13, color: AppColors.gray),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.gray,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -366,7 +417,10 @@ class _PokeReminderDialogState extends State<PokeReminderDialog> {
                     padding: EdgeInsets.symmetric(vertical: 4),
                     child: Text(
                       'สมาชิกทุกคนชำระเงินครบแล้ว 🎉',
-                      style: TextStyle(fontSize: 13, color: AppColors.tealGreen),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.tealGreen,
+                      ),
                     ),
                   )
                 else
@@ -378,14 +432,20 @@ class _PokeReminderDialogState extends State<PokeReminderDialog> {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.access_time_rounded, size: 14, color: Color(0xFFEA580C)),
+                              const Icon(
+                                Icons.access_time_rounded,
+                                size: 14,
+                                color: Color(0xFFEA580C),
+                              ),
                               const SizedBox(width: 6),
                               Text(
                                 m.name,
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
-                                  color: isDark ? Colors.white : AppColors.black,
+                                  color: isDark
+                                      ? Colors.white
+                                      : AppColors.black,
                                 ),
                               ),
                             ],
@@ -412,9 +472,15 @@ class _PokeReminderDialogState extends State<PokeReminderDialog> {
               width: double.infinity,
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: (_feedbackColor ?? AppColors.tealGreen).withValues(alpha: 0.12),
+                color: (_feedbackColor ?? AppColors.tealGreen).withValues(
+                  alpha: 0.12,
+                ),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: (_feedbackColor ?? AppColors.tealGreen).withValues(alpha: 0.3)),
+                border: Border.all(
+                  color: (_feedbackColor ?? AppColors.tealGreen).withValues(
+                    alpha: 0.3,
+                  ),
+                ),
               ),
               child: Text(
                 _statusFeedback!,
@@ -431,13 +497,19 @@ class _PokeReminderDialogState extends State<PokeReminderDialog> {
           // Action Options
           const Text(
             'เลือกช่องทางการสะกิดเตือน',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.gray),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: AppColors.gray,
+            ),
           ),
           const SizedBox(height: 8),
 
           // 1. LINE Share
           ListTile(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             tileColor: const Color(0xFF06C755).withValues(alpha: 0.08),
             leading: Container(
               padding: const EdgeInsets.all(8),
@@ -445,10 +517,20 @@ class _PokeReminderDialogState extends State<PokeReminderDialog> {
                 color: Color(0xFF06C755),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.white, size: 18),
+              child: const Icon(
+                Icons.chat_bubble_outline_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
             ),
-            title: const Text('ส่งข้อความทวงเงินเข้า LINE', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-            subtitle: const Text('เปิด LINE และเลือกเพื่อนหรือกลุ่มเพื่อส่งทันที', style: TextStyle(fontSize: 11.5)),
+            title: const Text(
+              'ส่งข้อความทวงเงินเข้า LINE',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+            ),
+            subtitle: const Text(
+              'เปิด LINE และเลือกเพื่อนหรือกลุ่มเพื่อส่งทันที',
+              style: TextStyle(fontSize: 11.5),
+            ),
             trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
             onTap: _isProcessing ? null : _shareToLine,
           ),
@@ -456,7 +538,9 @@ class _PokeReminderDialogState extends State<PokeReminderDialog> {
 
           // 2. Full Share / Social
           ListTile(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             tileColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
             leading: Container(
               padding: const EdgeInsets.all(8),
@@ -464,10 +548,20 @@ class _PokeReminderDialogState extends State<PokeReminderDialog> {
                 color: Color(0xFF0284C7),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.share_rounded, color: Colors.white, size: 18),
+              child: const Icon(
+                Icons.share_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
             ),
-            title: const Text('แชร์สรุปบิลครบถ้วน (LINE / รูปภาพ)', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-            subtitle: const Text('แชร์รายละเอียดบิล, จำนวนเงินทุกคน, และสถานะ', style: TextStyle(fontSize: 11.5)),
+            title: const Text(
+              'แชร์สรุปบิลครบถ้วน (LINE / รูปภาพ)',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+            ),
+            subtitle: const Text(
+              'แชร์รายละเอียดบิล, จำนวนเงินทุกคน, และสถานะ',
+              style: TextStyle(fontSize: 11.5),
+            ),
             trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
             onTap: _isProcessing ? null : _shareFullSummary,
           ),
@@ -475,7 +569,9 @@ class _PokeReminderDialogState extends State<PokeReminderDialog> {
 
           // 3. In-App Notification
           ListTile(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             tileColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
             leading: Container(
               padding: const EdgeInsets.all(8),
@@ -483,10 +579,20 @@ class _PokeReminderDialogState extends State<PokeReminderDialog> {
                 color: AppColors.pink,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.notifications_active_outlined, color: Colors.white, size: 18),
+              child: const Icon(
+                Icons.notifications_active_outlined,
+                color: Colors.white,
+                size: 18,
+              ),
             ),
-            title: const Text('ส่งการแจ้งเตือนภายในแอป', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-            subtitle: const Text('ส่งเข้าศูนย์แจ้งเตือนของเพื่อนใน Snap2Bill', style: TextStyle(fontSize: 11.5)),
+            title: const Text(
+              'ส่งการแจ้งเตือนภายในแอป',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+            ),
+            subtitle: const Text(
+              'ส่งเข้าศูนย์แจ้งเตือนของเพื่อนใน Snap2Bill',
+              style: TextStyle(fontSize: 11.5),
+            ),
             trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
             onTap: _isProcessing ? null : _sendInAppNotification,
           ),
@@ -494,7 +600,9 @@ class _PokeReminderDialogState extends State<PokeReminderDialog> {
 
           // 4. Copy Text
           ListTile(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             tileColor: isDark ? AppColors.darkSurface : const Color(0xFFF1F5F9),
             leading: Container(
               padding: const EdgeInsets.all(8),
@@ -502,10 +610,20 @@ class _PokeReminderDialogState extends State<PokeReminderDialog> {
                 color: Color(0xFF64748B),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.copy_rounded, color: Colors.white, size: 18),
+              child: const Icon(
+                Icons.copy_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
             ),
-            title: const Text('คัดลอกข้อความทวงเงิน', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-            subtitle: const Text('คัดลอกข้อความพร้อมเลขบัญชีและพร้อมเพย์', style: TextStyle(fontSize: 11.5)),
+            title: const Text(
+              'คัดลอกข้อความทวงเงิน',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+            ),
+            subtitle: const Text(
+              'คัดลอกข้อความพร้อมเลขบัญชีและพร้อมเพย์',
+              style: TextStyle(fontSize: 11.5),
+            ),
             trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
             onTap: _isProcessing ? null : _copyText,
           ),

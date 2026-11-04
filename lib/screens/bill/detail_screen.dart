@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -28,6 +29,7 @@ class DetailScreen extends StatefulWidget {
 class _DetailScreenState extends State<DetailScreen> {
   late Future<List<MemberSummaryEntry>> _membersFuture;
   final GlobalKey _receiptCaptureKey = GlobalKey();
+  RealtimeChannel? _billRealtimeChannel;
   String _hostPromptPay = '';
   String? _hostPromptPayType;
   String? _hostBankName;
@@ -40,6 +42,90 @@ class _DetailScreenState extends State<DetailScreen> {
     super.initState();
     _membersFuture = _loadMemberSummary();
     _fetchHostPromptPayInfo();
+    _setupRealtimeBillSubscription();
+  }
+
+  void _setupRealtimeBillSubscription() {
+    final billId = widget.billData['id']?.toString();
+    if (billId == null || billId.isEmpty) return;
+
+    final channel = Supabase.instance.client.channel('bill_detail_$billId')
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'bills',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'id',
+          value: billId,
+        ),
+        callback: (_) => unawaited(_refreshBillFromRealtime()),
+      )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'bill_participants',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'bill_id',
+          value: billId,
+        ),
+        callback: (_) => _refreshMemberSummary(),
+      )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'bill_payments',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'bill_id',
+          value: billId,
+        ),
+        callback: (_) => _refreshMemberSummary(),
+      );
+    _billRealtimeChannel = channel;
+    channel.subscribe((status, error) {
+      if (error != null) {
+        debugPrint('Bill detail Realtime subscription error: $error');
+      }
+      if (status != RealtimeSubscribeStatus.subscribed && error != null) {
+        debugPrint('Bill detail Realtime status: $status');
+      }
+    });
+  }
+
+  void _refreshMemberSummary() {
+    if (!mounted) return;
+    setState(() => _membersFuture = _loadMemberSummary());
+  }
+
+  Future<void> _refreshBillFromRealtime() async {
+    final billId = widget.billData['id']?.toString();
+    if (billId == null || billId.isEmpty) return;
+
+    try {
+      final bill = await Supabase.instance.client
+          .from('bills')
+          .select()
+          .eq('id', billId)
+          .maybeSingle();
+      if (bill == null || !mounted) return;
+      widget.billData.addAll(Map<String, dynamic>.from(bill));
+      _refreshMemberSummary();
+    } catch (error, stackTrace) {
+      debugPrint(
+        'Failed to refresh bill after Realtime update: $error\n$stackTrace',
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    final channel = _billRealtimeChannel;
+    if (channel != null) {
+      Supabase.instance.client.removeChannel(channel);
+    }
+    super.dispose();
   }
 
   Future<void> _fetchHostPromptPayInfo() async {
@@ -615,8 +701,8 @@ class _DetailScreenState extends State<DetailScreen> {
       debugPrint('Error updating payment status: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('อัปเดตสถานะไม่สำเร็จ: $e'),
+          const SnackBar(
+            content: Text('อัปเดตสถานะการชำระเงินไม่สำเร็จ กรุณาลองอีกครั้ง'),
             backgroundColor: AppColors.error,
           ),
         );

@@ -485,9 +485,10 @@ class _ShareableReceiptPreviewDialogState
         });
       }
     } catch (e) {
+      debugPrint('บันทึกรูปบิลสรุปไม่สำเร็จ: $e');
       if (mounted) {
         setState(() {
-          _statusMessage = 'เกิดข้อผิดพลาดในการบันทึกรูป: $e';
+          _statusMessage = 'บันทึกรูปบิลสรุปไม่สำเร็จ กรุณาลองอีกครั้ง';
           _statusColor = Colors.red;
         });
       }
@@ -536,9 +537,10 @@ class _ShareableReceiptPreviewDialogState
         });
       }
     } catch (e) {
+      debugPrint('แชร์บิลสรุปผ่าน LINE ไม่สำเร็จ: $e');
       if (mounted) {
         setState(() {
-          _statusMessage = 'เกิดข้อผิดพลาดในการแชร์: $e';
+          _statusMessage = 'แชร์บิลไม่สำเร็จ กรุณาลองอีกครั้ง';
           _statusColor = Colors.red;
         });
       }
@@ -586,9 +588,10 @@ class _ShareableReceiptPreviewDialogState
         });
       }
     } catch (e) {
+      debugPrint('แชร์บิลสรุปไม่สำเร็จ: $e');
       if (mounted) {
         setState(() {
-          _statusMessage = 'เกิดข้อผิดพลาดในการแชร์: $e';
+          _statusMessage = 'แชร์บิลไม่สำเร็จ กรุณาลองอีกครั้ง';
           _statusColor = Colors.red;
         });
       }

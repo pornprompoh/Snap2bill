@@ -41,7 +41,10 @@ class _LoadingScreenState extends State<LoadingScreen> {
         _showError('ไม่สามารถอ่านข้อมูลใบเสร็จได้');
       }
     } catch (e) {
-      _showError(e.toString());
+      debugPrint('อ่านข้อมูลใบเสร็จไม่สำเร็จ: $e');
+      _showError(
+        'อ่านข้อมูลใบเสร็จไม่สำเร็จ กรุณาใช้ภาพที่ชัดเจนแล้วลองอีกครั้ง',
+      );
     }
   }
 

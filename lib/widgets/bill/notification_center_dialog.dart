@@ -87,8 +87,25 @@ class _NotificationCenterDialogState extends State<NotificationCenterDialog> {
                   ),
                   TextButton(
                     onPressed: () async {
-                      await InAppNotificationService.instance.markAllAsRead();
-                      if (mounted) setState(_load);
+                      try {
+                        await InAppNotificationService.instance.markAllAsRead(
+                          currentUserId: widget.currentUserId,
+                        );
+                      } catch (error) {
+                        debugPrint(
+                          'ทำเครื่องหมายแจ้งเตือนว่าอ่านแล้วไม่สำเร็จ: $error',
+                        );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'ทำเครื่องหมายว่าอ่านแล้วไม่สำเร็จ กรุณาลองอีกครั้ง',
+                              ),
+                              backgroundColor: AppColors.error,
+                            ),
+                          );
+                        }
+                      }
                     },
                     child: const Text(
                       'อ่านทั้งหมดแล้ว',
@@ -99,32 +116,52 @@ class _NotificationCenterDialogState extends State<NotificationCenterDialog> {
               ),
               const SizedBox(height: 12),
               Expanded(
-                child: FutureBuilder<List<InAppNotificationItem>>(
-                  future: _notificationsFuture,
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(
-                        child: CircularProgressIndicator(color: AppColors.pink),
-                      );
-                    }
-                    final items = snapshot.data ?? [];
-                    if (items.isEmpty) {
-                      return const Center(
-                        child: MascotStateView(
-                          state: MascotState.empty,
-                          message: 'ยังไม่มีการแจ้งเตือน',
-                          detail: 'ถ้ามีความเคลื่อนไหว Bunny จะรีบบอกคุณ',
-                          size: 130,
-                        ),
-                      );
-                    }
-                    return ListView.separated(
-                      itemCount: items.length,
-                      separatorBuilder: (_, index) => const Divider(height: 12),
-                      itemBuilder: (context, index) =>
-                          _NotificationTile(item: items[index]),
-                    );
-                  },
+                child: ValueListenableBuilder<List<InAppNotificationItem>>(
+                  valueListenable:
+                      InAppNotificationService.instance.notifications,
+                  builder: (context, liveItems, _) =>
+                      FutureBuilder<List<InAppNotificationItem>>(
+                        future: _notificationsFuture,
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(
+                                color: AppColors.pink,
+                              ),
+                            );
+                          }
+                          if (snapshot.hasError) {
+                            return Center(
+                              child: Text(
+                                'โหลดการแจ้งเตือนไม่สำเร็จ กรุณาลองอีกครั้ง',
+                              ),
+                            );
+                          }
+                          final items = liveItems.isNotEmpty
+                              ? liveItems
+                              : snapshot.data ?? [];
+                          if (items.isEmpty) {
+                            return const Center(
+                              child: MascotStateView(
+                                state: MascotState.empty,
+                                message: 'ยังไม่มีการแจ้งเตือน',
+                                detail: 'ถ้ามีความเคลื่อนไหว Bunny จะรีบบอกคุณ',
+                                size: 130,
+                              ),
+                            );
+                          }
+                          return ListView.separated(
+                            itemCount: items.length,
+                            separatorBuilder: (_, index) =>
+                                const Divider(height: 12),
+                            itemBuilder: (context, index) => _NotificationTile(
+                              item: items[index],
+                              currentUserId: widget.currentUserId,
+                            ),
+                          );
+                        },
+                      ),
                 ),
               ),
             ],
@@ -137,8 +174,9 @@ class _NotificationCenterDialogState extends State<NotificationCenterDialog> {
 
 class _NotificationTile extends StatelessWidget {
   final InAppNotificationItem item;
+  final String? currentUserId;
 
-  const _NotificationTile({required this.item});
+  const _NotificationTile({required this.item, required this.currentUserId});
 
   @override
   Widget build(BuildContext context) {
@@ -146,7 +184,25 @@ class _NotificationTile extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: () async {
-        await InAppNotificationService.instance.markAsRead(item.id);
+        try {
+          await InAppNotificationService.instance.markAsRead(
+            item.id,
+            currentUserId: currentUserId,
+          );
+        } catch (error) {
+          debugPrint('ทำเครื่องหมายแจ้งเตือนว่าอ่านแล้วไม่สำเร็จ: $error');
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'ทำเครื่องหมายว่าอ่านแล้วไม่สำเร็จ กรุณาลองอีกครั้ง',
+                ),
+                backgroundColor: AppColors.error,
+              ),
+            );
+          }
+          return;
+        }
         if (!context.mounted) return;
         Navigator.pop(context);
         if (item.billId.isNotEmpty) {

@@ -39,7 +39,9 @@ class ContactProvider extends ChangeNotifier {
           .map((row) => ContactModel.fromJson(Map<String, dynamic>.from(row)))
           .toList();
     } catch (error) {
-      _error = 'โหลดรายชื่อเพื่อนไม่สำเร็จ: $error';
+      debugPrint('โหลดรายชื่อเพื่อนไม่สำเร็จ: $error');
+      _error =
+          'โหลดรายชื่อเพื่อนไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง';
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -92,5 +94,4 @@ class ContactProvider extends ChangeNotifier {
     _contacts = _contacts.where((contact) => contact.id != id).toList();
     notifyListeners();
   }
-
 }

@@ -36,7 +36,14 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted || _isNavigatingHome) return;
     _isNavigatingHome = true;
     try {
-      if (await const PendingJoinStore().read() != null) {
+      final pendingRoomId = await const PendingJoinStore().read();
+      if (!mounted) return;
+      if (pendingRoomId != null) {
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          AppRoutes.join,
+          (route) => false,
+          arguments: {'roomId': pendingRoomId},
+        );
         return;
       }
       final onboardingCompleted = await const OnboardingService()
@@ -52,10 +59,13 @@ class _LoginScreenState extends State<LoginScreen> {
         arguments: onboardingCompleted ? null : AppRoutes.home,
       );
     } catch (error) {
+      debugPrint('ตรวจสอบสถานะการเข้าสู่ระบบไม่สำเร็จ: $error');
       if (!mounted) return;
       _isNavigatingHome = false;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('ไม่สามารถตรวจสอบสถานะบทสอนได้: $error')),
+        const SnackBar(
+          content: Text('ตรวจสอบสถานะการเข้าสู่ระบบไม่สำเร็จ กรุณาลองอีกครั้ง'),
+        ),
       );
     }
   }
@@ -105,10 +115,13 @@ class _LoginScreenState extends State<LoginScreen> {
         _navigateToHome();
       }
     } catch (e) {
+      debugPrint('เข้าสู่ระบบด้วย Google ไม่สำเร็จ: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('ล็อกอินล้มเหลว: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('เข้าสู่ระบบด้วย Google ไม่สำเร็จ กรุณาลองอีกครั้ง'),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -119,10 +132,13 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await _signInWithFacebook();
     } catch (e) {
+      debugPrint('เข้าสู่ระบบด้วย Facebook ไม่สำเร็จ: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('ล็อกอิน Facebook ล้มเหลว: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('เข้าสู่ระบบด้วย Facebook ไม่สำเร็จ กรุณาลองอีกครั้ง'),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -152,10 +168,19 @@ class _LoginScreenState extends State<LoginScreen> {
         _navigateToHome();
       }
     } catch (e) {
+      debugPrint(
+        _isSignUp ? 'สมัครสมาชิกไม่สำเร็จ: $e' : 'เข้าสู่ระบบไม่สำเร็จ: $e',
+      );
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _isSignUp
+                ? 'สมัครสมาชิกไม่สำเร็จ กรุณาตรวจสอบอีเมลและรหัสผ่าน'
+                : 'เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบอีเมลและรหัสผ่าน',
+          ),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

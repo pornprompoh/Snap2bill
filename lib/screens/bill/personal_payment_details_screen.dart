@@ -168,10 +168,11 @@ class _PersonalPaymentDetailsScreenState
         );
       }
     } catch (e) {
+      debugPrint('บันทึกรูปคิวอาร์โค้ดไม่สำเร็จ: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('เกิดข้อผิดพลาดในการบันทึกรูป: $e'),
+          const SnackBar(
+            content: Text('บันทึกรูปคิวอาร์โค้ดไม่สำเร็จ กรุณาลองอีกครั้ง'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -240,6 +241,7 @@ class _PersonalPaymentDetailsScreenState
         );
       }
     } catch (e) {
+      debugPrint('แนบสลิปไม่สำเร็จ: $e');
       final queued =
           slipDataUri != null &&
           await _queuePaymentUpdate(
@@ -253,7 +255,7 @@ class _PersonalPaymentDetailsScreenState
             content: Text(
               queued
                   ? 'บันทึกสลิปไว้แล้ว รอซิงก์เมื่อกลับมาออนไลน์'
-                  : 'แนบสลิปไม่สำเร็จ: $e',
+                  : 'แนบสลิปไม่สำเร็จ กรุณาตรวจสอบรูปภาพแล้วลองอีกครั้ง',
             ),
             backgroundColor: queued ? AppColors.warning : AppColors.error,
           ),
@@ -300,6 +302,7 @@ class _PersonalPaymentDetailsScreenState
         );
       }
     } catch (e) {
+      debugPrint('ยืนยันการชำระเงินไม่สำเร็จ: $e');
       final queued = await _queuePaymentUpdate(
         e,
         status: 'paid',
@@ -311,7 +314,7 @@ class _PersonalPaymentDetailsScreenState
             content: Text(
               queued
                   ? 'บันทึกสถานะไว้ รอซิงก์เมื่อออนไลน์'
-                  : 'ยืนยันไม่สำเร็จ: $e',
+                  : 'ยืนยันการชำระเงินไม่สำเร็จ กรุณาลองอีกครั้ง',
             ),
             backgroundColor: queued ? AppColors.warning : AppColors.error,
           ),
@@ -358,6 +361,7 @@ class _PersonalPaymentDetailsScreenState
         );
       }
     } catch (e) {
+      debugPrint('ปฏิเสธสลิปไม่สำเร็จ: $e');
       final queued = await _queuePaymentUpdate(e, status: 'pending');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -365,7 +369,7 @@ class _PersonalPaymentDetailsScreenState
             content: Text(
               queued
                   ? 'บันทึกสถานะไว้ รอซิงก์เมื่อออนไลน์'
-                  : 'ดำเนินการไม่สำเร็จ: $e',
+                  : 'ปฏิเสธสลิปไม่สำเร็จ กรุณาลองอีกครั้ง',
             ),
             backgroundColor: queued ? AppColors.warning : AppColors.error,
           ),

@@ -30,24 +30,38 @@ class AppRoutes {
   static const String detail = '/detail';
   static const String join = '/join';
 
-  static Route<dynamic> generateRoute(RouteSettings settings) {
-    String routeName = settings.name ?? '/';
-    final hashRouteIndex = routeName.indexOf('#');
+  static String normalizeRouteName(String name) {
+    var routeLocation = name;
+    final hashRouteIndex = name.indexOf('#');
     if (hashRouteIndex >= 0) {
-      routeName = routeName.substring(hashRouteIndex + 1);
+      final fragment = name.substring(hashRouteIndex + 1);
+      if (fragment.startsWith('/')) {
+        routeLocation = fragment;
+      } else {
+        if (fragment == '=_=' || fragment == '/_=_') return splash;
+        routeLocation = name.substring(0, hashRouteIndex);
+      }
     }
-    final routeUri = Uri.tryParse(routeName);
+
+    if (routeLocation == '=_=' || routeLocation == '/_=_') return splash;
+    final uri = Uri.tryParse(routeLocation);
+    final path = uri?.path;
+    return path == null || path.isEmpty ? '/' : path;
+  }
+
+  static Route<dynamic> generateRoute(RouteSettings settings) {
+    final originalRouteName = settings.name ?? '/';
+    final routeName = normalizeRouteName(originalRouteName);
+    final routeLocation = originalRouteName.contains('#')
+        ? originalRouteName.substring(originalRouteName.indexOf('#') + 1)
+        : originalRouteName;
+    final routeUri = Uri.tryParse(routeLocation);
     final queryParameters = routeUri?.queryParameters ?? const {};
-    if (routeName.contains('?')) {
-      routeName = routeName.split('?')[0];
-    }
 
     switch (routeName) {
       case splash:
         return MaterialPageRoute(builder: (_) => const SplashScreen());
       case '/':
-      case '=_=':
-      case '/_=_':
         return MaterialPageRoute(builder: (_) => const SplashScreen());
       case onboarding:
         final destinationRoute = settings.arguments as String? ?? login;

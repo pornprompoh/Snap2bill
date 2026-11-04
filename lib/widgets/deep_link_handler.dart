@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../routes/app_routes.dart';
 import '../services/auth/supabase_auth_service.dart';
@@ -29,8 +28,6 @@ class DeepLinkHandler extends StatefulWidget {
 class _DeepLinkHandlerState extends State<DeepLinkHandler> {
   final AppLinks _appLinks = AppLinks();
   StreamSubscription<Uri>? _linkSubscription;
-  StreamSubscription<AuthState>? _authSubscription;
-  final _pendingJoinStore = const PendingJoinStore();
   bool _isRoutingJoin = false;
 
   @override
@@ -40,11 +37,6 @@ class _DeepLinkHandlerState extends State<DeepLinkHandler> {
       _handleIncomingLink,
       onError: (error) => debugPrint('Deep link stream error: $error'),
     );
-    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((
-      state,
-    ) {
-      if (state.session != null) unawaited(_resumePendingJoin());
-    });
     if (kIsWeb) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _handleIncomingLink(Uri.base);
@@ -75,7 +67,7 @@ class _DeepLinkHandlerState extends State<DeepLinkHandler> {
 
   Future<void> _saveAndRouteJoin(String roomId) async {
     try {
-      await _pendingJoinStore.save(roomId);
+      await const PendingJoinStore().save(roomId);
     } catch (error, stackTrace) {
       debugPrint('บันทึกลิงก์เข้าบิลไม่สำเร็จ: $error\n$stackTrace');
       _showLinkMessage('บันทึกลิงก์ไม่สำเร็จ กรุณาลองเปิดอีกครั้ง');
@@ -91,13 +83,6 @@ class _DeepLinkHandlerState extends State<DeepLinkHandler> {
       return;
     }
 
-    _routeToJoin(roomId);
-  }
-
-  Future<void> _resumePendingJoin() async {
-    if (_isRoutingJoin) return;
-    final roomId = await _pendingJoinStore.read();
-    if (roomId == null || SupabaseAuthService().currentUser == null) return;
     _routeToJoin(roomId);
   }
 
@@ -129,7 +114,6 @@ class _DeepLinkHandlerState extends State<DeepLinkHandler> {
   @override
   void dispose() {
     _linkSubscription?.cancel();
-    _authSubscription?.cancel();
     super.dispose();
   }
 

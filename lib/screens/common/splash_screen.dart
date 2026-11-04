@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../routes/app_routes.dart';
+import '../../services/join/pending_join_store.dart';
 import '../../services/onboarding/onboarding_service.dart';
 import '../../theme/app_colors.dart';
 
@@ -40,6 +41,16 @@ class _SplashScreenState extends State<SplashScreen>
 
     if (Supabase.instance.client.auth.currentSession == null) {
       Navigator.of(context).pushReplacementNamed(AppRoutes.login);
+      return;
+    }
+
+    final pendingRoomId = await const PendingJoinStore().read();
+    if (!mounted) return;
+    if (pendingRoomId != null) {
+      Navigator.of(context).pushReplacementNamed(
+        AppRoutes.join,
+        arguments: {'roomId': pendingRoomId},
+      );
       return;
     }
 

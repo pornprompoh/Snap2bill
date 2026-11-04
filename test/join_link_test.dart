@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:snap2bill/routes/app_routes.dart';
 import 'package:snap2bill/utils/join_link.dart';
 
 void main() {
@@ -30,6 +31,18 @@ void main() {
         JoinLink.roomIdFromUri(Uri.parse('snap2bill://join/123456')),
         '123456',
       );
+    });
+  });
+
+  group('AppRoutes.normalizeRouteName', () {
+    test('maps OAuth callback marker back to splash', () {
+      expect(AppRoutes.normalizeRouteName('/#=_='), AppRoutes.splash);
+      expect(AppRoutes.normalizeRouteName('/_=_'), AppRoutes.splash);
+      expect(AppRoutes.normalizeRouteName('=_='), AppRoutes.splash);
+    });
+
+    test('preserves deep-link hash routes and query parameters', () {
+      expect(AppRoutes.normalizeRouteName('/#/join?roomId=123456'), '/join');
     });
   });
 }

@@ -74,10 +74,12 @@ class _LobbyScreenState extends State<LobbyScreen> {
     try {
       await provider.loadRoomMembers(_roomId);
     } catch (error) {
-      debugPrint('โหลดสมาชิกจำลองไม่สำเร็จ: $error');
+      debugPrint('โหลดรายชื่อผู้เข้าร่วมไม่สำเร็จ: $error');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('โหลดรายชื่อเพื่อนไม่สำเร็จ: $error')),
+          const SnackBar(
+            content: Text('โหลดรายชื่อผู้เข้าร่วมไม่สำเร็จ กรุณาลองอีกครั้ง'),
+          ),
         );
       }
     }
@@ -214,10 +216,11 @@ class _LobbyScreenState extends State<LobbyScreen> {
         payload: {'member': member.toMap()},
       );
     } catch (error) {
+      debugPrint('เพิ่มผู้เข้าร่วมไม่สำเร็จ: $error');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('เพิ่มเพื่อนไม่สำเร็จ: $error'),
+          const SnackBar(
+            content: Text('เพิ่มผู้เข้าร่วมไม่สำเร็จ กรุณาลองอีกครั้ง'),
             backgroundColor: Colors.red,
           ),
         );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
 import '../../utils/formatters.dart';
+import '../common/cached_avatar.dart';
 
 class MemberDishItem {
   final String itemName;
@@ -33,7 +34,9 @@ class MemberSummaryEntry {
   final String? subtitle;
   final int itemsCount;
   final String? slipUrl;
+  final String? localSlipPath;
   final String? avatarUrl;
+  final String? localAvatarPath;
   final List<MemberDishItem> dishes;
 
   const MemberSummaryEntry({
@@ -48,7 +51,9 @@ class MemberSummaryEntry {
     this.subtitle,
     this.itemsCount = 0,
     this.slipUrl,
+    this.localSlipPath,
     this.avatarUrl,
+    this.localAvatarPath,
     this.dishes = const [],
   }) : isPaid = isPaid ?? (status == 'paid'),
        isReviewing =
@@ -67,7 +72,9 @@ class MemberSummaryEntry {
     String? subtitle,
     int? itemsCount,
     String? slipUrl,
+    String? localSlipPath,
     String? avatarUrl,
+    String? localAvatarPath,
     List<MemberDishItem>? dishes,
   }) {
     return MemberSummaryEntry(
@@ -86,7 +93,9 @@ class MemberSummaryEntry {
       subtitle: subtitle ?? this.subtitle,
       itemsCount: itemsCount ?? this.itemsCount,
       slipUrl: slipUrl ?? this.slipUrl,
+      localSlipPath: localSlipPath ?? this.localSlipPath,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      localAvatarPath: localAvatarPath ?? this.localAvatarPath,
       dishes: dishes ?? this.dishes,
     );
   }
@@ -141,14 +150,15 @@ class MemberSummaryList extends StatelessWidget {
                         : (member.isReviewing
                               ? Colors.blue.shade50
                               : Colors.orange.shade50)),
-              child: _isValidImageUrl(member.avatarUrl)
+              child:
+                  _isValidImageUrl(member.avatarUrl) ||
+                      member.localAvatarPath != null
                   ? ClipOval(
-                      child: Image.network(
-                        member.avatarUrl!,
-                        width: 40,
-                        height: 40,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Center(
+                      child: CachedAvatar(
+                        imageUrl: member.avatarUrl,
+                        localImagePath: member.localAvatarPath,
+                        size: 40,
+                        placeholder: Center(
                           child: Text(
                             member.name.isNotEmpty
                                 ? member.name[0].toUpperCase()

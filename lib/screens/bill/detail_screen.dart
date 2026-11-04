@@ -2,10 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../models/bill_model.dart';
 import '../../providers/bill_provider.dart';
+import '../../data/repositories/local_bill_repository.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/bill/member_summary_list.dart';
@@ -14,6 +17,8 @@ import '../../widgets/bill/poke_reminder_dialog.dart';
 import '../../widgets/bill/shareable_receipt_preview_dialog.dart';
 import '../../widgets/bill/receipt_image.dart';
 import '../../services/offline/offline_service.dart';
+import '../../services/storage/local_receipt_storage.dart';
+import '../../services/storage/supabase_storage_service.dart';
 import '../../widgets/common/mascot_state_view.dart';
 import 'personal_payment_details_screen.dart';
 
@@ -29,6 +34,7 @@ class DetailScreen extends StatefulWidget {
 
 class _DetailScreenState extends State<DetailScreen> {
   late Future<List<MemberSummaryEntry>> _membersFuture;
+  final LocalBillRepository _localRepository = LocalBillRepository();
   final GlobalKey _receiptCaptureKey = GlobalKey();
   RealtimeChannel? _billRealtimeChannel;
   bool _isLoadingBill = false;
@@ -45,13 +51,35 @@ class _DetailScreenState extends State<DetailScreen> {
     _membersFuture = _loadMemberSummary();
     final billId = widget.billData['id']?.toString();
     if (billId != null && billId.isNotEmpty) {
-      _isLoadingBill =
-          BillProgressHelper.extractBillTotal(widget.billData) <= 0;
+      _isLoadingBill = false;
       _setupRealtimeBillSubscription();
-      unawaited(_loadBillFromSupabase());
+      unawaited(_loadBillLocalFirst());
     } else {
       unawaited(_fetchHostPromptPayInfo());
     }
+  }
+
+  Future<void> _loadBillLocalFirst() async {
+    final billId = widget.billData['id']?.toString();
+    if (billId == null || billId.isEmpty) return;
+    try {
+      final cachedBill = await _localRepository.getCachedBillData(billId);
+      if (cachedBill != null && mounted) {
+        setState(() {
+          widget.billData.addAll(cachedBill);
+          _isLoadingBill = false;
+          _membersFuture = _loadMemberSummary();
+        });
+      }
+    } catch (error, stackTrace) {
+      debugPrint('Failed to read cached bill detail: $error\n$stackTrace');
+      if (mounted) setState(() => _isLoadingBill = false);
+    }
+
+    if (!mounted) return;
+    unawaited(_fetchHostPromptPayInfo());
+    if (!mounted || context.read<OfflineService>().isOffline) return;
+    unawaited(_loadBillFromSupabase());
   }
 
   Future<void> _loadBillFromSupabase() async {
@@ -61,25 +89,128 @@ class _DetailScreenState extends State<DetailScreen> {
     try {
       final bill = await Supabase.instance.client
           .from('bills')
-          .select()
+          .select('*, bill_participants(*), bill_payments(*)')
           .eq('id', billId)
-          .maybeSingle();
-      if (bill == null) throw StateError('ไม่พบข้อมูลบิล');
+          .maybeSingle()
+          .timeout(const Duration(seconds: 15));
+      if (bill == null) return;
 
       final billData = Map<String, dynamic>.from(bill);
-      if (BillProgressHelper.extractBillTotal(billData) <= 0) {
+      final existingLocalImage = widget.billData['local_image_path']
+          ?.toString();
+      if (existingLocalImage != null && existingLocalImage.isNotEmpty) {
+        billData['local_image_path'] = existingLocalImage;
+      }
+      final receiptImageUrl =
+          (billData['image_url'] ?? billData['receipt_image_url'])?.toString();
+      if ((billData['local_image_path'] == null ||
+              billData['local_image_path'].toString().isEmpty) &&
+          receiptImageUrl != null &&
+          receiptImageUrl.isNotEmpty) {
         try {
-          final participants = await Supabase.instance.client
-              .from('bill_participants')
-              .select('amount_owed')
-              .eq('bill_id', billId);
-          billData['bill_participants'] = participants;
+          final resolvedUrl = await SupabaseStorageService()
+              .resolveReceiptImageUrl(receiptImageUrl);
+          billData['local_image_path'] = await cacheRemoteImage(
+            resolvedUrl,
+            'receipt-$billId',
+          );
+        } catch (error, stackTrace) {
+          debugPrint('Failed to cache receipt image: $error\n$stackTrace');
+        }
+      }
+      final paymentRows = _asList(billData['bill_payments']);
+      final cachedPaymentsById = <String, Map<String, dynamic>>{
+        for (final rawPayment in _asList(widget.billData['bill_payments']))
+          if (_asMap(rawPayment)['profile_id'] != null)
+            _asMap(rawPayment)['profile_id'].toString():
+                Map<String, dynamic>.from(_asMap(rawPayment)),
+      };
+      for (final rawPayment in paymentRows) {
+        if (rawPayment is! Map) continue;
+        final payment = Map<String, dynamic>.from(rawPayment);
+        final memberId = payment['profile_id']?.toString() ?? 'member';
+        final cachedPath = cachedPaymentsById[memberId]?['local_image_path']
+            ?.toString();
+        if (cachedPath != null && cachedPath.isNotEmpty) {
+          payment['local_image_path'] = cachedPath;
+          final index = paymentRows.indexOf(rawPayment);
+          if (index >= 0) paymentRows[index] = payment;
+          continue;
+        }
+        final slipSource = payment['slip_data']?.toString();
+        if (slipSource == null || slipSource.isEmpty) continue;
+        try {
+          final resolvedSource = slipSource.startsWith('data:image/')
+              ? slipSource
+              : await SupabaseStorageService().resolveReceiptImageUrl(
+                  slipSource,
+                );
+          payment['local_image_path'] = await cacheRemoteImage(
+            resolvedSource,
+            'slip-$billId-$memberId',
+          );
+          final index = paymentRows.indexOf(rawPayment);
+          if (index >= 0) paymentRows[index] = payment;
+        } catch (error, stackTrace) {
+          debugPrint('Failed to cache payment slip: $error\n$stackTrace');
+        }
+      }
+      billData['bill_payments'] = paymentRows;
+      final profileIds = <String>{
+        if (billData['owner_id'] != null) billData['owner_id'].toString(),
+        for (final participant in _asList(billData['bill_participants']))
+          if (_asMap(participant)['profile_id'] != null)
+            _asMap(participant)['profile_id'].toString(),
+      };
+      final profilesById = <String, Map<String, dynamic>>{};
+      if (profileIds.isNotEmpty) {
+        try {
+          final profiles = await Supabase.instance.client
+              .from('profiles')
+              .select()
+              .inFilter('id', profileIds.toList())
+              .timeout(const Duration(seconds: 10));
+          for (final profile in profiles) {
+            final profileMap = Map<String, dynamic>.from(profile);
+            final cachedProfile = await _localRepository.getCachedProfile(
+              profileMap['id'].toString(),
+            );
+            final cachedAvatarPath = cachedProfile?['local_avatar_path']
+                ?.toString();
+            if (cachedAvatarPath != null && cachedAvatarPath.isNotEmpty) {
+              profileMap['local_avatar_path'] = cachedAvatarPath;
+            }
+            final avatarUrl = profileMap['avatar_url']?.toString();
+            final avatarUri = Uri.tryParse(avatarUrl ?? '');
+            if ((cachedAvatarPath == null || cachedAvatarPath.isEmpty) &&
+                avatarUri != null &&
+                (avatarUri.scheme == 'http' || avatarUri.scheme == 'https') &&
+                avatarUri.host.isNotEmpty) {
+              try {
+                final avatarBytes = await NetworkAssetBundle(
+                  avatarUri,
+                ).load(avatarUrl!).timeout(const Duration(seconds: 5));
+                profileMap['local_avatar_path'] = await saveLocalReceipt(
+                  avatarBytes.buffer.asUint8List(),
+                  'avatar-${profileMap['id']}',
+                );
+              } catch (error, stackTrace) {
+                debugPrint(
+                  'Failed to cache member avatar: $error\n$stackTrace',
+                );
+              }
+            }
+            profilesById[profileMap['id'].toString()] = profileMap;
+            await _localRepository.cacheProfile(profileMap);
+          }
         } catch (error, stackTrace) {
           debugPrint(
-            'Failed to load participant total fallback: $error\n$stackTrace',
+            'Failed to sync bill member profiles: $error\n$stackTrace',
           );
         }
       }
+      billData['profiles'] = profilesById;
+      await _localRepository.cacheSupabaseBills([billData]);
 
       widget.billData.addAll(billData);
       if (!mounted) return;
@@ -92,11 +223,6 @@ class _DetailScreenState extends State<DetailScreen> {
       debugPrint('Failed to load bill detail: $error\n$stackTrace');
       if (!mounted) return;
       setState(() => _isLoadingBill = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('โหลดข้อมูลบิลไม่สำเร็จ กรุณาลองเปิดใหม่'),
-        ),
-      );
     }
   }
 
@@ -125,7 +251,7 @@ class _DetailScreenState extends State<DetailScreen> {
           column: 'bill_id',
           value: billId,
         ),
-        callback: (_) => _refreshMemberSummary(),
+        callback: (_) => unawaited(_loadBillFromSupabase()),
       )
       ..onPostgresChanges(
         event: PostgresChangeEvent.all,
@@ -136,7 +262,7 @@ class _DetailScreenState extends State<DetailScreen> {
           column: 'bill_id',
           value: billId,
         ),
-        callback: (_) => _refreshMemberSummary(),
+        callback: (_) => unawaited(_loadBillFromSupabase()),
       );
     _billRealtimeChannel = channel;
     channel.subscribe((status, error) {
@@ -149,29 +275,8 @@ class _DetailScreenState extends State<DetailScreen> {
     });
   }
 
-  void _refreshMemberSummary() {
-    if (!mounted) return;
-    setState(() => _membersFuture = _loadMemberSummary());
-  }
-
   Future<void> _refreshBillFromRealtime() async {
-    final billId = widget.billData['id']?.toString();
-    if (billId == null || billId.isEmpty) return;
-
-    try {
-      final bill = await Supabase.instance.client
-          .from('bills')
-          .select()
-          .eq('id', billId)
-          .maybeSingle();
-      if (bill == null || !mounted) return;
-      widget.billData.addAll(Map<String, dynamic>.from(bill));
-      _refreshMemberSummary();
-    } catch (error, stackTrace) {
-      debugPrint(
-        'Failed to refresh bill after Realtime update: $error\n$stackTrace',
-      );
-    }
+    await _loadBillFromSupabase();
   }
 
   @override
@@ -184,63 +289,61 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   Future<void> _fetchHostPromptPayInfo() async {
+    final offline = context.read<OfflineService>();
     try {
       final ownerId =
           widget.billData['owner_id']?.toString() ??
           _asMap(widget.billData['receipt_json'])['owner_id']?.toString();
-      if (ownerId != null && ownerId.isNotEmpty) {
-        final profile = await Supabase.instance.client
+      if (ownerId == null || ownerId.isEmpty) return;
+      final rawProfile = _asMap(widget.billData['profiles'])[ownerId];
+      Map<String, dynamic>? profile = rawProfile is Map
+          ? Map<String, dynamic>.from(rawProfile)
+          : await _localRepository.getCachedProfile(ownerId);
+      if (profile == null && !offline.isOffline) {
+        final response = await Supabase.instance.client
             .from('profiles')
             .select()
             .eq('id', ownerId)
-            .maybeSingle();
-        if (profile != null && mounted) {
-          final paymentInfo = _asMap(profile['payment_info']);
-          setState(() {
-            _hostPromptPay =
-                profile['promptpay_number']?.toString() ??
-                paymentInfo['number']?.toString() ??
-                '';
-            _hostPromptPayType =
-                profile['promptpay_type']?.toString() ??
-                paymentInfo['type']?.toString();
-            _hostBankName = paymentInfo['bank_name']?.toString();
-            _hostBankAccountNumber =
-                paymentInfo['bank_account_number']?.toString() ?? '';
-            _hostBankAccountName = paymentInfo['bank_account_name']?.toString();
-            final name = profile['display_name']?.toString().trim();
-            _hostName = name?.isNotEmpty == true
-                ? name!
-                : profile['email']?.toString().split('@').first ?? 'เจ้าของบิล';
-          });
+            .maybeSingle()
+            .timeout(const Duration(seconds: 10));
+        if (response != null) {
+          profile = Map<String, dynamic>.from(response);
+          await _localRepository.cacheProfile(profile);
         }
       }
-    } catch (e) {
-      debugPrint('Error fetching host promptpay: $e');
+      if (profile != null && mounted) _applyHostProfile(profile);
+    } catch (error, stackTrace) {
+      debugPrint('Error fetching host payment profile: $error\n$stackTrace');
     }
+  }
+
+  void _applyHostProfile(Map<String, dynamic> profile) {
+    final paymentInfo = _asMap(profile['payment_info']);
+    setState(() {
+      _hostPromptPay =
+          profile['promptpay_number']?.toString() ??
+          paymentInfo['number']?.toString() ??
+          '';
+      _hostPromptPayType =
+          profile['promptpay_type']?.toString() ??
+          paymentInfo['type']?.toString();
+      _hostBankName = paymentInfo['bank_name']?.toString();
+      _hostBankAccountNumber =
+          paymentInfo['bank_account_number']?.toString() ?? '';
+      _hostBankAccountName = paymentInfo['bank_account_name']?.toString();
+      final name = profile['display_name']?.toString().trim();
+      _hostName = name?.isNotEmpty == true
+          ? name!
+          : profile['email']?.toString().split('@').first ?? 'เจ้าของบิล';
+    });
   }
 
   Future<List<MemberSummaryEntry>> _loadMemberSummary() async {
     final receipt = _asMap(widget.billData['receipt_json']);
     final sharersByItem = _asMap(widget.billData['sharers_json']);
     final billId = widget.billData['id']?.toString();
-    List<dynamic> participantRows = [];
-    List<dynamic> paymentRows = [];
-    if (billId != null) {
-      try {
-        participantRows = await Supabase.instance.client
-            .from('bill_participants')
-            .select('profile_id, amount_owed, status')
-            .eq('bill_id', billId);
-        paymentRows = await Supabase.instance.client
-            .from('bill_payments')
-            .select('profile_id, status, slip_data')
-            .eq('bill_id', billId);
-      } catch (error) {
-        if (!OfflineService.isLikelyNetworkError(error)) rethrow;
-        debugPrint('Using cached bill participants: $error');
-      }
-    }
+    final participantRows = _asList(widget.billData['bill_participants']);
+    final paymentRows = _asList(widget.billData['bill_payments']);
     final paymentsByProfileId = <String, Map<String, dynamic>>{
       for (final row in paymentRows)
         if (row['profile_id'] != null)
@@ -326,22 +429,15 @@ class _DetailScreenState extends State<DetailScreen> {
         item.sharedUsers.where((id) => !id.startsWith('guest_')),
       );
     }
-    final profilesById = <String, Map<String, dynamic>>{};
-    if (profileIds.isNotEmpty) {
-      try {
-        final profiles = await Supabase.instance.client
-            .from('profiles')
-            .select('id, display_name, email')
-            .inFilter('id', profileIds.toList());
-        for (final profile in profiles) {
-          profilesById[profile['id'].toString()] = Map<String, dynamic>.from(
-            profile,
-          );
-        }
-      } catch (error) {
-        if (!OfflineService.isLikelyNetworkError(error)) rethrow;
-        debugPrint('Using cached member names: $error');
-      }
+    final profilesById = <String, Map<String, dynamic>>{
+      for (final entry in _asMap(widget.billData['profiles']).entries)
+        if (entry.value is Map)
+          entry.key: Map<String, dynamic>.from(entry.value as Map),
+    };
+    for (final profileId in profileIds) {
+      if (profilesById.containsKey(profileId)) continue;
+      final profile = await _localRepository.getCachedProfile(profileId);
+      if (profile != null) profilesById[profileId] = profile;
     }
     for (final profile in profilesById.entries) {
       final name = profile.value['display_name']?.toString().trim();
@@ -473,6 +569,9 @@ class _DetailScreenState extends State<DetailScreen> {
         itemsCount: memberDishes.length,
         dishes: memberDishes,
         slipUrl: slipUrl,
+        localSlipPath: payment['local_image_path']?.toString(),
+        avatarUrl: profile?['avatar_url']?.toString(),
+        localAvatarPath: profile?['local_avatar_path']?.toString(),
       );
     }
 
@@ -518,6 +617,7 @@ class _DetailScreenState extends State<DetailScreen> {
         isPaid: isOwner ? true : (effectiveStatus == 'paid'),
         isReviewing: isOwner ? false : (effectiveStatus == 'reviewing'),
         slipUrl: slipUrl,
+        localSlipPath: payment['local_image_path']?.toString(),
       );
     }
 
@@ -556,7 +656,17 @@ class _DetailScreenState extends State<DetailScreen> {
     return const [];
   }
 
-  void _openReceiptFullView(String imageUrl) {
+  void _openReceiptFullView(String imageSource) {
+    final isLocalPath =
+        !imageSource.startsWith('http://') &&
+        !imageSource.startsWith('https://');
+    final imageUrl = isLocalPath
+        ? (widget.billData['image_url'] ?? widget.billData['receipt_image_url'])
+              ?.toString()
+        : imageSource;
+    final localImagePath = isLocalPath
+        ? imageSource
+        : widget.billData['local_image_path']?.toString();
     showDialog<void>(
       context: context,
       barrierColor: Colors.black87,
@@ -573,10 +683,11 @@ class _DetailScreenState extends State<DetailScreen> {
                   minScale: 0.8,
                   maxScale: 5,
                   child: Center(
-                    child: Image.network(
-                      imageUrl,
+                    child: ReceiptImage(
+                      imageUrl: imageUrl,
+                      localImagePath: localImagePath,
                       fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) => const Icon(
+                      errorBuilder: (context, error) => const Icon(
                         Icons.broken_image_outlined,
                         color: Colors.white70,
                         size: 64,
@@ -607,13 +718,14 @@ class _DetailScreenState extends State<DetailScreen> {
 
   Widget _buildReceiptImage(Object? rawImageUrl) {
     final imageUrl = rawImageUrl?.toString().trim() ?? '';
+    final localImagePath = widget.billData['local_image_path']?.toString();
     final uri = Uri.tryParse(imageUrl);
     final isValidUrl =
         uri != null &&
         (uri.scheme == 'http' || uri.scheme == 'https') &&
         uri.host.isNotEmpty;
 
-    if (!isValidUrl) {
+    if (!isValidUrl && (localImagePath == null || localImagePath.isEmpty)) {
       return _buildMissingReceiptImage();
     }
 
@@ -624,7 +736,8 @@ class _DetailScreenState extends State<DetailScreen> {
         alignment: Alignment.bottomRight,
         children: [
           ReceiptImage(
-            imageUrl: imageUrl,
+            imageUrl: imageUrl.isEmpty ? null : imageUrl,
+            localImagePath: localImagePath,
             height: 300,
             width: double.infinity,
             fit: BoxFit.cover,
@@ -715,21 +828,46 @@ class _DetailScreenState extends State<DetailScreen> {
     if (billId == null) return;
 
     final newStatus = member.isPaid ? 'pending' : 'paid';
+    final offline = context.read<OfflineService>();
     try {
-      await Supabase.instance.client.rpc(
-        'set_bill_payment_status',
-        params: {
-          'p_bill_id': billId,
-          'p_profile_id': member.id,
-          'p_status': newStatus,
-        },
-      );
+      if (offline.isOffline) {
+        await offline.queue.enqueue(
+          type: 'set_bill_payment_status',
+          payload: {
+            'bill_id': billId,
+            'profile_id': member.id,
+            'status': newStatus,
+          },
+        );
+      } else {
+        try {
+          await Supabase.instance.client.rpc(
+            'set_bill_payment_status',
+            params: {
+              'p_bill_id': billId,
+              'p_profile_id': member.id,
+              'p_status': newStatus,
+            },
+          );
+        } catch (error) {
+          if (!OfflineService.isLikelyNetworkError(error)) rethrow;
+          await offline.queue.enqueue(
+            type: 'set_bill_payment_status',
+            payload: {
+              'bill_id': billId,
+              'profile_id': member.id,
+              'status': newStatus,
+            },
+          );
+        }
+      }
       final paymentUpdates = _asMap(widget.billData['payment_updates']);
       paymentUpdates[member.id] = {
         'status': newStatus,
         'slip_data': newStatus == 'pending' ? null : member.slipUrl,
       };
       widget.billData['payment_updates'] = paymentUpdates;
+      await _localRepository.cacheSupabaseBills([widget.billData]);
 
       final updatedMembers = await _loadMemberSummary();
 

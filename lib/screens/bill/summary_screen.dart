@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -11,7 +12,9 @@ import '../../../providers/bill_provider.dart';
 import '../../../providers/user_provider.dart';
 import '../../../routes/app_routes.dart';
 import '../../../services/storage/supabase_storage_service.dart';
+import '../../../services/storage/local_receipt_storage.dart';
 import '../../../services/offline/offline_service.dart';
+import '../../../data/repositories/local_bill_repository.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_theme_colors.dart';
 import '../../../utils/formatters.dart';
@@ -52,7 +55,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
   String? _currentUserId;
   String? _selectedUserId;
   bool _isCurrentUserHost = false;
-  bool _isLoadingHost = true;
+  bool _isLoadingHost = false;
 
   bool _isHostUserId(String userId) {
     if (_hostId != null && _hostId!.isNotEmpty) {
@@ -84,6 +87,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
     super.initState();
     _currentUserId = Supabase.instance.client.auth.currentUser?.id;
     _selectedUserId = _currentUserId;
+    _isCurrentUserHost =
+        _currentUserId != null &&
+        (widget.isHost ||
+            widget.receiptData['owner_id']?.toString() == _currentUserId);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _fetchHostPromptPayInfo();
     });
@@ -92,31 +99,49 @@ class _SummaryScreenState extends State<SummaryScreen> {
   Future<void> _fetchHostPromptPayInfo() async {
     try {
       final supabase = Supabase.instance.client;
+      final offline = context.read<OfflineService>();
       final userProvider = context.read<UserProvider>();
-      final currentProfile = await userProvider.fetchCurrentUserProfile();
+      final currentProfile = offline.isOffline
+          ? userProvider.currentUser
+          : await userProvider.fetchCurrentUserProfile().timeout(
+              const Duration(seconds: 10),
+            );
       final currentUserId = supabase.auth.currentUser?.id;
-      String? hostId;
+      String? hostId = widget.receiptData['owner_id']?.toString();
 
-      if (widget.lobbyId.isNotEmpty) {
+      if (widget.lobbyId.isNotEmpty && !offline.isOffline) {
         final lobby = await supabase
             .from('lobbies')
             .select('host_id')
             .eq('room_code', widget.lobbyId)
-            .maybeSingle();
+            .maybeSingle()
+            .timeout(const Duration(seconds: 8));
         hostId = lobby?['host_id']?.toString();
       }
 
-      hostId ??= widget.receiptData['owner_id']?.toString();
       if (hostId == null && widget.isHost) hostId = currentUserId;
 
       UserModel? hostProfile = currentProfile;
       if (hostId != null && hostId != currentProfile?.id) {
-        final response = await supabase
-            .from('profiles')
-            .select()
-            .eq('id', hostId)
-            .maybeSingle();
-        if (response != null) hostProfile = UserModel.fromMap(response);
+        final localProfile = await LocalBillRepository().getCachedProfile(
+          hostId,
+        );
+        if (localProfile != null) {
+          hostProfile = UserModel.fromMap(localProfile);
+        } else if (!offline.isOffline) {
+          final response = await supabase
+              .from('profiles')
+              .select()
+              .eq('id', hostId)
+              .maybeSingle()
+              .timeout(const Duration(seconds: 8));
+          if (response != null) {
+            hostProfile = UserModel.fromMap(response);
+            await LocalBillRepository().cacheProfile(
+              Map<String, dynamic>.from(response),
+            );
+          }
+        }
       }
 
       if (mounted) {
@@ -319,8 +344,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
     }
 
     var savedSuccessfully = false;
-    Map<String, dynamic>? pendingBill;
-    List<Map<String, dynamic>> pendingParticipants = [];
+    String? localBillId;
+    String? localImagePath;
 
     try {
       final supabase = Supabase.instance.client;
@@ -331,22 +356,16 @@ class _SummaryScreenState extends State<SummaryScreen> {
         0,
         (sum, amount) => sum + amount,
       );
-
-      String? imageUrl;
+      final localRepository = LocalBillRepository();
+      localBillId = _newBillId();
       if (widget.receiptImageBytes != null) {
-        imageUrl = await SupabaseStorageService().uploadReceiptBytes(
-          widget.receiptImageBytes!,
-          widget.lobbyId,
+        localImagePath = await saveLocalReceipt(
+          await SupabaseStorageService().compressImageBytes(
+            widget.receiptImageBytes!,
+          ),
+          localBillId,
         );
       }
-      final parsedImageUrl = imageUrl == null
-          ? null
-          : Uri.tryParse(imageUrl.trim());
-      final validImageUrl =
-          parsedImageUrl != null &&
-          (parsedImageUrl.scheme == 'http' ||
-              parsedImageUrl.scheme == 'https') &&
-          parsedImageUrl.host.isNotEmpty;
 
       final sharersJson = widget.itemSharers.map(
         (key, value) => MapEntry(key.toString(), value),
@@ -364,22 +383,22 @@ class _SummaryScreenState extends State<SummaryScreen> {
       const initialStatus = 'pending';
 
       final billPayload = <String, dynamic>{
+        'id': localBillId,
         'owner_id': userId,
         'shop_name': widget.receiptData['shop_name'] ?? 'ไม่ระบุชื่อร้าน',
         'sub_total': finalTotal,
         'total_amount': finalTotal,
         'status': initialStatus,
+        'created_at': DateTime.now().toUtc().toIso8601String(),
         'receipt_json': {
           ...widget.receiptData,
+          'owner_id': userId,
           'final_total': finalTotal,
           'total_amount': finalTotal,
           'split_type': splitType,
         },
         'sharers_json': sharersJson,
       };
-      if (validImageUrl) {
-        billPayload['image_url'] = imageUrl!.trim();
-      }
 
       final List<Map<String, dynamic>> participantsData = [];
       userTotalsForDB.forEach((uid, amount) {
@@ -392,31 +411,21 @@ class _SummaryScreenState extends State<SummaryScreen> {
           });
         }
       });
-      pendingBill = billPayload;
-      pendingParticipants = participantsData;
-
-      await supabase.rpc(
-        'create_bill_with_participants',
-        params: {
-          'p_bill': billPayload,
-          'p_participants': participantsData
-              .map(
-                (participant) => {
-                  'profile_id': participant['profile_id'],
-                  'amount_owed': participant['amount_owed'],
-                },
-              )
-              .toList(),
-        },
+      await localRepository.saveLocalBill(
+        bill: billPayload,
+        participants: participantsData,
+        localImagePath: localImagePath,
       );
-      savedSuccessfully = true;
-    } catch (e) {
-      debugPrint('บันทึกบิลไม่สำเร็จ: $e');
-      if (pendingBill != null &&
-          (offline.isOffline || OfflineService.isLikelyNetworkError(e))) {
+
+      if (offline.isOffline) {
         await offline.queue.enqueue(
           type: 'create_bill',
-          payload: {'bill': pendingBill, 'participants': pendingParticipants},
+          payload: {
+            'bill': billPayload,
+            'participants': participantsData,
+            'local_id': localBillId,
+            'local_image_path': localImagePath,
+          },
         );
         savedSuccessfully = true;
         if (mounted) {
@@ -426,6 +435,73 @@ class _SummaryScreenState extends State<SummaryScreen> {
             ),
           );
         }
+      } else {
+        try {
+          if (localImagePath != null) {
+            final imageBytes = await readLocalReceipt(localImagePath);
+            if (imageBytes == null) {
+              throw StateError('ไม่พบรูปใบเสร็จที่บันทึกไว้ในเครื่อง');
+            }
+            billPayload['image_url'] = await SupabaseStorageService()
+                .uploadReceiptBytes(
+                  imageBytes,
+                  localBillId,
+                  fileName: 'receipt.jpg',
+                );
+            await localRepository.saveLocalBill(
+              bill: billPayload,
+              participants: participantsData,
+              localImagePath: localImagePath,
+            );
+          }
+          final createdId = await supabase.rpc(
+            'create_bill_with_participants',
+            params: {
+              'p_bill': billPayload,
+              'p_participants': participantsData
+                  .map(
+                    (participant) => {
+                      'profile_id': participant['profile_id'],
+                      'amount_owed': participant['amount_owed'],
+                    },
+                  )
+                  .toList(),
+            },
+          );
+          final remoteBillId = createdId?.toString() ?? '';
+          if (remoteBillId.isEmpty) {
+            throw StateError('Supabase did not return the created bill ID');
+          }
+          await localRepository.replaceCachedBillId(localBillId, remoteBillId);
+          savedSuccessfully = true;
+        } catch (error) {
+          if (!offline.isOffline &&
+              !OfflineService.isLikelyNetworkError(error)) {
+            rethrow;
+          }
+          await offline.queue.enqueue(
+            type: 'create_bill',
+            payload: {
+              'bill': billPayload,
+              'participants': participantsData,
+              'local_id': localBillId,
+              'local_image_path': localImagePath,
+            },
+          );
+          savedSuccessfully = true;
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('บันทึกบิลไว้แล้ว จะซิงก์เมื่อกลับมาออนไลน์'),
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('บันทึกบิลไม่สำเร็จ: $e');
+      if (!savedSuccessfully && localBillId != null) {
+        await LocalBillRepository().deleteCachedBill(localBillId);
       }
       if (mounted) {
         if (!savedSuccessfully) {
@@ -446,6 +522,17 @@ class _SummaryScreenState extends State<SummaryScreen> {
     }
 
     if (savedSuccessfully && mounted) await _navigateHomeAfterFrame();
+  }
+
+  String _newBillId() {
+    final bytes = List<int>.generate(16, (_) => Random.secure().nextInt(256));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    final hex = bytes
+        .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+        .join();
+    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
+        '${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
   }
 
   Future<void> _navigateHomeAfterFrame() async {

@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -29,15 +31,33 @@ class _HomeScreenState extends State<HomeScreen> {
   final _supabase = Supabase.instance.client;
   final LocalBillRepository _localRepo = LocalBillRepository();
 
-  late Future<List<Map<String, dynamic>>> _billsFuture;
+  List<Map<String, dynamic>> _bills = [];
+  bool _isLoading = true;
   bool _isCheckingRoom = false;
   String _historyFilter = 'unpaid'; // 'unpaid', 'completed', 'all'
   RealtimeChannel? _realtimeBillsChannel;
+  StreamSubscription<List<Map<String, dynamic>>>? _cachedBillsSubscription;
 
   @override
   void initState() {
     super.initState();
-    _billsFuture = _fetchMyBills();
+    _cachedBillsSubscription = _localRepo
+        .watchCachedBills(userId: _supabase.auth.currentUser?.id ?? '')
+        .listen(
+          (cachedBills) {
+            if (!mounted) return;
+            setState(() {
+              if (cachedBills.isNotEmpty || _bills.isEmpty) {
+                _bills = cachedBills;
+              }
+              _isLoading = false;
+            });
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            debugPrint('Failed to watch cached bills: $error\n$stackTrace');
+          },
+        );
+    unawaited(_refreshBills());
     _setupRealtimeBillsSubscription();
   }
 
@@ -76,6 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _cachedBillsSubscription?.cancel();
     if (_realtimeBillsChannel != null) {
       _supabase.removeChannel(_realtimeBillsChannel!);
     }
@@ -83,10 +104,51 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _refreshBills() async {
-    setState(() {
-      _billsFuture = _fetchMyBills();
-    });
-    await _billsFuture;
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      final cachedBills = userId == null
+          ? <Map<String, dynamic>>[]
+          : await _localRepo.getCachedBills(userId: userId);
+      if (!mounted) return;
+      setState(() {
+        if (cachedBills.isNotEmpty || _bills.isEmpty) {
+          _bills = cachedBills;
+        }
+        _isLoading = false;
+      });
+    } catch (error, stackTrace) {
+      debugPrint('Failed to load cached bills: $error\n$stackTrace');
+      if (mounted) setState(() => _isLoading = false);
+    }
+
+    if (!mounted || context.read<OfflineService>().isOffline) return;
+    unawaited(_syncBillsInBackground());
+  }
+
+  Future<void> _syncBillsInBackground() async {
+    try {
+      final syncedBills = await _fetchMyBills().timeout(
+        const Duration(seconds: 15),
+      );
+      if (!mounted) return;
+      setState(() {
+        _bills = syncedBills;
+      });
+    } on SocketException catch (error, stackTrace) {
+      debugPrint(
+        'Bill sync is unavailable; keeping cached bills: $error\n$stackTrace',
+      );
+    } on TimeoutException catch (error, stackTrace) {
+      debugPrint(
+        'Bill sync timed out; keeping cached bills: $error\n$stackTrace',
+      );
+    } catch (error, stackTrace) {
+      debugPrint(
+        'Failed to sync bills; keeping cached bills: $error\n$stackTrace',
+      );
+    } finally {
+      if (mounted && _isLoading) setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _pickImageAndScan(ImageSource source) async {
@@ -121,7 +183,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<List<Map<String, dynamic>>> _fetchMyBills() async {
     final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) return _localRepo.getCachedBills();
+    if (userId == null) return [];
 
     final uniqueBills = <String, Map<String, dynamic>>{};
     Object? lastError;
@@ -131,12 +193,19 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final ownedBills = await _supabase
           .from('bills')
-          .select('*, bill_participants(*), bill_payments(profile_id, status)')
+          .select(
+            '*, bill_participants(*), bill_payments(profile_id, status, slip_data)',
+          )
           .eq('owner_id', userId);
       _addBillRows(uniqueBills, ownedBills);
     } catch (error, stackTrace) {
       lastError = error;
       debugPrint('Failed to load owned bills: $error\n$stackTrace');
+      if (error is SocketException ||
+          error is TimeoutException ||
+          OfflineService.isLikelyNetworkError(error)) {
+        rethrow;
+      }
       try {
         final ownedBills = await _supabase
             .from('bills')
@@ -149,6 +218,11 @@ class _HomeScreenState extends State<HomeScreen> {
           'Failed to load owned bills without participants: '
           '$fallbackError\n$fallbackStackTrace',
         );
+        if (fallbackError is SocketException ||
+            fallbackError is TimeoutException ||
+            OfflineService.isLikelyNetworkError(fallbackError)) {
+          rethrow;
+        }
       }
     }
 
@@ -170,7 +244,7 @@ class _HomeScreenState extends State<HomeScreen> {
         final participatedBills = await _supabase
             .from('bills')
             .select(
-              '*, bill_participants(*), bill_payments(profile_id, status)',
+              '*, bill_participants(*), bill_payments(profile_id, status, slip_data)',
             )
             .inFilter('id', billIds);
         _addBillRows(uniqueBills, participatedBills);
@@ -178,11 +252,21 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (error, stackTrace) {
       lastError = error;
       debugPrint('Failed to load participated bills: $error\n$stackTrace');
+      if (error is SocketException ||
+          error is TimeoutException ||
+          OfflineService.isLikelyNetworkError(error)) {
+        rethrow;
+      }
     }
 
-    if (uniqueBills.isEmpty && lastError != null) {
-      final cached = await _localRepo.getCachedBills();
-      if (cached.isNotEmpty) return cached;
+    final cachedBills = await _localRepo.getCachedBills(userId: userId);
+    for (final bill in cachedBills) {
+      if (lastError != null || bill['sync_status'] == 'pending') {
+        final id = bill['id']?.toString();
+        if (id != null && id.isNotEmpty) {
+          uniqueBills.putIfAbsent(id, () => bill);
+        }
+      }
     }
 
     final result = uniqueBills.values.toList()
@@ -402,17 +486,16 @@ class _HomeScreenState extends State<HomeScreen> {
       body: RefreshIndicator(
         color: AppColors.pink,
         onRefresh: _refreshBills,
-        child: FutureBuilder<List<Map<String, dynamic>>>(
-          future: _billsFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
+        child: Builder(
+          builder: (context) {
+            if (_isLoading) {
               return const Padding(
                 padding: EdgeInsets.all(16.0),
                 child: _BillsLoadingSkeleton(),
               );
             }
 
-            final bills = snapshot.data ?? [];
+            final bills = _bills;
 
             // Calculate active and completed sums
             double unpaidTotal = 0.0;
@@ -985,6 +1068,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           totalAmount: summary.totalAmount,
                           dateText: date,
                           status: summary.isSettled ? 'completed' : 'pending',
+                          isPendingSync: bill['sync_status'] == 'pending',
                           memberCount: summary.totalMembers,
                           totalPayingCount: summary.totalPayingCount,
                           paidCount: summary.paidCount,

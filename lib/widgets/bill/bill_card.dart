@@ -7,6 +7,7 @@ class BillCard extends StatelessWidget {
   final double totalAmount;
   final String dateText;
   final String status;
+  final bool isPendingSync;
   final int memberCount;
   final int unpaidCount;
   final int? totalPayingCount;
@@ -25,6 +26,7 @@ class BillCard extends StatelessWidget {
     required this.totalAmount,
     this.dateText = '',
     this.status = 'pending',
+    this.isPendingSync = false,
     this.memberCount = 4,
     this.unpaidCount = 0,
     this.totalPayingCount,
@@ -50,19 +52,28 @@ class BillCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = isDark ? AppColors.darkCardBackground : AppColors.cardBackground;
+    final cardBg = isDark
+        ? AppColors.darkCardBackground
+        : AppColors.cardBackground;
     final borderCol = isDark ? AppColors.darkBorder : const Color(0xFFE5E5E5);
     final textPrim = isDark ? AppColors.darkTextPrimary : AppColors.black;
     final textSec = isDark ? AppColors.darkTextSecondary : AppColors.gray;
 
     // Status colors conforming strictly to Design System
-    final statusBgColor = _isSettled ? AppColors.lightGreen : AppColors.paleYellow;
-    final statusTextColor = _isSettled ? AppColors.tealGreen : AppColors.primaryOrange;
+    final statusBgColor = _isSettled
+        ? AppColors.lightGreen
+        : AppColors.paleYellow;
+    final statusTextColor = _isSettled
+        ? AppColors.tealGreen
+        : AppColors.primaryOrange;
     final statusLabel = _isSettled ? 'ชำระเสร็จสิ้น' : 'รอเพื่อนโอน';
 
     // Calculate real paying members count (excluding owner)
-    final effectiveTotalPaying = totalPayingCount ?? (memberCount > 1 ? memberCount - 1 : 1);
-    final effectivePaid = paidCount ?? (effectiveTotalPaying - unpaidCount).clamp(0, effectiveTotalPaying);
+    final effectiveTotalPaying =
+        totalPayingCount ?? (memberCount > 1 ? memberCount - 1 : 1);
+    final effectivePaid =
+        paidCount ??
+        (effectiveTotalPaying - unpaidCount).clamp(0, effectiveTotalPaying);
     final progress = effectiveTotalPaying > 0
         ? (effectivePaid / effectiveTotalPaying).clamp(0.0, 1.0)
         : 0.0;
@@ -101,7 +112,9 @@ class BillCard extends StatelessWidget {
                       width: 48,
                       height: 48,
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF322329) : AppColors.lightPink,
+                        color: isDark
+                            ? const Color(0xFF322329)
+                            : AppColors.lightPink,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -131,15 +144,15 @@ class BillCard extends StatelessWidget {
                           if (dateText.isNotEmpty)
                             Text(
                               dateText,
-                              style: TextStyle(
-                                color: textSec,
-                                fontSize: 13.5,
-                              ),
+                              style: TextStyle(color: textSec, fontSize: 13.5),
                             ),
                           const SizedBox(height: 4),
                           // Status Badge matching Reference Image
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2.5,
+                            ),
                             decoration: BoxDecoration(
                               color: statusBgColor,
                               borderRadius: BorderRadius.circular(6),
@@ -153,6 +166,17 @@ class BillCard extends StatelessWidget {
                               ),
                             ),
                           ),
+                          if (isPendingSync) ...[
+                            const SizedBox(height: 4),
+                            const Text(
+                              'รอบันทึกเมื่อออนไลน์',
+                              style: TextStyle(
+                                color: AppColors.primaryOrange,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -182,7 +206,10 @@ class BillCard extends StatelessWidget {
                             ),
                           ],
                         ),
-                        if (totalAmount > 0 && isEqualSplit && averagePerPerson != null && averagePerPerson! > 0) ...[
+                        if (totalAmount > 0 &&
+                            isEqualSplit &&
+                            averagePerPerson != null &&
+                            averagePerPerson! > 0) ...[
                           const SizedBox(height: 2),
                           Text(
                             'ตกคนละ ${AppFormatters.formatCurrency(averagePerPerson!)}',
@@ -205,7 +232,9 @@ class BillCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
                       value: progress,
-                      backgroundColor: isDark ? AppColors.darkBorder : const Color(0xFFEEEEEE),
+                      backgroundColor: isDark
+                          ? AppColors.darkBorder
+                          : const Color(0xFFEEEEEE),
                       color: AppColors.primaryOrange,
                       minHeight: 4,
                     ),
@@ -216,7 +245,11 @@ class BillCard extends StatelessWidget {
                     children: [
                       Text(
                         'เก็บเงินแล้ว $percentage%',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textSec),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: textSec,
+                        ),
                       ),
                       Text(
                         'จ่ายแล้ว $effectivePaid/$effectiveTotalPaying คน',
@@ -238,7 +271,9 @@ class BillCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
                       value: 1.0,
-                      backgroundColor: isDark ? AppColors.darkBorder : const Color(0xFFEEEEEE),
+                      backgroundColor: isDark
+                          ? AppColors.darkBorder
+                          : const Color(0xFFEEEEEE),
                       color: AppColors.tealGreen,
                       minHeight: 4,
                     ),
@@ -249,7 +284,11 @@ class BillCard extends StatelessWidget {
                     children: [
                       Text(
                         'เก็บเงินแล้ว 100%',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textSec),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: textSec,
+                        ),
                       ),
                       Text(
                         'จ่ายครบแล้ว $effectiveTotalPaying/$effectiveTotalPaying คน',

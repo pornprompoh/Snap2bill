@@ -84,6 +84,40 @@ class $CachedBillsTable extends CachedBills
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _payloadJsonMeta = const VerificationMeta(
+    'payloadJson',
+  );
+  @override
+  late final GeneratedColumn<String> payloadJson = GeneratedColumn<String>(
+    'payload_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _localImagePathMeta = const VerificationMeta(
+    'localImagePath',
+  );
+  @override
+  late final GeneratedColumn<String> localImagePath = GeneratedColumn<String>(
+    'local_image_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _syncStatusMeta = const VerificationMeta(
+    'syncStatus',
+  );
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('synced'),
+  );
   static const VerificationMeta _cachedAtMeta = const VerificationMeta(
     'cachedAt',
   );
@@ -105,6 +139,9 @@ class $CachedBillsTable extends CachedBills
     status,
     receiptJson,
     sharersJson,
+    payloadJson,
+    localImagePath,
+    syncStatus,
     cachedAt,
   ];
   @override
@@ -172,6 +209,30 @@ class $CachedBillsTable extends CachedBills
         ),
       );
     }
+    if (data.containsKey('payload_json')) {
+      context.handle(
+        _payloadJsonMeta,
+        payloadJson.isAcceptableOrUnknown(
+          data['payload_json']!,
+          _payloadJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('local_image_path')) {
+      context.handle(
+        _localImagePathMeta,
+        localImagePath.isAcceptableOrUnknown(
+          data['local_image_path']!,
+          _localImagePathMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+        _syncStatusMeta,
+        syncStatus.isAcceptableOrUnknown(data['sync_status']!, _syncStatusMeta),
+      );
+    }
     if (data.containsKey('cached_at')) {
       context.handle(
         _cachedAtMeta,
@@ -215,6 +276,18 @@ class $CachedBillsTable extends CachedBills
         DriftSqlType.string,
         data['${effectivePrefix}sharers_json'],
       ),
+      payloadJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payload_json'],
+      ),
+      localImagePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}local_image_path'],
+      ),
+      syncStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_status'],
+      )!,
       cachedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}cached_at'],
@@ -236,6 +309,9 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
   final String status;
   final String? receiptJson;
   final String? sharersJson;
+  final String? payloadJson;
+  final String? localImagePath;
+  final String syncStatus;
   final DateTime cachedAt;
   const CachedBill({
     required this.id,
@@ -245,6 +321,9 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
     required this.status,
     this.receiptJson,
     this.sharersJson,
+    this.payloadJson,
+    this.localImagePath,
+    required this.syncStatus,
     required this.cachedAt,
   });
   @override
@@ -265,6 +344,13 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
     if (!nullToAbsent || sharersJson != null) {
       map['sharers_json'] = Variable<String>(sharersJson);
     }
+    if (!nullToAbsent || payloadJson != null) {
+      map['payload_json'] = Variable<String>(payloadJson);
+    }
+    if (!nullToAbsent || localImagePath != null) {
+      map['local_image_path'] = Variable<String>(localImagePath);
+    }
+    map['sync_status'] = Variable<String>(syncStatus);
     map['cached_at'] = Variable<DateTime>(cachedAt);
     return map;
   }
@@ -286,6 +372,13 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
       sharersJson: sharersJson == null && nullToAbsent
           ? const Value.absent()
           : Value(sharersJson),
+      payloadJson: payloadJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(payloadJson),
+      localImagePath: localImagePath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(localImagePath),
+      syncStatus: Value(syncStatus),
       cachedAt: Value(cachedAt),
     );
   }
@@ -303,6 +396,9 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
       status: serializer.fromJson<String>(json['status']),
       receiptJson: serializer.fromJson<String?>(json['receiptJson']),
       sharersJson: serializer.fromJson<String?>(json['sharersJson']),
+      payloadJson: serializer.fromJson<String?>(json['payloadJson']),
+      localImagePath: serializer.fromJson<String?>(json['localImagePath']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
       cachedAt: serializer.fromJson<DateTime>(json['cachedAt']),
     );
   }
@@ -317,6 +413,9 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
       'status': serializer.toJson<String>(status),
       'receiptJson': serializer.toJson<String?>(receiptJson),
       'sharersJson': serializer.toJson<String?>(sharersJson),
+      'payloadJson': serializer.toJson<String?>(payloadJson),
+      'localImagePath': serializer.toJson<String?>(localImagePath),
+      'syncStatus': serializer.toJson<String>(syncStatus),
       'cachedAt': serializer.toJson<DateTime>(cachedAt),
     };
   }
@@ -329,6 +428,9 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
     String? status,
     Value<String?> receiptJson = const Value.absent(),
     Value<String?> sharersJson = const Value.absent(),
+    Value<String?> payloadJson = const Value.absent(),
+    Value<String?> localImagePath = const Value.absent(),
+    String? syncStatus,
     DateTime? cachedAt,
   }) => CachedBill(
     id: id ?? this.id,
@@ -338,6 +440,11 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
     status: status ?? this.status,
     receiptJson: receiptJson.present ? receiptJson.value : this.receiptJson,
     sharersJson: sharersJson.present ? sharersJson.value : this.sharersJson,
+    payloadJson: payloadJson.present ? payloadJson.value : this.payloadJson,
+    localImagePath: localImagePath.present
+        ? localImagePath.value
+        : this.localImagePath,
+    syncStatus: syncStatus ?? this.syncStatus,
     cachedAt: cachedAt ?? this.cachedAt,
   );
   CachedBill copyWithCompanion(CachedBillsCompanion data) {
@@ -357,6 +464,15 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
       sharersJson: data.sharersJson.present
           ? data.sharersJson.value
           : this.sharersJson,
+      payloadJson: data.payloadJson.present
+          ? data.payloadJson.value
+          : this.payloadJson,
+      localImagePath: data.localImagePath.present
+          ? data.localImagePath.value
+          : this.localImagePath,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
       cachedAt: data.cachedAt.present ? data.cachedAt.value : this.cachedAt,
     );
   }
@@ -371,6 +487,9 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
           ..write('status: $status, ')
           ..write('receiptJson: $receiptJson, ')
           ..write('sharersJson: $sharersJson, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('localImagePath: $localImagePath, ')
+          ..write('syncStatus: $syncStatus, ')
           ..write('cachedAt: $cachedAt')
           ..write(')'))
         .toString();
@@ -385,6 +504,9 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
     status,
     receiptJson,
     sharersJson,
+    payloadJson,
+    localImagePath,
+    syncStatus,
     cachedAt,
   );
   @override
@@ -398,6 +520,9 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
           other.status == this.status &&
           other.receiptJson == this.receiptJson &&
           other.sharersJson == this.sharersJson &&
+          other.payloadJson == this.payloadJson &&
+          other.localImagePath == this.localImagePath &&
+          other.syncStatus == this.syncStatus &&
           other.cachedAt == this.cachedAt);
 }
 
@@ -409,6 +534,9 @@ class CachedBillsCompanion extends UpdateCompanion<CachedBill> {
   final Value<String> status;
   final Value<String?> receiptJson;
   final Value<String?> sharersJson;
+  final Value<String?> payloadJson;
+  final Value<String?> localImagePath;
+  final Value<String> syncStatus;
   final Value<DateTime> cachedAt;
   final Value<int> rowid;
   const CachedBillsCompanion({
@@ -419,6 +547,9 @@ class CachedBillsCompanion extends UpdateCompanion<CachedBill> {
     this.status = const Value.absent(),
     this.receiptJson = const Value.absent(),
     this.sharersJson = const Value.absent(),
+    this.payloadJson = const Value.absent(),
+    this.localImagePath = const Value.absent(),
+    this.syncStatus = const Value.absent(),
     this.cachedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -430,6 +561,9 @@ class CachedBillsCompanion extends UpdateCompanion<CachedBill> {
     this.status = const Value.absent(),
     this.receiptJson = const Value.absent(),
     this.sharersJson = const Value.absent(),
+    this.payloadJson = const Value.absent(),
+    this.localImagePath = const Value.absent(),
+    this.syncStatus = const Value.absent(),
     this.cachedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id);
@@ -441,6 +575,9 @@ class CachedBillsCompanion extends UpdateCompanion<CachedBill> {
     Expression<String>? status,
     Expression<String>? receiptJson,
     Expression<String>? sharersJson,
+    Expression<String>? payloadJson,
+    Expression<String>? localImagePath,
+    Expression<String>? syncStatus,
     Expression<DateTime>? cachedAt,
     Expression<int>? rowid,
   }) {
@@ -452,6 +589,9 @@ class CachedBillsCompanion extends UpdateCompanion<CachedBill> {
       if (status != null) 'status': status,
       if (receiptJson != null) 'receipt_json': receiptJson,
       if (sharersJson != null) 'sharers_json': sharersJson,
+      if (payloadJson != null) 'payload_json': payloadJson,
+      if (localImagePath != null) 'local_image_path': localImagePath,
+      if (syncStatus != null) 'sync_status': syncStatus,
       if (cachedAt != null) 'cached_at': cachedAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -465,6 +605,9 @@ class CachedBillsCompanion extends UpdateCompanion<CachedBill> {
     Value<String>? status,
     Value<String?>? receiptJson,
     Value<String?>? sharersJson,
+    Value<String?>? payloadJson,
+    Value<String?>? localImagePath,
+    Value<String>? syncStatus,
     Value<DateTime>? cachedAt,
     Value<int>? rowid,
   }) {
@@ -476,6 +619,9 @@ class CachedBillsCompanion extends UpdateCompanion<CachedBill> {
       status: status ?? this.status,
       receiptJson: receiptJson ?? this.receiptJson,
       sharersJson: sharersJson ?? this.sharersJson,
+      payloadJson: payloadJson ?? this.payloadJson,
+      localImagePath: localImagePath ?? this.localImagePath,
+      syncStatus: syncStatus ?? this.syncStatus,
       cachedAt: cachedAt ?? this.cachedAt,
       rowid: rowid ?? this.rowid,
     );
@@ -505,6 +651,15 @@ class CachedBillsCompanion extends UpdateCompanion<CachedBill> {
     if (sharersJson.present) {
       map['sharers_json'] = Variable<String>(sharersJson.value);
     }
+    if (payloadJson.present) {
+      map['payload_json'] = Variable<String>(payloadJson.value);
+    }
+    if (localImagePath.present) {
+      map['local_image_path'] = Variable<String>(localImagePath.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
     if (cachedAt.present) {
       map['cached_at'] = Variable<DateTime>(cachedAt.value);
     }
@@ -524,6 +679,548 @@ class CachedBillsCompanion extends UpdateCompanion<CachedBill> {
           ..write('status: $status, ')
           ..write('receiptJson: $receiptJson, ')
           ..write('sharersJson: $sharersJson, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('localImagePath: $localImagePath, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('cachedAt: $cachedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $CachedProfilesTable extends CachedProfiles
+    with TableInfo<$CachedProfilesTable, CachedProfile> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CachedProfilesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _payloadJsonMeta = const VerificationMeta(
+    'payloadJson',
+  );
+  @override
+  late final GeneratedColumn<String> payloadJson = GeneratedColumn<String>(
+    'payload_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _cachedAtMeta = const VerificationMeta(
+    'cachedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> cachedAt = GeneratedColumn<DateTime>(
+    'cached_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, payloadJson, cachedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'cached_profiles';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CachedProfile> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('payload_json')) {
+      context.handle(
+        _payloadJsonMeta,
+        payloadJson.isAcceptableOrUnknown(
+          data['payload_json']!,
+          _payloadJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_payloadJsonMeta);
+    }
+    if (data.containsKey('cached_at')) {
+      context.handle(
+        _cachedAtMeta,
+        cachedAt.isAcceptableOrUnknown(data['cached_at']!, _cachedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CachedProfile map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CachedProfile(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      payloadJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payload_json'],
+      )!,
+      cachedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}cached_at'],
+      )!,
+    );
+  }
+
+  @override
+  $CachedProfilesTable createAlias(String alias) {
+    return $CachedProfilesTable(attachedDatabase, alias);
+  }
+}
+
+class CachedProfile extends DataClass implements Insertable<CachedProfile> {
+  final String id;
+  final String payloadJson;
+  final DateTime cachedAt;
+  const CachedProfile({
+    required this.id,
+    required this.payloadJson,
+    required this.cachedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['payload_json'] = Variable<String>(payloadJson);
+    map['cached_at'] = Variable<DateTime>(cachedAt);
+    return map;
+  }
+
+  CachedProfilesCompanion toCompanion(bool nullToAbsent) {
+    return CachedProfilesCompanion(
+      id: Value(id),
+      payloadJson: Value(payloadJson),
+      cachedAt: Value(cachedAt),
+    );
+  }
+
+  factory CachedProfile.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CachedProfile(
+      id: serializer.fromJson<String>(json['id']),
+      payloadJson: serializer.fromJson<String>(json['payloadJson']),
+      cachedAt: serializer.fromJson<DateTime>(json['cachedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'payloadJson': serializer.toJson<String>(payloadJson),
+      'cachedAt': serializer.toJson<DateTime>(cachedAt),
+    };
+  }
+
+  CachedProfile copyWith({
+    String? id,
+    String? payloadJson,
+    DateTime? cachedAt,
+  }) => CachedProfile(
+    id: id ?? this.id,
+    payloadJson: payloadJson ?? this.payloadJson,
+    cachedAt: cachedAt ?? this.cachedAt,
+  );
+  CachedProfile copyWithCompanion(CachedProfilesCompanion data) {
+    return CachedProfile(
+      id: data.id.present ? data.id.value : this.id,
+      payloadJson: data.payloadJson.present
+          ? data.payloadJson.value
+          : this.payloadJson,
+      cachedAt: data.cachedAt.present ? data.cachedAt.value : this.cachedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CachedProfile(')
+          ..write('id: $id, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('cachedAt: $cachedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, payloadJson, cachedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CachedProfile &&
+          other.id == this.id &&
+          other.payloadJson == this.payloadJson &&
+          other.cachedAt == this.cachedAt);
+}
+
+class CachedProfilesCompanion extends UpdateCompanion<CachedProfile> {
+  final Value<String> id;
+  final Value<String> payloadJson;
+  final Value<DateTime> cachedAt;
+  final Value<int> rowid;
+  const CachedProfilesCompanion({
+    this.id = const Value.absent(),
+    this.payloadJson = const Value.absent(),
+    this.cachedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CachedProfilesCompanion.insert({
+    required String id,
+    required String payloadJson,
+    this.cachedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       payloadJson = Value(payloadJson);
+  static Insertable<CachedProfile> custom({
+    Expression<String>? id,
+    Expression<String>? payloadJson,
+    Expression<DateTime>? cachedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (payloadJson != null) 'payload_json': payloadJson,
+      if (cachedAt != null) 'cached_at': cachedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CachedProfilesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? payloadJson,
+    Value<DateTime>? cachedAt,
+    Value<int>? rowid,
+  }) {
+    return CachedProfilesCompanion(
+      id: id ?? this.id,
+      payloadJson: payloadJson ?? this.payloadJson,
+      cachedAt: cachedAt ?? this.cachedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (payloadJson.present) {
+      map['payload_json'] = Variable<String>(payloadJson.value);
+    }
+    if (cachedAt.present) {
+      map['cached_at'] = Variable<DateTime>(cachedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CachedProfilesCompanion(')
+          ..write('id: $id, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('cachedAt: $cachedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $CachedRoomsTable extends CachedRooms
+    with TableInfo<$CachedRoomsTable, CachedRoom> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CachedRoomsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _roomCodeMeta = const VerificationMeta(
+    'roomCode',
+  );
+  @override
+  late final GeneratedColumn<String> roomCode = GeneratedColumn<String>(
+    'room_code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _payloadJsonMeta = const VerificationMeta(
+    'payloadJson',
+  );
+  @override
+  late final GeneratedColumn<String> payloadJson = GeneratedColumn<String>(
+    'payload_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _cachedAtMeta = const VerificationMeta(
+    'cachedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> cachedAt = GeneratedColumn<DateTime>(
+    'cached_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [roomCode, payloadJson, cachedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'cached_rooms';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CachedRoom> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('room_code')) {
+      context.handle(
+        _roomCodeMeta,
+        roomCode.isAcceptableOrUnknown(data['room_code']!, _roomCodeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_roomCodeMeta);
+    }
+    if (data.containsKey('payload_json')) {
+      context.handle(
+        _payloadJsonMeta,
+        payloadJson.isAcceptableOrUnknown(
+          data['payload_json']!,
+          _payloadJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_payloadJsonMeta);
+    }
+    if (data.containsKey('cached_at')) {
+      context.handle(
+        _cachedAtMeta,
+        cachedAt.isAcceptableOrUnknown(data['cached_at']!, _cachedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {roomCode};
+  @override
+  CachedRoom map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CachedRoom(
+      roomCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}room_code'],
+      )!,
+      payloadJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payload_json'],
+      )!,
+      cachedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}cached_at'],
+      )!,
+    );
+  }
+
+  @override
+  $CachedRoomsTable createAlias(String alias) {
+    return $CachedRoomsTable(attachedDatabase, alias);
+  }
+}
+
+class CachedRoom extends DataClass implements Insertable<CachedRoom> {
+  final String roomCode;
+  final String payloadJson;
+  final DateTime cachedAt;
+  const CachedRoom({
+    required this.roomCode,
+    required this.payloadJson,
+    required this.cachedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['room_code'] = Variable<String>(roomCode);
+    map['payload_json'] = Variable<String>(payloadJson);
+    map['cached_at'] = Variable<DateTime>(cachedAt);
+    return map;
+  }
+
+  CachedRoomsCompanion toCompanion(bool nullToAbsent) {
+    return CachedRoomsCompanion(
+      roomCode: Value(roomCode),
+      payloadJson: Value(payloadJson),
+      cachedAt: Value(cachedAt),
+    );
+  }
+
+  factory CachedRoom.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CachedRoom(
+      roomCode: serializer.fromJson<String>(json['roomCode']),
+      payloadJson: serializer.fromJson<String>(json['payloadJson']),
+      cachedAt: serializer.fromJson<DateTime>(json['cachedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'roomCode': serializer.toJson<String>(roomCode),
+      'payloadJson': serializer.toJson<String>(payloadJson),
+      'cachedAt': serializer.toJson<DateTime>(cachedAt),
+    };
+  }
+
+  CachedRoom copyWith({
+    String? roomCode,
+    String? payloadJson,
+    DateTime? cachedAt,
+  }) => CachedRoom(
+    roomCode: roomCode ?? this.roomCode,
+    payloadJson: payloadJson ?? this.payloadJson,
+    cachedAt: cachedAt ?? this.cachedAt,
+  );
+  CachedRoom copyWithCompanion(CachedRoomsCompanion data) {
+    return CachedRoom(
+      roomCode: data.roomCode.present ? data.roomCode.value : this.roomCode,
+      payloadJson: data.payloadJson.present
+          ? data.payloadJson.value
+          : this.payloadJson,
+      cachedAt: data.cachedAt.present ? data.cachedAt.value : this.cachedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CachedRoom(')
+          ..write('roomCode: $roomCode, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('cachedAt: $cachedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(roomCode, payloadJson, cachedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CachedRoom &&
+          other.roomCode == this.roomCode &&
+          other.payloadJson == this.payloadJson &&
+          other.cachedAt == this.cachedAt);
+}
+
+class CachedRoomsCompanion extends UpdateCompanion<CachedRoom> {
+  final Value<String> roomCode;
+  final Value<String> payloadJson;
+  final Value<DateTime> cachedAt;
+  final Value<int> rowid;
+  const CachedRoomsCompanion({
+    this.roomCode = const Value.absent(),
+    this.payloadJson = const Value.absent(),
+    this.cachedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CachedRoomsCompanion.insert({
+    required String roomCode,
+    required String payloadJson,
+    this.cachedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : roomCode = Value(roomCode),
+       payloadJson = Value(payloadJson);
+  static Insertable<CachedRoom> custom({
+    Expression<String>? roomCode,
+    Expression<String>? payloadJson,
+    Expression<DateTime>? cachedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (roomCode != null) 'room_code': roomCode,
+      if (payloadJson != null) 'payload_json': payloadJson,
+      if (cachedAt != null) 'cached_at': cachedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CachedRoomsCompanion copyWith({
+    Value<String>? roomCode,
+    Value<String>? payloadJson,
+    Value<DateTime>? cachedAt,
+    Value<int>? rowid,
+  }) {
+    return CachedRoomsCompanion(
+      roomCode: roomCode ?? this.roomCode,
+      payloadJson: payloadJson ?? this.payloadJson,
+      cachedAt: cachedAt ?? this.cachedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (roomCode.present) {
+      map['room_code'] = Variable<String>(roomCode.value);
+    }
+    if (payloadJson.present) {
+      map['payload_json'] = Variable<String>(payloadJson.value);
+    }
+    if (cachedAt.present) {
+      map['cached_at'] = Variable<DateTime>(cachedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CachedRoomsCompanion(')
+          ..write('roomCode: $roomCode, ')
+          ..write('payloadJson: $payloadJson, ')
           ..write('cachedAt: $cachedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -891,6 +1588,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $CachedBillsTable cachedBills = $CachedBillsTable(this);
+  late final $CachedProfilesTable cachedProfiles = $CachedProfilesTable(this);
+  late final $CachedRoomsTable cachedRooms = $CachedRoomsTable(this);
   late final $OfflineDraftsTable offlineDrafts = $OfflineDraftsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -898,6 +1597,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     cachedBills,
+    cachedProfiles,
+    cachedRooms,
     offlineDrafts,
   ];
 }
@@ -911,6 +1612,9 @@ typedef $$CachedBillsTableCreateCompanionBuilder =
       Value<String> status,
       Value<String?> receiptJson,
       Value<String?> sharersJson,
+      Value<String?> payloadJson,
+      Value<String?> localImagePath,
+      Value<String> syncStatus,
       Value<DateTime> cachedAt,
       Value<int> rowid,
     });
@@ -923,6 +1627,9 @@ typedef $$CachedBillsTableUpdateCompanionBuilder =
       Value<String> status,
       Value<String?> receiptJson,
       Value<String?> sharersJson,
+      Value<String?> payloadJson,
+      Value<String?> localImagePath,
+      Value<String> syncStatus,
       Value<DateTime> cachedAt,
       Value<int> rowid,
     });
@@ -968,6 +1675,21 @@ class $$CachedBillsTableFilterComposer
 
   ColumnFilters<String> get sharersJson => $composableBuilder(
     column: $table.sharersJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get localImagePath => $composableBuilder(
+    column: $table.localImagePath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1021,6 +1743,21 @@ class $$CachedBillsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get localImagePath => $composableBuilder(
+    column: $table.localImagePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get cachedAt => $composableBuilder(
     column: $table.cachedAt,
     builder: (column) => ColumnOrderings(column),
@@ -1062,6 +1799,21 @@ class $$CachedBillsTableAnnotationComposer
 
   GeneratedColumn<String> get sharersJson => $composableBuilder(
     column: $table.sharersJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get localImagePath => $composableBuilder(
+    column: $table.localImagePath,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
     builder: (column) => column,
   );
 
@@ -1107,6 +1859,9 @@ class $$CachedBillsTableTableManager
                 Value<String> status = const Value.absent(),
                 Value<String?> receiptJson = const Value.absent(),
                 Value<String?> sharersJson = const Value.absent(),
+                Value<String?> payloadJson = const Value.absent(),
+                Value<String?> localImagePath = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
                 Value<DateTime> cachedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CachedBillsCompanion(
@@ -1117,6 +1872,9 @@ class $$CachedBillsTableTableManager
                 status: status,
                 receiptJson: receiptJson,
                 sharersJson: sharersJson,
+                payloadJson: payloadJson,
+                localImagePath: localImagePath,
+                syncStatus: syncStatus,
                 cachedAt: cachedAt,
                 rowid: rowid,
               ),
@@ -1129,6 +1887,9 @@ class $$CachedBillsTableTableManager
                 Value<String> status = const Value.absent(),
                 Value<String?> receiptJson = const Value.absent(),
                 Value<String?> sharersJson = const Value.absent(),
+                Value<String?> payloadJson = const Value.absent(),
+                Value<String?> localImagePath = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
                 Value<DateTime> cachedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CachedBillsCompanion.insert(
@@ -1139,6 +1900,9 @@ class $$CachedBillsTableTableManager
                 status: status,
                 receiptJson: receiptJson,
                 sharersJson: sharersJson,
+                payloadJson: payloadJson,
+                localImagePath: localImagePath,
+                syncStatus: syncStatus,
                 cachedAt: cachedAt,
                 rowid: rowid,
               ),
@@ -1174,6 +1938,354 @@ typedef $$CachedBillsTableProcessedTableManager =
         BaseReferences<_$AppDatabase, $CachedBillsTable, CachedBill>,
       ),
       CachedBill,
+      PrefetchHooks Function()
+    >;
+typedef $$CachedProfilesTableCreateCompanionBuilder =
+    CachedProfilesCompanion Function({
+      required String id,
+      required String payloadJson,
+      Value<DateTime> cachedAt,
+      Value<int> rowid,
+    });
+typedef $$CachedProfilesTableUpdateCompanionBuilder =
+    CachedProfilesCompanion Function({
+      Value<String> id,
+      Value<String> payloadJson,
+      Value<DateTime> cachedAt,
+      Value<int> rowid,
+    });
+
+class $$CachedProfilesTableFilterComposer
+    extends Composer<_$AppDatabase, $CachedProfilesTable> {
+  $$CachedProfilesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get cachedAt => $composableBuilder(
+    column: $table.cachedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CachedProfilesTableOrderingComposer
+    extends Composer<_$AppDatabase, $CachedProfilesTable> {
+  $$CachedProfilesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get cachedAt => $composableBuilder(
+    column: $table.cachedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CachedProfilesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CachedProfilesTable> {
+  $$CachedProfilesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get cachedAt =>
+      $composableBuilder(column: $table.cachedAt, builder: (column) => column);
+}
+
+class $$CachedProfilesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CachedProfilesTable,
+          CachedProfile,
+          $$CachedProfilesTableFilterComposer,
+          $$CachedProfilesTableOrderingComposer,
+          $$CachedProfilesTableAnnotationComposer,
+          $$CachedProfilesTableCreateCompanionBuilder,
+          $$CachedProfilesTableUpdateCompanionBuilder,
+          (
+            CachedProfile,
+            BaseReferences<_$AppDatabase, $CachedProfilesTable, CachedProfile>,
+          ),
+          CachedProfile,
+          PrefetchHooks Function()
+        > {
+  $$CachedProfilesTableTableManager(
+    _$AppDatabase db,
+    $CachedProfilesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CachedProfilesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CachedProfilesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CachedProfilesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> payloadJson = const Value.absent(),
+                Value<DateTime> cachedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CachedProfilesCompanion(
+                id: id,
+                payloadJson: payloadJson,
+                cachedAt: cachedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String payloadJson,
+                Value<DateTime> cachedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CachedProfilesCompanion.insert(
+                id: id,
+                payloadJson: payloadJson,
+                cachedAt: cachedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$CachedProfilesTable, CachedProfile>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $CachedProfilesTable,
+                    CachedProfile
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CachedProfilesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CachedProfilesTable,
+      CachedProfile,
+      $$CachedProfilesTableFilterComposer,
+      $$CachedProfilesTableOrderingComposer,
+      $$CachedProfilesTableAnnotationComposer,
+      $$CachedProfilesTableCreateCompanionBuilder,
+      $$CachedProfilesTableUpdateCompanionBuilder,
+      (
+        CachedProfile,
+        BaseReferences<_$AppDatabase, $CachedProfilesTable, CachedProfile>,
+      ),
+      CachedProfile,
+      PrefetchHooks Function()
+    >;
+typedef $$CachedRoomsTableCreateCompanionBuilder =
+    CachedRoomsCompanion Function({
+      required String roomCode,
+      required String payloadJson,
+      Value<DateTime> cachedAt,
+      Value<int> rowid,
+    });
+typedef $$CachedRoomsTableUpdateCompanionBuilder =
+    CachedRoomsCompanion Function({
+      Value<String> roomCode,
+      Value<String> payloadJson,
+      Value<DateTime> cachedAt,
+      Value<int> rowid,
+    });
+
+class $$CachedRoomsTableFilterComposer
+    extends Composer<_$AppDatabase, $CachedRoomsTable> {
+  $$CachedRoomsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get roomCode => $composableBuilder(
+    column: $table.roomCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get cachedAt => $composableBuilder(
+    column: $table.cachedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CachedRoomsTableOrderingComposer
+    extends Composer<_$AppDatabase, $CachedRoomsTable> {
+  $$CachedRoomsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get roomCode => $composableBuilder(
+    column: $table.roomCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get cachedAt => $composableBuilder(
+    column: $table.cachedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CachedRoomsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CachedRoomsTable> {
+  $$CachedRoomsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get roomCode =>
+      $composableBuilder(column: $table.roomCode, builder: (column) => column);
+
+  GeneratedColumn<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get cachedAt =>
+      $composableBuilder(column: $table.cachedAt, builder: (column) => column);
+}
+
+class $$CachedRoomsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CachedRoomsTable,
+          CachedRoom,
+          $$CachedRoomsTableFilterComposer,
+          $$CachedRoomsTableOrderingComposer,
+          $$CachedRoomsTableAnnotationComposer,
+          $$CachedRoomsTableCreateCompanionBuilder,
+          $$CachedRoomsTableUpdateCompanionBuilder,
+          (
+            CachedRoom,
+            BaseReferences<_$AppDatabase, $CachedRoomsTable, CachedRoom>,
+          ),
+          CachedRoom,
+          PrefetchHooks Function()
+        > {
+  $$CachedRoomsTableTableManager(_$AppDatabase db, $CachedRoomsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CachedRoomsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CachedRoomsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CachedRoomsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> roomCode = const Value.absent(),
+                Value<String> payloadJson = const Value.absent(),
+                Value<DateTime> cachedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CachedRoomsCompanion(
+                roomCode: roomCode,
+                payloadJson: payloadJson,
+                cachedAt: cachedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String roomCode,
+                required String payloadJson,
+                Value<DateTime> cachedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CachedRoomsCompanion.insert(
+                roomCode: roomCode,
+                payloadJson: payloadJson,
+                cachedAt: cachedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$CachedRoomsTable, CachedRoom>(table),
+                  BaseReferences<_$AppDatabase, $CachedRoomsTable, CachedRoom>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CachedRoomsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CachedRoomsTable,
+      CachedRoom,
+      $$CachedRoomsTableFilterComposer,
+      $$CachedRoomsTableOrderingComposer,
+      $$CachedRoomsTableAnnotationComposer,
+      $$CachedRoomsTableCreateCompanionBuilder,
+      $$CachedRoomsTableUpdateCompanionBuilder,
+      (
+        CachedRoom,
+        BaseReferences<_$AppDatabase, $CachedRoomsTable, CachedRoom>,
+      ),
+      CachedRoom,
       PrefetchHooks Function()
     >;
 typedef $$OfflineDraftsTableCreateCompanionBuilder =
@@ -1387,6 +2499,10 @@ class $AppDatabaseManager {
   $AppDatabaseManager(this._db);
   $$CachedBillsTableTableManager get cachedBills =>
       $$CachedBillsTableTableManager(_db, _db.cachedBills);
+  $$CachedProfilesTableTableManager get cachedProfiles =>
+      $$CachedProfilesTableTableManager(_db, _db.cachedProfiles);
+  $$CachedRoomsTableTableManager get cachedRooms =>
+      $$CachedRoomsTableTableManager(_db, _db.cachedRooms);
   $$OfflineDraftsTableTableManager get offlineDrafts =>
       $$OfflineDraftsTableTableManager(_db, _db.offlineDrafts);
 }

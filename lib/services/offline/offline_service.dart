@@ -6,6 +6,10 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../data/repositories/local_bill_repository.dart';
+import '../storage/local_receipt_storage.dart';
+import '../storage/supabase_storage_service.dart';
+
 class OfflineOperation {
   final String id;
   final String type;
@@ -168,13 +172,31 @@ class OfflineService extends ChangeNotifier {
                 ..remove('status'),
             )
             .toList();
-        await _client.rpc(
+        final bill = Map<String, dynamic>.from(payload['bill'] as Map);
+        final localId =
+            payload['local_id']?.toString() ?? bill['id']?.toString();
+        final localImagePath = payload['local_image_path']?.toString();
+        if (localImagePath != null && localImagePath.isNotEmpty) {
+          final imageBytes = await readLocalReceipt(localImagePath);
+          if (imageBytes == null) {
+            throw StateError('ไม่พบรูปใบเสร็จที่บันทึกไว้ในเครื่อง');
+          }
+          bill['image_url'] = await SupabaseStorageService(client: _client)
+              .uploadReceiptBytes(
+                imageBytes,
+                localId ?? 'offline',
+                fileName: 'receipt.jpg',
+              );
+        }
+        final createdId = await _client.rpc(
           'create_bill_with_participants',
-          params: {
-            'p_bill': Map<String, dynamic>.from(payload['bill'] as Map),
-            'p_participants': participants,
-          },
+          params: {'p_bill': bill, 'p_participants': participants},
         );
+        if (localId != null && createdId is String && createdId.isNotEmpty) {
+          await LocalBillRepository().replaceCachedBillId(localId, createdId);
+        } else {
+          throw StateError('Supabase did not return the created bill ID');
+        }
         return;
       case 'update_bill':
         final payload = operation.payload;
@@ -182,6 +204,44 @@ class OfflineService extends ChangeNotifier {
             .from('bills')
             .update(Map<String, dynamic>.from(payload['data'] as Map))
             .eq('id', payload['id'].toString());
+        return;
+      case 'update_profile':
+        final payload = operation.payload;
+        await _client
+            .from('profiles')
+            .update(Map<String, dynamic>.from(payload['data'] as Map))
+            .eq('id', payload['id'].toString());
+        return;
+      case 'add_room_guest_member':
+        final payload = operation.payload;
+        final roomCode = payload['room_code'].toString();
+        final lobby = await _client
+            .from('lobbies')
+            .select('receipt_json')
+            .eq('room_code', roomCode)
+            .maybeSingle();
+        if (lobby == null) throw StateError('ไม่พบห้องที่รอซิงก์สมาชิก');
+        final rawReceipt = lobby['receipt_json'];
+        final receipt = rawReceipt is Map
+            ? Map<String, dynamic>.from(rawReceipt)
+            : <String, dynamic>{};
+        final rawMembers = receipt['room_members'];
+        final members = rawMembers is Iterable
+            ? rawMembers
+                  .whereType<Map>()
+                  .map((member) => Map<String, dynamic>.from(member))
+                  .toList()
+            : <Map<String, dynamic>>[];
+        final member = Map<String, dynamic>.from(payload['member'] as Map);
+        final memberId = member['id']?.toString();
+        if (!members.any((item) => item['id']?.toString() == memberId)) {
+          members.add(member);
+        }
+        receipt['room_members'] = members;
+        await _client
+            .from('lobbies')
+            .update({'receipt_json': receipt})
+            .eq('room_code', roomCode);
         return;
       case 'update_participant':
         final payload = operation.payload;
@@ -193,12 +253,22 @@ class OfflineService extends ChangeNotifier {
         return;
       case 'submit_bill_payment':
         final payload = operation.payload;
+        var slipData = payload['slip_data'].toString();
+        const localFilePrefix = 'local-file:';
+        if (slipData.startsWith(localFilePrefix)) {
+          final localPath = slipData.substring(localFilePrefix.length);
+          final imageBytes = await readLocalReceipt(localPath);
+          if (imageBytes == null) {
+            throw StateError('ไม่พบสลิปที่บันทึกไว้ในเครื่อง');
+          }
+          slipData = 'data:image/jpeg;base64,${base64Encode(imageBytes)}';
+        }
         await _client.rpc(
           'submit_bill_payment',
           params: {
             'p_bill_id': payload['bill_id'].toString(),
             'p_profile_id': payload['profile_id'].toString(),
-            'p_slip_data': payload['slip_data'].toString(),
+            'p_slip_data': slipData,
           },
         );
         return;

@@ -72,22 +72,24 @@ class RoomMember {
   final String id;
   final String name;
   final String? avatarUrl;
+  final String? localAvatarPath;
   final bool isGuest;
 
   const RoomMember({
     required this.id,
     required this.name,
     this.avatarUrl,
+    this.localAvatarPath,
     this.isGuest = false,
   });
 
   factory RoomMember.fromMap(Map<String, dynamic> map) {
     return RoomMember(
       id: (map['id'] ?? map['user_id'] ?? '').toString(),
-      name:
-          (map['name'] ?? map['user_name'] ?? map['display_name'] ?? 'เพื่อน')
-              .toString(),
+      name: (map['name'] ?? map['user_name'] ?? map['display_name'] ?? 'เพื่อน')
+          .toString(),
       avatarUrl: (map['avatar_url'] ?? map['avatarUrl'])?.toString(),
+      localAvatarPath: map['local_avatar_path']?.toString(),
       isGuest: map['is_guest'] == true || map['isGuest'] == true,
     );
   }
@@ -133,7 +135,8 @@ class BillItemModel {
       _ => <String>[],
     };
     final userQuantities = <String, int>{};
-    final rawClaims = claimsData ?? (claimedByData is Map ? claimedByData : null);
+    final rawClaims =
+        claimsData ?? (claimedByData is Map ? claimedByData : null);
     if (rawClaims is Map) {
       rawClaims.forEach((userId, count) {
         final quantity = int.tryParse(count.toString()) ?? 0;
@@ -164,10 +167,8 @@ class BillItemModel {
       billId: json['bill_id'] as String,
       itemName: json['item_name'] as String,
       price: (json['price'] ?? 0).toDouble(),
-      quantity: int.tryParse(
-            (json['quantity'] ?? json['qty'] ?? 1).toString(),
-          ) ??
-          1,
+      quantity:
+          int.tryParse((json['quantity'] ?? json['qty'] ?? 1).toString()) ?? 1,
       totalPrice: json['total_price'] != null
           ? _asDouble(json['total_price'])
           : null,
@@ -180,11 +181,7 @@ class BillItemModel {
   }
 
   Map<String, dynamic> toJson() {
-    final allClaimants = {
-      ...userQuantities.keys,
-      ...sharedUsers,
-      ...claimedBy,
-    };
+    final allClaimants = {...userQuantities.keys, ...sharedUsers, ...claimedBy};
     return {
       'id': id,
       'bill_id': billId,

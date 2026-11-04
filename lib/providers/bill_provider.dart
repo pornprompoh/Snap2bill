@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import '../models/bill_model.dart';
 import '../models/user_model.dart';
 import 'contact_provider.dart';
+import '../data/repositories/local_bill_repository.dart';
 import '../data/repositories/supabase_bill_repository.dart';
 import '../domain/repositories/bill_repository.dart';
 import '../domain/usecases/bill_use_cases.dart';
+import '../services/offline/offline_service.dart';
 
 class BillProvider with ChangeNotifier {
   final BillRepository _billRepository;
@@ -15,9 +17,12 @@ class BillProvider with ChangeNotifier {
   late final GetMyBills _getMyBills;
   late final CreateBill _createBill;
   ContactProvider? _contactProvider;
+  late final LocalBillRepository _localRepository = LocalBillRepository();
+  late final OfflineQueue _offlineQueue = OfflineQueue();
+  OfflineService? _offlineService;
 
   BillProvider({BillRepository? billRepository})
-      : _billRepository = billRepository ?? SupabaseBillRepository() {
+    : _billRepository = billRepository ?? SupabaseBillRepository() {
     _getRoomGuestMembers = GetRoomGuestMembers(_billRepository);
     _addRoomGuestMember = AddRoomGuestMember(_billRepository);
     _getMyBills = GetMyBills(_billRepository);
@@ -26,6 +31,10 @@ class BillProvider with ChangeNotifier {
 
   void setContactProvider(ContactProvider contactProvider) {
     _contactProvider = contactProvider;
+  }
+
+  void setOfflineService(OfflineService offlineService) {
+    _offlineService = offlineService;
   }
 
   List<BillModel> _bills = [];
@@ -61,7 +70,11 @@ class BillProvider with ChangeNotifier {
     Iterable<String> participantIds = const [],
   }) {
     if (splitType != 'equal' && splitType != 'proportional') {
-      throw ArgumentError.value(splitType, 'splitType', 'Unsupported split type.');
+      throw ArgumentError.value(
+        splitType,
+        'splitType',
+        'Unsupported split type.',
+      );
     }
 
     final itemTotalsByUser = <String, double>{
@@ -69,7 +82,9 @@ class BillProvider with ChangeNotifier {
         if (id.isNotEmpty) id: 0,
     };
     var totalMenuValue = 0.0;
-    final validItems = items.where((it) => it.price > 0 && it.itemName.trim().isNotEmpty);
+    final validItems = items.where(
+      (it) => it.price > 0 && it.itemName.trim().isNotEmpty,
+    );
 
     for (final item in validItems) {
       totalMenuValue += item.price * item.quantity;
@@ -93,7 +108,8 @@ class BillProvider with ChangeNotifier {
       final sharedUsers = item.sharedUsers.where((id) => id.isNotEmpty).toSet();
       if (unallocatedQuantity > 0 && sharedUsers.isNotEmpty) {
         final sharedAmount =
-            (item.price * unallocatedQuantity / sharedUsers.length).ceilToDouble();
+            (item.price * unallocatedQuantity / sharedUsers.length)
+                .ceilToDouble();
         for (final userId in sharedUsers) {
           itemTotalsByUser[userId] =
               (itemTotalsByUser[userId] ?? 0) + sharedAmount;
@@ -112,14 +128,16 @@ class BillProvider with ChangeNotifier {
 
     return {
       for (final entry in itemTotalsByUser.entries)
-        entry.key: activeEaterIds.isNotEmpty && !activeEaterIds.contains(entry.key)
+        entry.key:
+            activeEaterIds.isNotEmpty && !activeEaterIds.contains(entry.key)
             ? 0.0
             : (entry.value +
-                (splitType == 'equal'
-                    ? (activeCount > 0 ? extraAmount / activeCount : 0.0)
-                    : (totalMenuValue > 0
-                          ? extraAmount * entry.value / totalMenuValue
-                          : 0.0))).ceilToDouble(),
+                      (splitType == 'equal'
+                          ? (activeCount > 0 ? extraAmount / activeCount : 0.0)
+                          : (totalMenuValue > 0
+                                ? extraAmount * entry.value / totalMenuValue
+                                : 0.0)))
+                  .ceilToDouble(),
     };
   }
 
@@ -151,6 +169,7 @@ class BillProvider with ChangeNotifier {
             ? participant.displayName!.trim()
             : participant.email?.split('@').first ?? 'เพื่อน',
         avatarUrl: participant.avatarUrl,
+        localAvatarPath: participant.localAvatarPath,
       );
       _mergeRoomMember(member);
       if (member.id != _billRepository.currentUserId) _saveContact(member.name);
@@ -161,8 +180,27 @@ class BillProvider with ChangeNotifier {
   }
 
   Future<void> loadRoomMembers(String roomCode) async {
-    final members = await _getRoomGuestMembers(roomCode);
-    mergeRoomMembers(members);
+    setActiveRoom(roomCode);
+    try {
+      final cachedMembers = await _localRepository.getCachedRoomMembers(
+        roomCode,
+      );
+      mergeRoomMembers(cachedMembers);
+    } catch (error, stackTrace) {
+      debugPrint('Failed to read cached room members: $error\n$stackTrace');
+    }
+
+    if (_offlineService?.isOffline == true) return;
+    try {
+      final members = await _getRoomGuestMembers(roomCode);
+      await _localRepository.cacheRoomMembers(roomCode, members);
+      mergeRoomMembers(members);
+    } catch (error, stackTrace) {
+      if (!OfflineService.isLikelyNetworkError(error)) rethrow;
+      debugPrint(
+        'Using cached room members while offline: $error\n$stackTrace',
+      );
+    }
   }
 
   Future<RoomMember> addGuestMember(String guestName) async {
@@ -177,15 +215,41 @@ class BillProvider with ChangeNotifier {
       name: name,
       isGuest: true,
     );
-    final savedMember = await _addRoomGuestMember(roomCode, member);
-    mergeRoomMembers([savedMember]);
+    mergeRoomMembers([member]);
+    await _localRepository.cacheRoomMembers(roomCode, _roomMembers);
+    RoomMember savedMember;
+    if (_offlineService?.isOffline == true) {
+      await _offlineQueue.enqueue(
+        type: 'add_room_guest_member',
+        payload: {'room_code': roomCode, 'member': member.toMap()},
+      );
+      savedMember = member;
+    } else {
+      try {
+        savedMember = await _addRoomGuestMember(roomCode, member);
+      } catch (error) {
+        if (!OfflineService.isLikelyNetworkError(error)) {
+          _roomMembers.removeWhere((existing) => existing.id == member.id);
+          await _localRepository.cacheRoomMembers(roomCode, _roomMembers);
+          rethrow;
+        }
+        await _offlineQueue.enqueue(
+          type: 'add_room_guest_member',
+          payload: {'room_code': roomCode, 'member': member.toMap()},
+        );
+        savedMember = member;
+      }
+    }
+    await _localRepository.cacheRoomMembers(roomCode, _roomMembers);
     await _saveContact(name);
     return savedMember;
   }
 
   Future<void> saveRoomMemberContacts(Iterable<RoomMember> members) async {
     for (final member in members) {
-      if (!member.isGuest && member.id == _billRepository.currentUserId) continue;
+      if (!member.isGuest && member.id == _billRepository.currentUserId) {
+        continue;
+      }
       await _saveContact(member.name);
     }
   }
@@ -210,7 +274,9 @@ class BillProvider with ChangeNotifier {
 
   bool _mergeRoomMember(RoomMember member) {
     if (member.id.isEmpty) return false;
-    final index = _roomMembers.indexWhere((existing) => existing.id == member.id);
+    final index = _roomMembers.indexWhere(
+      (existing) => existing.id == member.id,
+    );
     if (index >= 0) return false;
     _roomMembers.add(member);
     return true;

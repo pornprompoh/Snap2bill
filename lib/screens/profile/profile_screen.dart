@@ -60,9 +60,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadProfile() async {
     try {
       await context.read<UserProvider>().loadProfile();
-    } catch (_) {
+    } catch (error) {
+      debugPrint('โหลดข้อมูลโปรไฟล์ไม่สำเร็จ: $error');
       if (mounted) {
-        _showMessage('ไม่สามารถโหลดข้อมูลโปรไฟล์ได้', AppColors.error);
+        _showMessage(
+          'โหลดข้อมูลโปรไฟล์ไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง',
+          AppColors.error,
+        );
       }
     }
   }
@@ -135,7 +139,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() => _isEditing = false);
       _showMessage('บันทึกโปรไฟล์เรียบร้อยแล้ว', AppColors.success);
     } else {
-      _showMessage('บันทึกไม่สำเร็จ กรุณาลองอีกครั้ง', AppColors.error);
+      _showMessage(
+        'บันทึกโปรไฟล์ไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง',
+        AppColors.error,
+      );
     }
   }
 
@@ -157,9 +164,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       }
     } catch (e) {
+      debugPrint('ออกจากระบบไม่สำเร็จ: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('ไม่สามารถออกจากระบบได้ กรุณาลองใหม่')),
+          const SnackBar(content: Text('ออกจากระบบไม่สำเร็จ กรุณาลองอีกครั้ง')),
         );
       }
     }

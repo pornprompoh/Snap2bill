@@ -8,6 +8,7 @@ Snap2Bill เป็นแอป Flutter สำหรับสแกนใบเ�
 - สแกน/เลือกรูปใบเสร็จ แล้วใช้ Gemini OCR แยกรายการ ราคา VAT เซอร์วิสชาร์จ และส่วนลด โดยมีโมเดลสำรองเมื่อเกิด rate limit หรือ service unavailable
 - บีบอัดรูปเป็น JPEG ก่อนอัปโหลดไป Supabase Storage
 - สร้าง Lobby แบบ Realtime, แชร์ห้องด้วย QR deep link และเลือกเพื่อนจากประวัติบิล
+- QR เชิญเปิด `https://snap2bill.vercel.app/#/join?roomId=...`; เก็บรายการเข้าร่วมค้างไว้ระหว่างล็อกอิน และรองรับทั้งรหัส Lobby 6 หลักกับ UUID ของบิล
 - เลือกรายการที่แต่ละคนรับผิดชอบ คำนวณส่วนแบ่ง และสร้าง PromptPay QR ตามยอดชำระ
 - ตั้งค่า Display Name และข้อมูล PromptPay ในโปรไฟล์
 
@@ -82,6 +83,8 @@ snap2bill/
 
 ## เครื่องมือและ Dependencies
 
+การเข้าร่วมบิลที่ใช้ UUID ต้องติดตั้ง migration `supabase/migrations/20261104030000_join_bill_rpc.sql` ใน Supabase ก่อน เพื่อให้ RPC เพิ่มผู้เข้าร่วมได้ตาม RLS โดยไม่เปิดสิทธิ์เขียนตารางให้ผู้ใช้ทั่วไป
+
 - Flutter SDK/Dart SDK ตาม constraints ใน `pubspec.yaml` (แพ็กเกจ `app_links` ต้องใช้ Flutter 3.44 ขึ้นไป)
 - Supabase project สำหรับ Auth, Database, Realtime และ Storage
 - Gemini API key สำหรับ OCR
@@ -151,6 +154,10 @@ supabase db push
 Migration `20261104010000_bill_payment_records.sql` สร้างตาราง `bill_payments` สำหรับสถานะและสลิป โดยอ่านได้เฉพาะเจ้าของบิลหรือผู้ร่วมบิลเจ้าของข้อมูล การส่งสลิปและการยืนยัน/ปฏิเสธสถานะทำผ่าน RPC ที่ตรวจสิทธิ์ฝั่งฐานข้อมูล และย้ายข้อมูล `paid_statuses`/`payment_slips` เดิมจาก `receipt_json` เข้าตารางใหม่นี้ก่อนนำคีย์เดิมออกจากบิล เพื่อไม่เปิดเผยสลิปให้ผู้ร่วมบิลคนอื่น
 
 Migration `20261104020000_create_bill_rpc.sql` สร้าง RPC สำหรับบันทึกบิลและผู้ร่วมบิลแบบ atomic โดยกำหนด `owner_id` จาก `auth.uid()` ในฐานข้อมูลแทนการเชื่อค่าจากไคลเอนต์ หากพบ RLS error ตอนบันทึกบิล ให้ติดตั้ง migrations ล่าสุดด้วย `supabase db push` (หรือรัน SQL ใน Supabase SQL Editor ตามลำดับ) แล้ว deploy เว็บ/แอปเวอร์ชันล่าสุด ซึ่งจะบันทึกผ่าน `create_bill_with_participants` แทนการ `INSERT` ตาราง `bills` โดยตรง
+
+Migration `20261104100000_realtime_and_notifications.sql` เปิด Postgres Changes ใน `supabase_realtime` สำหรับ `bills`, `bill_participants`, `bill_payments` และ `notifications`, ตั้ง `REPLICA IDENTITY FULL`, และสร้างตารางแจ้งเตือนพร้อม RLS ให้เจ้าของบิลส่งการเตือนได้เฉพาะผู้ร่วมบิล ส่วนผู้รับอ่าน/ทำเครื่องหมายว่าอ่านแล้วได้เฉพาะรายการของตนเอง หน้ารายละเอียดบิลและหน้าแรกจะรีเฟรชจากการเปลี่ยนแปลงของบิล/การชำระ และแถบกระดิ่งรับแจ้งเตือนผ่าน Realtime พร้อม Snackbar เมื่อแอปเปิดอยู่ ช่อง Realtime ของหน้าบิลและบริการแจ้งเตือนจะถูกนำออกเมื่อปิดหน้าหรือเปลี่ยนบัญชี ใช้ `supabase db push` หรือรัน migration นี้ใน SQL Editor หลัง migrations ที่สร้าง `bills`, `bill_participants`, `bill_payments` และฟังก์ชัน `private.owns_bill` แล้ว
+
+สถานะก่อน migration: มี Presence/Broadcast สำหรับ Lobby และ Claim, มี Postgres Changes ที่หน้าแรกสำหรับ `bills` และ `bill_participants`, แต่ไม่มี subscription สำหรับ `bill_payments`/หน้ารายละเอียดบิลหรือ migration ที่เพิ่มตารางเหล่านี้เข้า publication; การแจ้งเตือนเดิมพึ่งพา SharedPreferences พร้อมการเขียน Supabase แบบ best-effort จึงไม่รับประกันการส่งข้ามอุปกรณ์ Realtime ของบิลอาศัยข้อมูลรายการที่เก็บใน `bills.receipt_json`/`sharers_json` (โปรเจกต์ยังไม่มีตาราง `bill_items`)
 
 ตั้ง policy ของ Storage แยกใน Dashboard ที่ **Storage → Policies → receipts → Create policy** เพราะ `storage.objects` เป็นตารางที่ Supabase จัดการ และ migration นี้ไม่แก้ policy ของตารางดังกล่าว:
 

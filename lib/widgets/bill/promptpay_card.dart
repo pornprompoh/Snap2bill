@@ -133,10 +133,11 @@ class _PromptPayCardState extends State<PromptPayCard> {
         );
       }
     } catch (error) {
+      debugPrint('บันทึกรูปคิวอาร์โค้ดไม่สำเร็จ: $error');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('บันทึกรูปคิวอาร์โค้ดไม่สำเร็จ: $error'),
+          const SnackBar(
+            content: Text('บันทึกรูปคิวอาร์โค้ดไม่สำเร็จ กรุณาลองอีกครั้ง'),
             backgroundColor: Colors.red,
           ),
         );

@@ -11,6 +11,7 @@ import '../screens/bill/claim_screen.dart';
 import '../screens/bill/summary_screen.dart';
 import '../screens/friends/friend_list_screen.dart';
 import '../screens/bill/detail_screen.dart';
+import '../screens/bill/join_room_screen.dart';
 import '../screens/main/main_screen.dart';
 
 class AppRoutes {
@@ -27,22 +28,40 @@ class AppRoutes {
   static const String profile = '/profile';
   static const String friends = '/friends';
   static const String detail = '/detail';
+  static const String join = '/join';
+
+  static String normalizeRouteName(String name) {
+    var routeLocation = name;
+    final hashRouteIndex = name.indexOf('#');
+    if (hashRouteIndex >= 0) {
+      final fragment = name.substring(hashRouteIndex + 1);
+      if (fragment.startsWith('/')) {
+        routeLocation = fragment;
+      } else {
+        if (fragment == '=_=' || fragment == '/_=_') return splash;
+        routeLocation = name.substring(0, hashRouteIndex);
+      }
+    }
+
+    if (routeLocation == '=_=' || routeLocation == '/_=_') return splash;
+    final uri = Uri.tryParse(routeLocation);
+    final path = uri?.path;
+    return path == null || path.isEmpty ? '/' : path;
+  }
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
-    String routeName = settings.name ?? '/';
-    if (routeName.contains('?')) {
-      routeName = routeName.split('?')[0];
-    }
-    if (routeName.contains('#')) {
-      routeName = routeName.split('#')[0];
-    }
+    final originalRouteName = settings.name ?? '/';
+    final routeName = normalizeRouteName(originalRouteName);
+    final routeLocation = originalRouteName.contains('#')
+        ? originalRouteName.substring(originalRouteName.indexOf('#') + 1)
+        : originalRouteName;
+    final routeUri = Uri.tryParse(routeLocation);
+    final queryParameters = routeUri?.queryParameters ?? const {};
 
     switch (routeName) {
       case splash:
         return MaterialPageRoute(builder: (_) => const SplashScreen());
       case '/':
-      case '=_=':
-      case '/_=_':
         return MaterialPageRoute(builder: (_) => const SplashScreen());
       case onboarding:
         final destinationRoute = settings.arguments as String? ?? login;
@@ -51,6 +70,19 @@ class AppRoutes {
         );
       case login:
         return MaterialPageRoute(builder: (_) => const LoginScreen());
+      case join:
+        final args = settings.arguments;
+        final arguments = args is Map ? args : const {};
+        final roomId =
+            arguments['roomId']?.toString() ??
+            arguments['billId']?.toString() ??
+            queryParameters['roomId'] ??
+            queryParameters['billId'] ??
+            queryParameters['roomCode'] ??
+            queryParameters['room_code'];
+        return MaterialPageRoute(
+          builder: (_) => JoinRoomScreen(roomId: roomId),
+        );
       case home:
         return MaterialPageRoute(builder: (_) => const MainScreen());
       case scan:

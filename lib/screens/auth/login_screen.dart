@@ -5,6 +5,7 @@ import '../../data/repositories/supabase_auth_repository.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/usecases/auth_use_cases.dart';
 import '../../routes/app_routes.dart';
+import '../../services/join/pending_join_store.dart';
 import '../../services/onboarding/onboarding_service.dart';
 import '../../theme/app_colors.dart';
 
@@ -35,7 +36,18 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted || _isNavigatingHome) return;
     _isNavigatingHome = true;
     try {
-      final onboardingCompleted = await const OnboardingService().hasCompleted();
+      final pendingRoomId = await const PendingJoinStore().read();
+      if (!mounted) return;
+      if (pendingRoomId != null) {
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          AppRoutes.join,
+          (route) => false,
+          arguments: {'roomId': pendingRoomId},
+        );
+        return;
+      }
+      final onboardingCompleted = await const OnboardingService()
+          .hasCompleted();
       if (!mounted) return;
 
       final destinationRoute = onboardingCompleted
@@ -47,10 +59,13 @@ class _LoginScreenState extends State<LoginScreen> {
         arguments: onboardingCompleted ? null : AppRoutes.home,
       );
     } catch (error) {
+      debugPrint('ตรวจสอบสถานะการเข้าสู่ระบบไม่สำเร็จ: $error');
       if (!mounted) return;
       _isNavigatingHome = false;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('ไม่สามารถตรวจสอบสถานะบทสอนได้: $error')),
+        const SnackBar(
+          content: Text('ตรวจสอบสถานะการเข้าสู่ระบบไม่สำเร็จ กรุณาลองอีกครั้ง'),
+        ),
       );
     }
   }
@@ -70,13 +85,14 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     });
 
-    _authStateSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
-      final AuthChangeEvent event = data.event;
-      final Session? session = data.session;
-      if (event == AuthChangeEvent.signedIn || session != null) {
-        _navigateToHome();
-      }
-    });
+    _authStateSubscription = Supabase.instance.client.auth.onAuthStateChange
+        .listen((data) {
+          final AuthChangeEvent event = data.event;
+          final Session? session = data.session;
+          if (event == AuthChangeEvent.signedIn || session != null) {
+            _navigateToHome();
+          }
+        });
   }
 
   @override
@@ -93,15 +109,18 @@ class _LoginScreenState extends State<LoginScreen> {
       final response = await _signInWithGoogle();
       if (!mounted) return;
       if (response != null && response.user != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('เข้าสู่ระบบสำเร็จ')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('เข้าสู่ระบบสำเร็จ')));
         _navigateToHome();
       }
     } catch (e) {
+      debugPrint('เข้าสู่ระบบด้วย Google ไม่สำเร็จ: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('ล็อกอินล้มเหลว: $e')),
+        const SnackBar(
+          content: Text('เข้าสู่ระบบด้วย Google ไม่สำเร็จ กรุณาลองอีกครั้ง'),
+        ),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -113,9 +132,12 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await _signInWithFacebook();
     } catch (e) {
+      debugPrint('เข้าสู่ระบบด้วย Facebook ไม่สำเร็จ: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('ล็อกอิน Facebook ล้มเหลว: $e')),
+        const SnackBar(
+          content: Text('เข้าสู่ระบบด้วย Facebook ไม่สำเร็จ กรุณาลองอีกครั้ง'),
+        ),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -133,22 +155,31 @@ class _LoginScreenState extends State<LoginScreen> {
       if (_isSignUp) {
         await _signUp(email, password);
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('สมัครสมาชิกสำเร็จ!')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('สมัครสมาชิกสำเร็จ!')));
         _navigateToHome();
       } else {
         await _signInWithEmail(email, password);
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('เข้าสู่ระบบสำเร็จ')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('เข้าสู่ระบบสำเร็จ')));
         _navigateToHome();
       }
     } catch (e) {
+      debugPrint(
+        _isSignUp ? 'สมัครสมาชิกไม่สำเร็จ: $e' : 'เข้าสู่ระบบไม่สำเร็จ: $e',
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('เกิดข้อผิดพลาด: $e')),
+        SnackBar(
+          content: Text(
+            _isSignUp
+                ? 'สมัครสมาชิกไม่สำเร็จ กรุณาตรวจสอบอีเมลและรหัสผ่าน'
+                : 'เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบอีเมลและรหัสผ่าน',
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -183,12 +214,21 @@ class _LoginScreenState extends State<LoginScreen> {
                       height: 96,
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: isDark ? AppColors.darkCardBackground : AppColors.white,
+                        color: isDark
+                            ? AppColors.darkCardBackground
+                            : AppColors.white,
                         borderRadius: BorderRadius.circular(22),
-                        border: Border.all(color: isDark ? AppColors.darkBorder : const Color(0xFFEEEEEE), width: 1.2),
+                        border: Border.all(
+                          color: isDark
+                              ? AppColors.darkBorder
+                              : const Color(0xFFEEEEEE),
+                          width: 1.2,
+                        ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                            color: Colors.black.withValues(
+                              alpha: isDark ? 0.2 : 0.04,
+                            ),
                             blurRadius: 16,
                             offset: const Offset(0, 4),
                           ),
@@ -199,11 +239,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Image.asset(
                           'assets/images/bunny_mascot.png',
                           fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) => const Icon(
-                            Icons.auto_awesome,
-                            size: 40,
-                            color: AppColors.pink,
-                          ),
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(
+                                Icons.auto_awesome,
+                                size: 40,
+                                color: AppColors.pink,
+                              ),
                         ),
                       ),
                     ),
@@ -232,11 +273,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      _isSignUp ? 'สมัครสมาชิกเพื่อเริ่มต้นใช้งาน' : 'เข้าสู่ระบบเพื่อจัดการบิล',
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        color: textSec,
-                      ),
+                      _isSignUp
+                          ? 'สมัครสมาชิกเพื่อเริ่มต้นใช้งาน'
+                          : 'เข้าสู่ระบบเพื่อจัดการบิล',
+                      style: TextStyle(fontSize: 12.5, color: textSec),
                     ),
                     const SizedBox(height: 24),
 
@@ -249,10 +289,19 @@ class _LoginScreenState extends State<LoginScreen> {
                       decoration: InputDecoration(
                         hintText: 'อีเมล',
                         hintStyle: TextStyle(color: textSec, fontSize: 14),
-                        prefixIcon: Icon(Icons.mail_outline_rounded, color: textSec, size: 20),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                        prefixIcon: Icon(
+                          Icons.mail_outline_rounded,
+                          color: textSec,
+                          size: 20,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
                         filled: true,
-                        fillColor: isDark ? AppColors.darkSurface : AppColors.white,
+                        fillColor: isDark
+                            ? AppColors.darkSurface
+                            : AppColors.white,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(color: borderCol),
@@ -263,7 +312,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppColors.pink, width: 1.5),
+                          borderSide: const BorderSide(
+                            color: AppColors.pink,
+                            width: 1.5,
+                          ),
                         ),
                       ),
                     ),
@@ -278,18 +330,31 @@ class _LoginScreenState extends State<LoginScreen> {
                       decoration: InputDecoration(
                         hintText: 'รหัสผ่าน',
                         hintStyle: TextStyle(color: textSec, fontSize: 14),
-                        prefixIcon: Icon(Icons.lock_outline_rounded, color: textSec, size: 20),
+                        prefixIcon: Icon(
+                          Icons.lock_outline_rounded,
+                          color: textSec,
+                          size: 20,
+                        ),
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _isPasswordVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                            _isPasswordVisible
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
                             color: textSec,
                             size: 20,
                           ),
-                          onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+                          onPressed: () => setState(
+                            () => _isPasswordVisible = !_isPasswordVisible,
+                          ),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
                         filled: true,
-                        fillColor: isDark ? AppColors.darkSurface : AppColors.white,
+                        fillColor: isDark
+                            ? AppColors.darkSurface
+                            : AppColors.white,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(color: borderCol),
@@ -300,7 +365,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppColors.pink, width: 1.5),
+                          borderSide: const BorderSide(
+                            color: AppColors.pink,
+                            width: 1.5,
+                          ),
                         ),
                       ),
                     ),
@@ -313,7 +381,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: TextButton(
                           onPressed: () {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('กรุณาติดต่อผู้ดูแลระบบเพื่อรีเซ็ตรหัสผ่าน')),
+                              const SnackBar(
+                                content: Text(
+                                  'กรุณาติดต่อผู้ดูแลระบบเพื่อรีเซ็ตรหัสผ่าน',
+                                ),
+                              ),
                             );
                           },
                           style: TextButton.styleFrom(
@@ -353,7 +425,10 @@ class _LoginScreenState extends State<LoginScreen> {
                             ? const SizedBox(
                                 width: 22,
                                 height: 22,
-                                child: CircularProgressIndicator(color: AppColors.white, strokeWidth: 2.2),
+                                child: CircularProgressIndicator(
+                                  color: AppColors.white,
+                                  strokeWidth: 2.2,
+                                ),
                               )
                             : Text(
                                 _isSignUp ? 'สมัครสมาชิก' : 'เข้าสู่ระบบ',
@@ -392,7 +467,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: OutlinedButton(
                             onPressed: _isLoading ? null : _handleGoogleSignIn,
                             style: OutlinedButton.styleFrom(
-                              backgroundColor: isDark ? AppColors.darkSurface : AppColors.white,
+                              backgroundColor: isDark
+                                  ? AppColors.darkSurface
+                                  : AppColors.white,
                               side: BorderSide(color: borderCol),
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(
@@ -406,11 +483,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                   'assets/images/google_logo.png',
                                   width: 18,
                                   height: 18,
-                                  errorBuilder: (context, error, stackTrace) => const Icon(
-                                    Icons.g_mobiledata,
-                                    size: 20,
-                                    color: Colors.red,
-                                  ),
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      const Icon(
+                                        Icons.g_mobiledata,
+                                        size: 20,
+                                        color: Colors.red,
+                                      ),
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
@@ -428,9 +506,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: _isLoading ? null : _handleFacebookSignIn,
+                            onPressed: _isLoading
+                                ? null
+                                : _handleFacebookSignIn,
                             style: OutlinedButton.styleFrom(
-                              backgroundColor: isDark ? AppColors.darkSurface : AppColors.white,
+                              backgroundColor: isDark
+                                  ? AppColors.darkSurface
+                                  : AppColors.white,
                               side: BorderSide(color: borderCol),
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(
@@ -467,7 +549,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     InkWell(
                       onTap: () => setState(() => _isSignUp = !_isSignUp),
                       child: Text(
-                        _isSignUp ? 'มีบัญชีอยู่แล้ว? เข้าสู่ระบบ' : 'ยังไม่มีบัญชีใช่ไหม? สมัครสมาชิก',
+                        _isSignUp
+                            ? 'มีบัญชีอยู่แล้ว? เข้าสู่ระบบ'
+                            : 'ยังไม่มีบัญชีใช่ไหม? สมัครสมาชิก',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,

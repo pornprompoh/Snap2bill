@@ -68,11 +68,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         context,
       ).pushNamedAndRemoveUntil(widget.destinationRoute, (_) => false);
     } catch (error) {
+      debugPrint('บันทึกการตั้งค่าเริ่มต้นไม่สำเร็จ: $error');
       if (!mounted) return;
       setState(() => _isFinishing = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('บันทึกการตั้งค่าไม่สำเร็จ: $error'),
+          content: const Text(
+            'บันทึกการตั้งค่าไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง',
+          ),
           backgroundColor: AppColors.error,
         ),
       );

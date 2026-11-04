@@ -1,9 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../utils/formatters.dart';
+
 import '../../utils/bill_progress_helper.dart';
+import '../../utils/formatters.dart';
 
 class InAppNotificationItem {
   final String id;
@@ -34,21 +33,6 @@ class InAppNotificationItem {
     this.isRead = false,
   });
 
-  Map<String, dynamic> toMap() => {
-        'id': id,
-        'bill_id': billId,
-        'shop_name': shopName,
-        'recipient_id': recipientId,
-        'recipient_name': recipientName,
-        'sender_id': senderId,
-        'sender_name': senderName,
-        'amount': amount,
-        'title': title,
-        'message': message,
-        'created_at': createdAt.toIso8601String(),
-        'is_read': isRead,
-      };
-
   factory InAppNotificationItem.fromMap(Map<String, dynamic> map) =>
       InAppNotificationItem(
         id: map['id']?.toString() ?? '',
@@ -58,11 +42,12 @@ class InAppNotificationItem {
         recipientName: map['recipient_name']?.toString() ?? 'เพื่อน',
         senderId: map['sender_id']?.toString() ?? '',
         senderName: map['sender_name']?.toString() ?? 'เจ้าของบิล',
-        amount: double.tryParse(map['amount']?.toString() ?? '0') ?? 0.0,
+        amount: double.tryParse(map['amount']?.toString() ?? '0') ?? 0,
         title: map['title']?.toString() ?? 'สะกิดเตือนบิล',
         message: map['message']?.toString() ?? '',
-        createdAt: DateTime.tryParse(map['created_at']?.toString() ?? '') ??
-            DateTime.now(),
+        createdAt:
+            DateTime.tryParse(map['created_at']?.toString() ?? '') ??
+            DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
         isRead: map['is_read'] == true,
       );
 }
@@ -71,34 +56,93 @@ class InAppNotificationService {
   static final InAppNotificationService instance = InAppNotificationService._();
   InAppNotificationService._();
 
-  static const String _storageKey = 'snap2bill_in_app_notifications';
+  final SupabaseClient _supabase = Supabase.instance.client;
   final ValueNotifier<int> unreadCount = ValueNotifier<int>(0);
+  final ValueNotifier<List<InAppNotificationItem>> notifications =
+      ValueNotifier<List<InAppNotificationItem>>([]);
+  RealtimeChannel? _notificationsChannel;
+  String? _subscribedUserId;
 
-  Future<List<InAppNotificationItem>> getNotifications({String? currentUserId}) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_storageKey);
-      if (raw == null || raw.isEmpty) {
-        unreadCount.value = 0;
-        return [];
+  Future<void> listenToUser(
+    String userId, {
+    required ValueChanged<InAppNotificationItem> onNotification,
+  }) async {
+    if (_subscribedUserId == userId && _notificationsChannel != null) return;
+
+    await stopListening();
+    _subscribedUserId = userId;
+    notifications.value = [];
+    unreadCount.value = 0;
+
+    final channel = _supabase.channel('user_notifications_$userId')
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.insert,
+        schema: 'public',
+        table: 'notifications',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'recipient_id',
+          value: userId,
+        ),
+        callback: (payload) {
+          final item = InAppNotificationItem.fromMap(payload.newRecord);
+          if (item.id.isEmpty ||
+              item.recipientId != userId ||
+              _subscribedUserId != userId ||
+              notifications.value.any((existing) => existing.id == item.id)) {
+            return;
+          }
+          _publishNotifications([item, ...notifications.value]);
+          onNotification(item);
+        },
+      );
+    _notificationsChannel = channel;
+    channel.subscribe((status, error) {
+      if (error != null) {
+        debugPrint('In-app notification subscription error: $error');
       }
-      final List<dynamic> list = jsonDecode(raw);
-      final items = list
-          .map((e) => InAppNotificationItem.fromMap(Map<String, dynamic>.from(e)))
-          .toList();
+      if (status == RealtimeSubscribeStatus.channelError ||
+          status == RealtimeSubscribeStatus.timedOut) {
+        debugPrint('In-app notification subscription status: $status');
+      }
+    });
 
-      items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    await refreshNotifications(currentUserId: userId);
+  }
 
-      final filtered = (currentUserId != null && currentUserId.isNotEmpty)
-          ? items.where((it) => it.recipientId == currentUserId || it.senderId == currentUserId).toList()
-          : items;
+  Future<void> stopListening() async {
+    final channel = _notificationsChannel;
+    _notificationsChannel = null;
+    _subscribedUserId = null;
+    if (channel != null) await _supabase.removeChannel(channel);
+  }
 
-      unreadCount.value = filtered.where((e) => !e.isRead).length;
-      return filtered;
-    } catch (e) {
-      debugPrint('Error getting in-app notifications: $e');
-      return [];
+  Future<List<InAppNotificationItem>> getNotifications({
+    String? currentUserId,
+  }) => refreshNotifications(currentUserId: currentUserId);
+
+  Future<List<InAppNotificationItem>> refreshNotifications({
+    String? currentUserId,
+  }) async {
+    final userId = currentUserId ?? _supabase.auth.currentUser?.id;
+    if (userId == null || userId.isEmpty) return [];
+
+    final rows = await _supabase
+        .from('notifications')
+        .select()
+        .eq('recipient_id', userId)
+        .order('created_at', ascending: false)
+        .limit(100);
+    final items = rows
+        .map(
+          (row) =>
+              InAppNotificationItem.fromMap(Map<String, dynamic>.from(row)),
+        )
+        .toList();
+    if (_subscribedUserId == null || _subscribedUserId == userId) {
+      _publishNotifications(items);
     }
+    return items;
   }
 
   Future<int> sendBillReminders({
@@ -110,87 +154,67 @@ class InAppNotificationService {
     String? promptPay,
     String? bankAccount,
   }) async {
-    if (unpaidMembers.isEmpty) return 0;
+    final recipients = unpaidMembers
+        .where(
+          (member) =>
+              member.id.isNotEmpty &&
+              !member.id.startsWith('guest_') &&
+              member.id != senderId,
+        )
+        .toList();
+    if (recipients.isEmpty) return 0;
 
-    final newItems = <InAppNotificationItem>[];
-    final now = DateTime.now();
+    final records = recipients.map((member) {
+      final title = 'สะกิดเตือนค่าอาหาร: $shopName';
+      final message =
+          'คุณมียอดค้างชำระ ${AppFormatters.formatCurrency(member.amount)} '
+          'ของตี้ "$shopName" จาก $senderName รบกวนโอนเงินพร้อมแนบสลิปด้วยเน้อ';
+      return {
+        'bill_id': billId,
+        'recipient_id': member.id,
+        'recipient_name': member.name,
+        'sender_id': senderId,
+        'sender_name': senderName,
+        'shop_name': shopName,
+        'amount': member.amount,
+        'title': title,
+        'message': message,
+      };
+    }).toList();
 
-    for (final member in unpaidMembers) {
-      final item = InAppNotificationItem(
-        id: 'notif_${now.millisecondsSinceEpoch}_${member.id}',
-        billId: billId,
-        shopName: shopName,
-        recipientId: member.id,
-        recipientName: member.name,
-        senderId: senderId,
-        senderName: senderName,
-        amount: member.amount,
-        title: '📢 สะกิดเตือนค่าอาหาร: $shopName',
-        message: 'คุณมียอดค้างชำระ ${AppFormatters.formatCurrency(member.amount)} '
-            'ของตี้ "$shopName" จาก $senderName รบกวนโอนเงินพร้อมแนบสลิปด้วยเน้อ 🙏',
-        createdAt: now,
-        isRead: false,
-      );
-      newItems.add(item);
-
-      // Best effort sync with Supabase notifications table if configured
-      try {
-        await Supabase.instance.client.from('notifications').insert({
-          'bill_id': billId,
-          'recipient_id': member.id.startsWith('guest_') ? null : member.id,
-          'sender_id': senderId,
-          'amount': member.amount,
-          'title': item.title,
-          'message': item.message,
-          'created_at': now.toIso8601String(),
-        });
-      } catch (_) {
-        // Table may not exist yet in Supabase - graceful fallback
-      }
-    }
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final existing = await getNotifications();
-      final all = [...newItems, ...existing];
-      // Keep only last 100 notifications
-      final trimmed = all.take(100).map((e) => e.toMap()).toList();
-      await prefs.setString(_storageKey, jsonEncode(trimmed));
-      unreadCount.value = all.where((e) => !e.isRead).length;
-    } catch (e) {
-      debugPrint('Error saving notifications to SharedPreferences: $e');
-    }
-
-    return newItems.length;
+    await _supabase.from('notifications').insert(records);
+    return records.length;
   }
 
-  Future<void> markAllAsRead() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final existing = await getNotifications();
-      for (final it in existing) {
-        it.isRead = true;
-      }
-      final trimmed = existing.map((e) => e.toMap()).toList();
-      await prefs.setString(_storageKey, jsonEncode(trimmed));
-      unreadCount.value = 0;
-    } catch (e) {
-      debugPrint('Error marking all as read: $e');
-    }
+  Future<void> markAllAsRead({String? currentUserId}) async {
+    final userId = currentUserId ?? _supabase.auth.currentUser?.id;
+    if (userId == null || userId.isEmpty) return;
+
+    await _supabase
+        .from('notifications')
+        .update({'is_read': true})
+        .eq('recipient_id', userId)
+        .eq('is_read', false);
+    await refreshNotifications(currentUserId: userId);
   }
 
-  Future<void> markAsRead(String id) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final existing = await getNotifications();
-      for (final it in existing) {
-        if (it.id == id) it.isRead = true;
-      }
-      final trimmed = existing.map((e) => e.toMap()).toList();
-      await prefs.setString(_storageKey, jsonEncode(trimmed));
-      unreadCount.value = existing.where((e) => !e.isRead).length;
-    } catch (e) {
-      debugPrint('Error marking notification as read: $e');
-    }
+  Future<void> markAsRead(String id, {String? currentUserId}) async {
+    final userId = currentUserId ?? _supabase.auth.currentUser?.id;
+    if (userId == null || userId.isEmpty) return;
+
+    await _supabase
+        .from('notifications')
+        .update({'is_read': true})
+        .eq('id', id)
+        .eq('recipient_id', userId);
+    await refreshNotifications(currentUserId: userId);
+  }
+
+  void _publishNotifications(List<InAppNotificationItem> items) {
+    items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    notifications.value = List.unmodifiable(items.take(100));
+    unreadCount.value = notifications.value
+        .where((item) => !item.isRead)
+        .length;
   }
 }

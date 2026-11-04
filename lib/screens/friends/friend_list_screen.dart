@@ -99,10 +99,11 @@ class _FriendListScreenState extends State<FriendListScreen> {
       await context.read<ContactProvider>().deleteContact(contact.id);
       return true;
     } catch (error) {
+      debugPrint('ลบรายชื่อไม่สำเร็จ: $error');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('ลบรายชื่อไม่สำเร็จ: $error'),
+          const SnackBar(
+            content: Text('ลบรายชื่อไม่สำเร็จ กรุณาลองอีกครั้ง'),
             backgroundColor: Colors.red,
           ),
         );
@@ -161,9 +162,7 @@ class _FriendListScreenState extends State<FriendListScreen> {
             ),
             child: Card(
               child: ListTile(
-                leading: const CircleAvatar(
-                  child: Icon(Icons.person_outline),
-                ),
+                leading: const CircleAvatar(child: Icon(Icons.person_outline)),
                 title: Text(
                   contact.name,
                   style: const TextStyle(fontWeight: FontWeight.bold),
@@ -266,7 +265,9 @@ class _FriendListScreenState extends State<FriendListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.selectionMode ? 'เลือกเพื่อนจากบิลก่อนหน้า' : 'เพื่อนที่เคยหารบิล',
+          widget.selectionMode
+              ? 'เลือกเพื่อนจากบิลก่อนหน้า'
+              : 'เพื่อนที่เคยหารบิล',
         ),
       ),
       body: widget.selectionMode

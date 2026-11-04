@@ -13,6 +13,7 @@ import '../../../routes/app_routes.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_theme_colors.dart';
 import '../../../utils/formatters.dart';
+import '../../../utils/join_link.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../../widgets/bill/guest_dialog.dart';
 
@@ -73,10 +74,12 @@ class _LobbyScreenState extends State<LobbyScreen> {
     try {
       await provider.loadRoomMembers(_roomId);
     } catch (error) {
-      debugPrint('โหลดสมาชิกจำลองไม่สำเร็จ: $error');
+      debugPrint('โหลดรายชื่อผู้เข้าร่วมไม่สำเร็จ: $error');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('โหลดรายชื่อเพื่อนไม่สำเร็จ: $error')),
+          const SnackBar(
+            content: Text('โหลดรายชื่อผู้เข้าร่วมไม่สำเร็จ กรุณาลองอีกครั้ง'),
+          ),
         );
       }
     }
@@ -213,10 +216,11 @@ class _LobbyScreenState extends State<LobbyScreen> {
         payload: {'member': member.toMap()},
       );
     } catch (error) {
+      debugPrint('เพิ่มผู้เข้าร่วมไม่สำเร็จ: $error');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('เพิ่มเพื่อนไม่สำเร็จ: $error'),
+          const SnackBar(
+            content: Text('เพิ่มผู้เข้าร่วมไม่สำเร็จ กรุณาลองอีกครั้ง'),
             backgroundColor: Colors.red,
           ),
         );
@@ -277,11 +281,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
     );
   }
 
-  String get _joinLink => Uri(
-    scheme: 'snap2bill',
-    host: 'join',
-    pathSegments: [_roomId],
-  ).toString();
+  String get _joinLink => JoinLink.forRoom(_roomId);
 
   List<Map<String, dynamic>> _buildRoomParticipantMaps(BillProvider provider) {
     final participantsById = <String, Map<String, dynamic>>{};
@@ -623,7 +623,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
               iconBg: colors.successContainer,
               iconColor: colors.onSuccessContainer,
               title: 'คัดลอกลิงก์ Copy Link',
-              subtitle: 'snap2bill.app/party/$_roomId',
+              subtitle: _joinLink,
               trailingIcon: Icons.copy_rounded,
               onTap: _copyJoinLink,
             ),

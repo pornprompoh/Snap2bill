@@ -60,6 +60,14 @@ class _HomeScreenState extends State<HomeScreen> {
             if (mounted) _refreshBills();
           },
         )
+        ..onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'bill_payments',
+          callback: (_) {
+            if (mounted) _refreshBills();
+          },
+        )
         ..subscribe();
     } catch (e) {
       debugPrint('Realtime bills subscription error: $e');
@@ -98,9 +106,14 @@ class _HomeScreenState extends State<HomeScreen> {
         Navigator.pushNamed(context, AppRoutes.loading, arguments: bytes);
       }
     } catch (e) {
+      debugPrint('เปิดกล้องหรือเลือกรูปไม่สำเร็จ: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('เกิดข้อผิดพลาดในการเปิดกล้อง/ภาพ: $e')),
+          const SnackBar(
+            content: Text(
+              'เปิดกล้องหรือเลือกรูปไม่สำเร็จ กรุณาตรวจสอบสิทธิ์แล้วลองอีกครั้ง',
+            ),
+          ),
         );
       }
     }
@@ -241,10 +254,13 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     } catch (e) {
+      debugPrint('ค้นหาห้องไม่สำเร็จ: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('เกิดข้อผิดพลาดในการค้นหาห้อง: $e'),
+          content: const Text(
+            'ค้นหาห้องไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง',
+          ),
           backgroundColor: AppColors.primaryOrange,
         ),
       );

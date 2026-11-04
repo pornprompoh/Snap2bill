@@ -411,6 +411,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
       );
       savedSuccessfully = true;
     } catch (e) {
+      debugPrint('บันทึกบิลไม่สำเร็จ: $e');
       if (pendingBill != null &&
           (offline.isOffline || OfflineService.isLikelyNetworkError(e))) {
         await offline.queue.enqueue(
@@ -429,8 +430,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
       if (mounted) {
         if (!savedSuccessfully) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('เกิดข้อผิดพลาด: $e'),
+            const SnackBar(
+              content: Text(
+                'บันทึกบิลไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง',
+              ),
               backgroundColor: Colors.red,
             ),
           );

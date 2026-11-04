@@ -13,6 +13,7 @@ import 'providers/user_provider.dart';
 import 'theme/app_theme.dart';
 import 'package:snap2bill/widgets/deep_link_handler.dart';
 import 'services/offline/offline_service.dart';
+import 'services/notifications/in_app_notification_service.dart';
 import 'widgets/common/offline_status_banner.dart';
 
 final _navigatorKey = GlobalKey<NavigatorState>();
@@ -56,8 +57,74 @@ void main() async {
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  StreamSubscription<AuthState>? _authStateSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(
+      _configureNotifications(Supabase.instance.client.auth.currentUser?.id),
+    );
+    _authStateSubscription = Supabase.instance.client.auth.onAuthStateChange
+        .listen((authState) {
+          unawaited(_configureNotifications(authState.session?.user.id));
+        });
+  }
+
+  Future<void> _configureNotifications(String? userId) async {
+    final service = InAppNotificationService.instance;
+    try {
+      if (userId == null) {
+        await service.stopListening();
+        service.unreadCount.value = 0;
+        service.notifications.value = [];
+        return;
+      }
+
+      await service.listenToUser(
+        userId,
+        onNotification: (item) {
+          _scaffoldMessengerKey.currentState?.showSnackBar(
+            SnackBar(
+              content: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    item.title,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    item.message,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        },
+      );
+    } catch (error, stackTrace) {
+      debugPrint('In-app notification setup failed: $error\n$stackTrace');
+    }
+  }
+
+  @override
+  void dispose() {
+    _authStateSubscription?.cancel();
+    unawaited(InAppNotificationService.instance.stopListening());
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

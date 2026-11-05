@@ -205,4 +205,78 @@ void main() {
     });
     expect(await repository.getCachedBills(userId: ''), isEmpty);
   });
+
+  test(
+    'cached bill lists are ordered by creation date, newest first',
+    () async {
+      await repository.cacheSupabaseBills([
+        {
+          'id': 'old-bill',
+          'owner_id': 'user-1',
+          'created_at': '2026-09-10T10:00:00Z',
+          'receipt_date': '2026-11-04',
+        },
+        {
+          'id': 'new-bill',
+          'owner_id': 'user-1',
+          'created_at': '2026-11-04T10:00:00Z',
+          'receipt_date': '2026-09-10',
+        },
+      ]);
+
+      final bills = await repository.getCachedBills(userId: 'user-1');
+      final watchedBills = await repository
+          .watchCachedBills(userId: 'user-1')
+          .first;
+
+      expect(bills.map((bill) => bill['id']), ['new-bill', 'old-bill']);
+      expect(watchedBills.map((bill) => bill['id']), ['new-bill', 'old-bill']);
+      expect(
+        DateTime.parse(
+          bills.first['created_at'] as String,
+        ).isAtSameMomentAs(DateTime.utc(2026, 11, 4, 10)),
+        isTrue,
+      );
+    },
+  );
+
+  test(
+    'migration skips columns already present in an older database',
+    () async {
+      final legacyDatabase = AppDatabase.forTesting(
+        NativeDatabase.memory(
+          setup: (database) {
+            database.execute('''
+            CREATE TABLE cached_bills (
+              id TEXT NOT NULL PRIMARY KEY,
+              shop_name TEXT,
+              total_amount REAL NOT NULL DEFAULT 0,
+              receipt_date TEXT,
+              status TEXT NOT NULL DEFAULT 'draft',
+              receipt_json TEXT,
+              sharers_json TEXT,
+              payload_json TEXT,
+              cached_at INTEGER NOT NULL DEFAULT (CAST(strftime('%s', 'now') AS INTEGER))
+            )
+          ''');
+            database.execute('''
+            INSERT INTO cached_bills (id, payload_json, cached_at)
+            VALUES ('legacy-bill', '{"created_at":"2026-11-04T10:00:00Z"}', 1)
+          ''');
+            database.userVersion = 1;
+          },
+        ),
+      );
+
+      addTearDown(legacyDatabase.close);
+
+      final bills = await legacyDatabase.getAllCachedBills();
+      expect(bills, hasLength(1));
+      expect(bills.single.id, 'legacy-bill');
+      expect(
+        bills.single.createdAt.isAtSameMomentAs(DateTime.utc(2026, 11, 4, 10)),
+        isTrue,
+      );
+    },
+  );
 }

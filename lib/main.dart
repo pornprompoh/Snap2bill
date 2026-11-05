@@ -75,10 +75,13 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   StreamSubscription<AuthState>? _authStateSubscription;
+  late final OfflineService _offlineService;
 
   @override
   void initState() {
     super.initState();
+    _offlineService = context.read<OfflineService>()
+      ..addListener(_handleConnectivityChanged);
     unawaited(
       _configureNotifications(Supabase.instance.client.auth.currentUser?.id),
     );
@@ -95,6 +98,10 @@ class _MyAppState extends State<MyApp> {
         await service.stopListening();
         service.unreadCount.value = 0;
         service.notifications.value = [];
+        return;
+      }
+      if (_offlineService.isOffline) {
+        await service.stopListening();
         return;
       }
 
@@ -122,14 +129,26 @@ class _MyAppState extends State<MyApp> {
             ),
           );
         },
+        onConnectionError: _offlineService.reportNetworkFailure,
       );
     } catch (error, stackTrace) {
       debugPrint('In-app notification setup failed: $error\n$stackTrace');
+      _offlineService.reportNetworkFailure(error);
+    }
+  }
+
+  void _handleConnectivityChanged() {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (_offlineService.isOffline) {
+      unawaited(InAppNotificationService.instance.stopListening());
+    } else {
+      unawaited(_configureNotifications(userId));
     }
   }
 
   @override
   void dispose() {
+    _offlineService.removeListener(_handleConnectivityChanged);
     _authStateSubscription?.cancel();
     unawaited(InAppNotificationService.instance.stopListening());
     super.dispose();

@@ -32,10 +32,12 @@ class DetailScreen extends StatefulWidget {
   State<DetailScreen> createState() => _DetailScreenState();
 }
 
-class _DetailScreenState extends State<DetailScreen> {
+class _DetailScreenState extends State<DetailScreen>
+    with WidgetsBindingObserver {
   late Future<List<MemberSummaryEntry>> _membersFuture;
   final LocalBillRepository _localRepository = LocalBillRepository();
   final GlobalKey _receiptCaptureKey = GlobalKey();
+  late final OfflineService _offlineService;
   RealtimeChannel? _billRealtimeChannel;
   bool _isLoadingBill = false;
   String _hostPromptPay = '';
@@ -48,11 +50,14 @@ class _DetailScreenState extends State<DetailScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _offlineService = context.read<OfflineService>()
+      ..addListener(_handleOfflineStatusChanged);
     _membersFuture = _loadMemberSummary();
     final billId = widget.billData['id']?.toString();
     if (billId != null && billId.isNotEmpty) {
       _isLoadingBill = false;
-      _setupRealtimeBillSubscription();
+      if (!_offlineService.isOffline) _setupRealtimeBillSubscription();
       unawaited(_loadBillLocalFirst());
     } else {
       unawaited(_fetchHostPromptPayInfo());
@@ -221,6 +226,7 @@ class _DetailScreenState extends State<DetailScreen> {
       await _fetchHostPromptPayInfo();
     } catch (error, stackTrace) {
       debugPrint('Failed to load bill detail: $error\n$stackTrace');
+      _offlineService.reportNetworkFailure(error);
       if (!mounted) return;
       setState(() => _isLoadingBill = false);
     }
@@ -228,7 +234,12 @@ class _DetailScreenState extends State<DetailScreen> {
 
   void _setupRealtimeBillSubscription() {
     final billId = widget.billData['id']?.toString();
-    if (billId == null || billId.isEmpty) return;
+    if (billId == null ||
+        billId.isEmpty ||
+        _offlineService.isOffline ||
+        _billRealtimeChannel != null) {
+      return;
+    }
 
     final channel = Supabase.instance.client.channel('bill_detail_$billId')
       ..onPostgresChanges(
@@ -268,11 +279,42 @@ class _DetailScreenState extends State<DetailScreen> {
     channel.subscribe((status, error) {
       if (error != null) {
         debugPrint('Bill detail Realtime subscription error: $error');
+        if (OfflineService.isLikelyNetworkError(error)) {
+          _offlineService.reportNetworkFailure(error);
+          unawaited(_removeBillRealtimeChannel());
+        }
       }
       if (status != RealtimeSubscribeStatus.subscribed && error != null) {
         debugPrint('Bill detail Realtime status: $status');
       }
     });
+  }
+
+  void _handleOfflineStatusChanged() {
+    if (_offlineService.isOffline) {
+      unawaited(_removeBillRealtimeChannel());
+    } else {
+      _setupRealtimeBillSubscription();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !_offlineService.isOffline) {
+      _setupRealtimeBillSubscription();
+    }
+  }
+
+  Future<void> _removeBillRealtimeChannel() async {
+    final channel = _billRealtimeChannel;
+    _billRealtimeChannel = null;
+    if (channel != null) {
+      try {
+        await Supabase.instance.client.removeChannel(channel);
+      } catch (error, stackTrace) {
+        debugPrint('Failed to remove bill detail channel: $error\n$stackTrace');
+      }
+    }
   }
 
   Future<void> _refreshBillFromRealtime() async {
@@ -281,10 +323,9 @@ class _DetailScreenState extends State<DetailScreen> {
 
   @override
   void dispose() {
-    final channel = _billRealtimeChannel;
-    if (channel != null) {
-      Supabase.instance.client.removeChannel(channel);
-    }
+    WidgetsBinding.instance.removeObserver(this);
+    _offlineService.removeListener(_handleOfflineStatusChanged);
+    unawaited(_removeBillRealtimeChannel());
     super.dispose();
   }
 

@@ -14,7 +14,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -23,16 +23,60 @@ class AppDatabase extends _$AppDatabase {
     },
     onUpgrade: (migrator, from, to) async {
       if (from < 2) {
-        await migrator.addColumn(cachedBills, cachedBills.payloadJson);
-        await migrator.addColumn(cachedBills, cachedBills.localImagePath);
-        await migrator.addColumn(cachedBills, cachedBills.syncStatus);
-        await migrator.createTable(cachedProfiles);
+        await _addBillColumnIfMissing(migrator, cachedBills.payloadJson);
+        await _addBillColumnIfMissing(migrator, cachedBills.localImagePath);
+        await _addBillColumnIfMissing(migrator, cachedBills.syncStatus);
+        if (!await _tableExists(cachedProfiles.actualTableName)) {
+          await migrator.createTable(cachedProfiles);
+        }
       }
       if (from < 3) {
-        await migrator.createTable(cachedRooms);
+        if (!await _tableExists(cachedRooms.actualTableName)) {
+          await migrator.createTable(cachedRooms);
+        }
+      }
+      if (from < 4) {
+        if (!await _billColumnExists(cachedBills.createdAt.name)) {
+          await customStatement(
+            'ALTER TABLE cached_bills '
+            'ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0',
+          );
+        }
+        await customStatement('''
+          UPDATE cached_bills
+          SET created_at = COALESCE(
+            CASE
+              WHEN json_valid(payload_json)
+              THEN CAST(strftime('%s', json_extract(payload_json, '\$.created_at')) AS INTEGER)
+            END,
+            CAST(strftime('%s', receipt_date) AS INTEGER),
+            cached_at
+          )
+        ''');
       }
     },
   );
+
+  Future<void> _addBillColumnIfMissing(
+    Migrator migrator,
+    GeneratedColumn<Object> column,
+  ) async {
+    if (await _billColumnExists(column.name)) return;
+    await migrator.addColumn(cachedBills, column);
+  }
+
+  Future<bool> _billColumnExists(String columnName) async {
+    final columns = await customSelect('PRAGMA table_info(cached_bills)').get();
+    return columns.any((row) => row.read<String>('name') == columnName);
+  }
+
+  Future<bool> _tableExists(String tableName) async {
+    final result = await customSelect(
+      'SELECT 1 FROM sqlite_master WHERE type = ? AND name = ? LIMIT 1',
+      variables: [const Variable<String>('table'), Variable<String>(tableName)],
+    ).getSingleOrNull();
+    return result != null;
+  }
 
   // Cache Bills (Offline first)
   Future<void> cacheBills(List<CachedBillsCompanion> bills) async {
@@ -43,14 +87,14 @@ class AppDatabase extends _$AppDatabase {
 
   Future<List<CachedBill>> getAllCachedBills() {
     return (select(cachedBills)..orderBy([
-          (t) => OrderingTerm(expression: t.cachedAt, mode: OrderingMode.desc),
+          (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc),
         ]))
         .get();
   }
 
   Stream<List<CachedBill>> watchAllCachedBills() {
     return (select(cachedBills)..orderBy([
-          (t) => OrderingTerm(expression: t.cachedAt, mode: OrderingMode.desc),
+          (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc),
         ]))
         .watch();
   }

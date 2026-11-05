@@ -119,6 +119,12 @@ class OfflineService extends ChangeNotifier {
         message.contains('clientexception');
   }
 
+  void reportNetworkFailure(Object error) {
+    if (!_isOnline || !isLikelyNetworkError(error)) return;
+    _isOnline = false;
+    notifyListeners();
+  }
+
   Future<void> start() async {
     _isOnline = _hasConnection(await _connectivity.checkConnectivity());
     notifyListeners();

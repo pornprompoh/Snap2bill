@@ -27,6 +27,11 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
+DateTime _billCreatedAt(Map<String, dynamic> bill) {
+  return DateTime.tryParse(bill['created_at']?.toString() ?? '') ??
+      DateTime.fromMillisecondsSinceEpoch(0);
+}
+
 class _HomeScreenState extends State<HomeScreen> {
   final _supabase = Supabase.instance.client;
   final LocalBillRepository _localRepo = LocalBillRepository();
@@ -34,6 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>> _bills = [];
   bool _isLoading = true;
   bool _isCheckingRoom = false;
+  bool _isDescending = true;
   String _historyFilter = 'unpaid'; // 'unpaid', 'completed', 'all'
   RealtimeChannel? _realtimeBillsChannel;
   StreamSubscription<List<Map<String, dynamic>>>? _cachedBillsSubscription;
@@ -531,12 +537,17 @@ class _HomeScreenState extends State<HomeScreen> {
             }
 
             // Filter bills according to active segment
-            final filteredBills = bills.where((b) {
-              final settled = _isBillSettled(b);
-              if (_historyFilter == 'unpaid') return !settled;
-              if (_historyFilter == 'completed') return settled;
-              return true;
-            }).toList();
+            final filteredBills =
+                bills.where((b) {
+                  final settled = _isBillSettled(b);
+                  if (_historyFilter == 'unpaid') return !settled;
+                  if (_historyFilter == 'completed') return settled;
+                  return true;
+                }).toList()..sort((a, b) {
+                  return _isDescending
+                      ? _billCreatedAt(b).compareTo(_billCreatedAt(a))
+                      : _billCreatedAt(a).compareTo(_billCreatedAt(b));
+                });
 
             // --- VIEW A: EMPTY STATE (Matching Image 3 Left) ---
             if (bills.isEmpty) {
@@ -597,7 +608,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: const MascotStateView(
                               state: MascotState.empty,
                               message: '',
-                              size: 104,
+                              size: 100,
                             ),
                           ),
                           const SizedBox(height: 20),
@@ -964,17 +975,80 @@ class _HomeScreenState extends State<HomeScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'ประวัติการหารบิล',
-                        style: TextStyle(
-                          fontSize: 18.5,
-                          fontWeight: FontWeight.w800,
-                          color: textPrimary,
+                      Flexible(
+                        child: Text(
+                          'ประวัติการหารบิล',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 18.5,
+                            fontWeight: FontWeight.w800,
+                            color: textPrimary,
+                          ),
                         ),
                       ),
-                      Text(
-                        'ทั้งหมด ${bills.length} บิล',
-                        style: TextStyle(fontSize: 13, color: textSecondary),
+                      const SizedBox(width: 8),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Material(
+                            color: isDark
+                                ? const Color(0xFF3B2933)
+                                : const Color(0xFFFFF0F5),
+                            shape: StadiumBorder(
+                              side: BorderSide(
+                                color: isDark
+                                    ? const Color(0xFF634052)
+                                    : const Color(0xFFFFD1E0),
+                              ),
+                            ),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(24),
+                              onTap: () {
+                                setState(() {
+                                  _isDescending = !_isDescending;
+                                });
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 7,
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      _isDescending
+                                          ? Icons.arrow_downward
+                                          : Icons.arrow_upward,
+                                      size: 15,
+                                      color: AppColors.pink,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      _isDescending ? 'ใหม่ล่าสุด' : 'เก่าสุด',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark
+                                            ? const Color(0xFFFFC5D8)
+                                            : const Color(0xFF9B4567),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${bills.length} บิล',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: textSecondary,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

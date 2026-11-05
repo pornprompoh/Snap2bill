@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
+import '../../theme/app_theme_colors.dart';
 import '../../utils/formatters.dart';
 import '../common/cached_avatar.dart';
 
@@ -119,6 +120,7 @@ class MemberSummaryList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = context.appColors;
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -231,7 +233,7 @@ class MemberSummaryList extends StatelessWidget {
                     '${member.itemsCount} รายการ',
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.grey.shade600,
+                      color: themeColors.textSecondary,
                       fontWeight: FontWeight.w500,
                     ),
                   )
@@ -248,10 +250,10 @@ class MemberSummaryList extends StatelessWidget {
                   children: [
                     Text(
                       AppFormatters.formatCurrency(member.amount),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 15,
-                        color: AppColors.textPrimary,
+                        color: themeColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -401,9 +403,9 @@ class MemberSummaryList extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(width: 6),
-                const Icon(
+                Icon(
                   Icons.chevron_right_rounded,
-                  color: AppColors.textSecondary,
+                  color: themeColors.textSecondary,
                   size: 20,
                 ),
               ],

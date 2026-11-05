@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:snap2bill/theme/app_theme.dart';
 import 'package:snap2bill/widgets/bill/member_summary_list.dart';
 
 void main() {
@@ -112,5 +113,23 @@ void main() {
     await tester.tap(find.text('จ่ายแล้ว'));
     await tester.pump();
     expect(statusChanged, isFalse);
+  });
+
+  testWidgets('member amounts remain readable in dark theme', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark,
+        home: Scaffold(
+          body: MemberSummaryList(
+            members: const [
+              MemberSummaryEntry(id: 'member', name: 'Friend', amount: 80),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final amount = tester.widget<Text>(find.text('80 ฿'));
+    expect(amount.style?.color, AppTheme.dark.colorScheme.onSurface);
   });
 }

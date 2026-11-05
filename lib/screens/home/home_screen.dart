@@ -41,6 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isCheckingRoom = false;
   bool _isDescending = true;
   String _historyFilter = 'unpaid'; // 'unpaid', 'completed', 'all'
+  final Set<String> _completedStatusSyncs = {};
   RealtimeChannel? _realtimeBillsChannel;
   StreamSubscription<List<Map<String, dynamic>>>? _cachedBillsSubscription;
 
@@ -52,12 +53,14 @@ class _HomeScreenState extends State<HomeScreen> {
         .listen(
           (cachedBills) {
             if (!mounted) return;
+            final billsToDisplay = cachedBills.isNotEmpty || _bills.isEmpty
+                ? cachedBills
+                : _bills;
             setState(() {
-              if (cachedBills.isNotEmpty || _bills.isEmpty) {
-                _bills = cachedBills;
-              }
+              _bills = billsToDisplay;
               _isLoading = false;
             });
+            _syncSettledOwnedBills(billsToDisplay);
           },
           onError: (Object error, StackTrace stackTrace) {
             debugPrint('Failed to watch cached bills: $error\n$stackTrace');
@@ -116,12 +119,14 @@ class _HomeScreenState extends State<HomeScreen> {
           ? <Map<String, dynamic>>[]
           : await _localRepo.getCachedBills(userId: userId);
       if (!mounted) return;
+      final billsToDisplay = cachedBills.isNotEmpty || _bills.isEmpty
+          ? cachedBills
+          : _bills;
       setState(() {
-        if (cachedBills.isNotEmpty || _bills.isEmpty) {
-          _bills = cachedBills;
-        }
+        _bills = billsToDisplay;
         _isLoading = false;
       });
+      _syncSettledOwnedBills(billsToDisplay);
     } catch (error, stackTrace) {
       debugPrint('Failed to load cached bills: $error\n$stackTrace');
       if (mounted) setState(() => _isLoading = false);
@@ -140,6 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _bills = syncedBills;
       });
+      _syncSettledOwnedBills(syncedBills);
     } on SocketException catch (error, stackTrace) {
       debugPrint(
         'Bill sync is unavailable; keeping cached bills: $error\n$stackTrace',
@@ -428,38 +434,90 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   bool _isBillSettled(Map<String, dynamic> bill) {
-    final summary = BillProgressHelper.calculate(bill);
-    final isOwner =
-        bill['owner_id']?.toString() == _supabase.auth.currentUser?.id;
-    if (summary.isSettled &&
-        isOwner &&
-        bill['status'] != 'completed' &&
-        bill['id'] != null) {
-      final offline = context.read<OfflineService>();
-      // Auto-sync status to completed in background if all members paid
-      () async {
-        try {
-          await _supabase
-              .from('bills')
-              .update({'status': 'completed'})
-              .eq('id', bill['id']);
-          bill['status'] = 'completed';
-        } catch (error) {
-          if (offline.isOffline || OfflineService.isLikelyNetworkError(error)) {
-            await offline.queue.enqueue(
-              type: 'update_bill',
-              payload: {
-                'id': bill['id'],
-                'data': {'status': 'completed'},
-              },
-            );
-          } else {
-            debugPrint('Failed to sync completed bill status: $error');
-          }
-        }
-      }();
+    return BillProgressHelper.calculate(bill).isSettled;
+  }
+
+  void _syncSettledOwnedBills(List<Map<String, dynamic>> bills) {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) return;
+
+    final offline = context.read<OfflineService>();
+    for (final bill in bills) {
+      final billId = bill['id']?.toString();
+      if (billId == null ||
+          billId.isEmpty ||
+          bill['owner_id']?.toString() != userId ||
+          bill['status'] == 'completed' ||
+          !BillProgressHelper.calculate(bill).isSettled ||
+          !_completedStatusSyncs.add(billId)) {
+        continue;
+      }
+
+      unawaited(_syncCompletedBillStatus(bill, billId, offline));
     }
-    return summary.isSettled;
+  }
+
+  Future<void> _syncCompletedBillStatus(
+    Map<String, dynamic> bill,
+    String billId,
+    OfflineService offline,
+  ) async {
+    if (offline.isOffline) {
+      await _queueCompletedBillStatus(bill, billId, offline);
+      return;
+    }
+
+    try {
+      await _supabase
+          .from('bills')
+          .update({'status': 'completed'})
+          .eq('id', billId);
+      bill['status'] = 'completed';
+    } catch (error, stackTrace) {
+      if (offline.isOffline || OfflineService.isLikelyNetworkError(error)) {
+        offline.reportNetworkFailure(error);
+        await _queueCompletedBillStatus(bill, billId, offline);
+      } else {
+        _completedStatusSyncs.remove(billId);
+        debugPrint(
+          'Failed to sync completed bill status ($billId): '
+          '$error\n$stackTrace',
+        );
+      }
+    }
+  }
+
+  Future<void> _queueCompletedBillStatus(
+    Map<String, dynamic> bill,
+    String billId,
+    OfflineService offline,
+  ) async {
+    try {
+      final pendingOperations = await offline.queue.readAll();
+      final alreadyQueued = pendingOperations.any(
+        (operation) =>
+            operation.type == 'update_bill' &&
+            operation.payload['id']?.toString() == billId &&
+            operation.payload['data'] is Map &&
+            (operation.payload['data'] as Map)['status'] == 'completed',
+      );
+      if (!alreadyQueued) {
+        await offline.queue.enqueue(
+          type: 'update_bill',
+          payload: {
+            'id': billId,
+            'data': {'status': 'completed'},
+          },
+        );
+      }
+      bill['status'] = 'completed';
+    } catch (error, stackTrace) {
+      _completedStatusSyncs.remove(billId);
+      debugPrint(
+        'Failed to queue completed bill status ($billId): '
+        '$error\n$stackTrace',
+      );
+    }
   }
 
   @override

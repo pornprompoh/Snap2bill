@@ -88,4 +88,64 @@ void main() {
       );
     },
   );
+
+  test(
+    'filters unusable rows and applies legacy quantity and total defaults',
+    () {
+      final normalized = OcrService.validateAndNormalizeReceipt({
+        'shop_name': null,
+        'service_charge': 'bad number',
+        'discount': null,
+        'sub_total': 999,
+        'final_total': '15',
+        'items': [
+          {'name': 'Free item', 'price': 0, 'qty': 1},
+          {'name': 'No price', 'qty': 2},
+          {
+            'name': '  Noodles  ',
+            'price': '5',
+            'qty': 'bad',
+            'total_price': null,
+          },
+          {'name': 'Tea', 'price': 10, 'quantity': 1, 'total_price': '10'},
+          {'name': 'Bad map value', 'price': 1},
+        ],
+      });
+
+      final items = normalized['items'] as List<Map<String, dynamic>>;
+      expect(items, hasLength(3));
+      expect(items[0]['item_name'], 'Noodles');
+      expect(items[0]['qty'], 1);
+      expect(items[0]['total_price'], 5.0);
+      expect(items[1]['qty'], 1);
+      expect(items[2]['qty'], 1);
+      expect(normalized['shop_name'], isNull);
+      expect(normalized['service_charge'], 'bad number');
+      expect(normalized['sub_total'], 16.0);
+      expect(normalized['is_vat_included'], isFalse);
+      expect(normalized['vat_amount'], 0.0);
+      expect(normalized['totals_reconciled'], isFalse);
+    },
+  );
+
+  test(
+    'infers VAT inclusion when item and service totals equal final total',
+    () {
+      final normalized = OcrService.validateAndNormalizeReceipt({
+        'vat_amount': 7,
+        'service_charge': 2,
+        'discount': 1,
+        'total_amount': 11,
+        'items': [
+          {'name': 'Coffee', 'price': 10},
+        ],
+      });
+
+      expect(normalized['is_vat_included'], isTrue);
+      expect(normalized['vat_amount'], 0.0);
+      expect(normalized['calculated_total'], 11.0);
+      expect(normalized['receipt_difference'], 0.0);
+      expect(normalized['totals_reconciled'], isTrue);
+    },
+  );
 }

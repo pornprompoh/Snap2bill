@@ -739,37 +739,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     ),
                                   ],
                                 ),
-                                child: SwitchListTile.adaptive(
-                                  contentPadding: EdgeInsets.zero,
-                                  secondary: Icon(
-                                    themeProvider.isDarkMode
-                                        ? Icons.dark_mode_rounded
-                                        : Icons.light_mode_rounded,
-                                    color: themeProvider.isDarkMode
-                                        ? Colors.amber
-                                        : AppColors.primary,
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: SwitchListTile.adaptive(
+                                    contentPadding: EdgeInsets.zero,
+                                    secondary: Icon(
+                                      themeProvider.isDarkMode
+                                          ? Icons.dark_mode_rounded
+                                          : Icons.light_mode_rounded,
+                                      color: themeProvider.isDarkMode
+                                          ? Colors.amber
+                                          : AppColors.primary,
+                                    ),
+                                    title: Text(
+                                      'โหมดมืด (Dark Mode)',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleSmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
+                                    subtitle: Text(
+                                      themeProvider.isDarkMode
+                                          ? 'เปิดใช้งานธีมมืด สบายตา'
+                                          : 'เปิดใช้งานธีมสว่าง คมชัด',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: themeColors.textSecondary,
+                                          ),
+                                    ),
+                                    value: themeProvider.isDarkMode,
+                                    activeTrackColor: AppColors.primary
+                                        .withValues(alpha: 0.5),
+                                    activeThumbColor: AppColors.primary,
+                                    onChanged: (_) =>
+                                        themeProvider.toggleTheme(),
                                   ),
-                                  title: Text(
-                                    'โหมดมืด (Dark Mode)',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleSmall
-                                        ?.copyWith(fontWeight: FontWeight.w600),
-                                  ),
-                                  subtitle: Text(
-                                    themeProvider.isDarkMode
-                                        ? 'เปิดใช้งานธีมมืด สบายตา'
-                                        : 'เปิดใช้งานธีมสว่าง คมชัด',
-                                    style: Theme.of(context).textTheme.bodySmall
-                                        ?.copyWith(
-                                          color: themeColors.textSecondary,
-                                        ),
-                                  ),
-                                  value: themeProvider.isDarkMode,
-                                  activeTrackColor: AppColors.primary
-                                      .withValues(alpha: 0.5),
-                                  activeThumbColor: AppColors.primary,
-                                  onChanged: (_) => themeProvider.toggleTheme(),
                                 ),
                               );
                             },

@@ -542,7 +542,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 ?.promptPayType,
                                           ),
                                           style: TextStyle(
-                                            color: themeColors.textPrimary,
+                                            color: AppColors.primaryDark,
                                             fontSize: 11,
                                             fontWeight: FontWeight.w700,
                                           ),

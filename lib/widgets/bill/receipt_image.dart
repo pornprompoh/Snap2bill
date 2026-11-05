@@ -1,7 +1,9 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../services/offline/offline_service.dart';
 import '../../services/storage/local_receipt_storage.dart';
 import '../../services/storage/supabase_storage_service.dart';
 
@@ -30,34 +32,39 @@ class ReceiptImage extends StatefulWidget {
 }
 
 class _ReceiptImageState extends State<ReceiptImage> {
-  late Future<String> _resolvedUrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _resolvedUrl = _resolveUrl(widget.imageUrl);
-  }
+  Future<String?>? _resolvedUrl;
 
   @override
   void didUpdateWidget(covariant ReceiptImage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.imageUrl != widget.imageUrl ||
         oldWidget.localImagePath != widget.localImagePath) {
-      _resolvedUrl = _resolveUrl(widget.imageUrl);
+      _resolvedUrl = null;
     }
   }
 
-  Future<String> _resolveUrl(String? imageUrl) {
+  Future<String?> _resolveUrl(String? imageUrl) async {
     if (imageUrl == null || imageUrl.isEmpty) {
-      return Future<String>.error(
-        const FormatException('Missing receipt image URL'),
-      );
+      return null;
     }
-    return SupabaseStorageService().resolveReceiptImageUrl(imageUrl);
+    try {
+      return await SupabaseStorageService().resolveReceiptImageUrl(imageUrl);
+    } catch (error, stackTrace) {
+      if (OfflineService.isLikelyNetworkError(error)) {
+        if (mounted) {
+          context.read<OfflineService>().reportNetworkFailure(error);
+        }
+        debugPrint('Receipt URL unavailable while offline: $error');
+        return null;
+      }
+      debugPrint('Failed to resolve receipt image URL: $error\n$stackTrace');
+      return null;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isOffline = context.watch<OfflineService>().isOffline;
     return FutureBuilder<Uint8List?>(
       future: widget.localImagePath == null
           ? Future<Uint8List?>.value()
@@ -74,7 +81,7 @@ class _ReceiptImageState extends State<ReceiptImage> {
               width: widget.width,
               fit: widget.fit,
               errorBuilder: (context, error, stackTrace) =>
-                  _buildNetworkImage(context),
+                  _buildNetworkImage(context, isOffline),
             ),
           );
         }
@@ -85,21 +92,29 @@ class _ReceiptImageState extends State<ReceiptImage> {
             child: const Center(child: CircularProgressIndicator()),
           );
         }
-        return _buildNetworkImage(context);
+        return _buildNetworkImage(context, isOffline);
       },
     );
   }
 
-  Widget _buildNetworkImage(BuildContext context) {
-    return FutureBuilder<String>(
-      future: _resolvedUrl,
+  Widget _buildNetworkImage(BuildContext context, bool isOffline) {
+    if (isOffline) return _buildUnavailable(context);
+    final resolvedUrl = _resolvedUrl ??= _resolveUrl(widget.imageUrl);
+    return FutureBuilder<String?>(
+      future: resolvedUrl,
       builder: (context, snapshot) {
-        if (snapshot.hasError || !snapshot.hasData) {
-          return widget.errorBuilder?.call(
-                context,
-                snapshot.error ?? StateError('Receipt image unavailable'),
-              ) ??
-              const SizedBox.shrink();
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return SizedBox(
+            height: widget.height,
+            width: widget.width,
+            child: const Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snapshot.hasError || snapshot.data == null) {
+          return _buildUnavailable(
+            context,
+            snapshot.error ?? StateError('Receipt image unavailable'),
+          );
         }
         final imageUrl = snapshot.data!;
         return GestureDetector(
@@ -109,12 +124,22 @@ class _ReceiptImageState extends State<ReceiptImage> {
             height: widget.height,
             width: widget.width,
             fit: widget.fit,
-            errorBuilder: (context, error, stackTrace) =>
-                widget.errorBuilder?.call(context, error) ??
-                const SizedBox.shrink(),
+            errorBuilder: (context, error, stackTrace) {
+              context.read<OfflineService>().reportNetworkFailure(error);
+              return widget.errorBuilder?.call(context, error) ??
+                  const SizedBox.shrink();
+            },
           ),
         );
       },
     );
+  }
+
+  Widget _buildUnavailable(BuildContext context, [Object? error]) {
+    return widget.errorBuilder?.call(
+          context,
+          error ?? StateError('Receipt image unavailable offline'),
+        ) ??
+        const SizedBox.shrink();
   }
 }

@@ -10,6 +10,7 @@ import '../../models/bill_model.dart';
 import '../../providers/bill_provider.dart';
 import '../../data/repositories/local_bill_repository.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_theme_colors.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/bill/member_summary_list.dart';
 import '../../utils/bill_progress_helper.dart';
@@ -32,10 +33,12 @@ class DetailScreen extends StatefulWidget {
   State<DetailScreen> createState() => _DetailScreenState();
 }
 
-class _DetailScreenState extends State<DetailScreen> {
+class _DetailScreenState extends State<DetailScreen>
+    with WidgetsBindingObserver {
   late Future<List<MemberSummaryEntry>> _membersFuture;
   final LocalBillRepository _localRepository = LocalBillRepository();
   final GlobalKey _receiptCaptureKey = GlobalKey();
+  late final OfflineService _offlineService;
   RealtimeChannel? _billRealtimeChannel;
   bool _isLoadingBill = false;
   String _hostPromptPay = '';
@@ -48,11 +51,14 @@ class _DetailScreenState extends State<DetailScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _offlineService = context.read<OfflineService>()
+      ..addListener(_handleOfflineStatusChanged);
     _membersFuture = _loadMemberSummary();
     final billId = widget.billData['id']?.toString();
     if (billId != null && billId.isNotEmpty) {
       _isLoadingBill = false;
-      _setupRealtimeBillSubscription();
+      if (!_offlineService.isOffline) _setupRealtimeBillSubscription();
       unawaited(_loadBillLocalFirst());
     } else {
       unawaited(_fetchHostPromptPayInfo());
@@ -221,6 +227,7 @@ class _DetailScreenState extends State<DetailScreen> {
       await _fetchHostPromptPayInfo();
     } catch (error, stackTrace) {
       debugPrint('Failed to load bill detail: $error\n$stackTrace');
+      _offlineService.reportNetworkFailure(error);
       if (!mounted) return;
       setState(() => _isLoadingBill = false);
     }
@@ -228,7 +235,12 @@ class _DetailScreenState extends State<DetailScreen> {
 
   void _setupRealtimeBillSubscription() {
     final billId = widget.billData['id']?.toString();
-    if (billId == null || billId.isEmpty) return;
+    if (billId == null ||
+        billId.isEmpty ||
+        _offlineService.isOffline ||
+        _billRealtimeChannel != null) {
+      return;
+    }
 
     final channel = Supabase.instance.client.channel('bill_detail_$billId')
       ..onPostgresChanges(
@@ -268,11 +280,42 @@ class _DetailScreenState extends State<DetailScreen> {
     channel.subscribe((status, error) {
       if (error != null) {
         debugPrint('Bill detail Realtime subscription error: $error');
+        if (OfflineService.isLikelyNetworkError(error)) {
+          _offlineService.reportNetworkFailure(error);
+          unawaited(_removeBillRealtimeChannel());
+        }
       }
       if (status != RealtimeSubscribeStatus.subscribed && error != null) {
         debugPrint('Bill detail Realtime status: $status');
       }
     });
+  }
+
+  void _handleOfflineStatusChanged() {
+    if (_offlineService.isOffline) {
+      unawaited(_removeBillRealtimeChannel());
+    } else {
+      _setupRealtimeBillSubscription();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !_offlineService.isOffline) {
+      _setupRealtimeBillSubscription();
+    }
+  }
+
+  Future<void> _removeBillRealtimeChannel() async {
+    final channel = _billRealtimeChannel;
+    _billRealtimeChannel = null;
+    if (channel != null) {
+      try {
+        await Supabase.instance.client.removeChannel(channel);
+      } catch (error, stackTrace) {
+        debugPrint('Failed to remove bill detail channel: $error\n$stackTrace');
+      }
+    }
   }
 
   Future<void> _refreshBillFromRealtime() async {
@@ -281,10 +324,9 @@ class _DetailScreenState extends State<DetailScreen> {
 
   @override
   void dispose() {
-    final channel = _billRealtimeChannel;
-    if (channel != null) {
-      Supabase.instance.client.removeChannel(channel);
-    }
+    WidgetsBinding.instance.removeObserver(this);
+    _offlineService.removeListener(_handleOfflineStatusChanged);
+    unawaited(_removeBillRealtimeChannel());
     super.dispose();
   }
 
@@ -780,23 +822,24 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   Widget _buildMissingReceiptImage() {
+    final themeColors = context.appColors;
     return Container(
       height: 180,
       width: double.infinity,
-      color: AppColors.surface,
+      color: themeColors.surfaceVariant,
       alignment: Alignment.center,
-      child: const Column(
+      child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
             Icons.receipt_long_outlined,
             size: 42,
-            color: AppColors.textSecondary,
+            color: themeColors.textSecondary,
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
             'ไม่พบรูปใบเสร็จของบิลนี้',
-            style: TextStyle(color: AppColors.textSecondary),
+            style: TextStyle(color: themeColors.textSecondary),
           ),
         ],
       ),
@@ -928,6 +971,7 @@ class _DetailScreenState extends State<DetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = context.appColors;
     final billSummary = BillProgressHelper.calculate(widget.billData);
     final shopName = widget.billData['shop_name'] ?? 'ไม่ระบุชื่อร้าน';
     final createdAt =
@@ -1023,9 +1067,10 @@ class _DetailScreenState extends State<DetailScreen> {
                     type: MaterialType.transparency,
                     child: Text(
                       shopName.toString(),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
+                        color: themeColors.textPrimary,
                       ),
                     ),
                   ),
@@ -1033,7 +1078,7 @@ class _DetailScreenState extends State<DetailScreen> {
                 if (createdAt.isNotEmpty)
                   Text(
                     'วันที่: $createdAt',
-                    style: TextStyle(color: Colors.grey.shade600),
+                    style: TextStyle(color: themeColors.textSecondary),
                   ),
                 const SizedBox(height: 16),
                 Container(
@@ -1065,11 +1110,12 @@ class _DetailScreenState extends State<DetailScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
+                          Text(
                             'ยอดสุทธิ',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
+                              color: themeColors.textPrimary,
                             ),
                           ),
                           Column(
@@ -1081,10 +1127,10 @@ class _DetailScreenState extends State<DetailScreen> {
                                     : totalAmount > 0
                                     ? AppFormatters.formatCurrency(totalAmount)
                                     : 'ยังไม่มีข้อมูลยอดบิล',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
-                                  color: AppColors.tealGreen,
+                                  color: themeColors.tealText,
                                 ),
                               ),
                               if (totalAmount > 0 &&
@@ -1095,7 +1141,7 @@ class _DetailScreenState extends State<DetailScreen> {
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
-                                    color: Colors.grey.shade700,
+                                    color: themeColors.textSecondary,
                                   ),
                                 ),
                               ],
@@ -1125,9 +1171,13 @@ class _DetailScreenState extends State<DetailScreen> {
                   onPressed: _openShareableReceiptDialog,
                 ),
                 const SizedBox(height: 20),
-                const Text(
+                Text(
                   'รายการที่สั่ง (รายละเอียด)',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: themeColors.textPrimary,
+                  ),
                 ),
                 const Divider(),
                 ListView.builder(
@@ -1237,15 +1287,16 @@ class _DetailScreenState extends State<DetailScreen> {
                                     children: [
                                       Text(
                                         itemName,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 16,
+                                          color: themeColors.textPrimary,
                                         ),
                                       ),
                                       Text(
                                         '$qty x ${AppFormatters.formatCurrency(unitPrice)}',
                                         style: TextStyle(
-                                          color: Colors.grey.shade600,
+                                          color: themeColors.textSecondary,
                                           fontSize: 13,
                                         ),
                                       ),
@@ -1254,8 +1305,9 @@ class _DetailScreenState extends State<DetailScreen> {
                                 ),
                                 Text(
                                   AppFormatters.formatCurrency(totalPrice),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.bold,
+                                    color: themeColors.textPrimary,
                                   ),
                                 ),
                               ],
@@ -1265,7 +1317,7 @@ class _DetailScreenState extends State<DetailScreen> {
                               Text(
                                 '👤 ส่วนตัว: ${userQuantities.entries.map((entry) => '${namesByUserId[entry.key] ?? entry.key}: ${entry.value} ชิ้น').join(', ')}',
                                 style: TextStyle(
-                                  color: Colors.grey.shade700,
+                                  color: themeColors.textSecondary,
                                   fontSize: 12,
                                 ),
                               ),
@@ -1275,7 +1327,7 @@ class _DetailScreenState extends State<DetailScreen> {
                               Text(
                                 '🤝 แชร์ร่วมกัน ($sharedQuantity ชิ้น): ${sharedUsers.values.join(', ')}',
                                 style: TextStyle(
-                                  color: Colors.grey.shade700,
+                                  color: themeColors.textSecondary,
                                   fontSize: 12,
                                 ),
                               ),
@@ -1287,11 +1339,15 @@ class _DetailScreenState extends State<DetailScreen> {
                   },
                 ),
                 const SizedBox(height: 20),
-                const Center(
+                Center(
                   child: Text(
                     'สรุปยอดชำระและสถานะของเพื่อน',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: themeColors.textPrimary,
+                    ),
                   ),
                 ),
                 const Divider(),
@@ -1405,12 +1461,12 @@ class _DetailScreenState extends State<DetailScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(color: Colors.grey.shade700)),
+          Text(label, style: TextStyle(color: context.appColors.textSecondary)),
           Text(
             amount == null
                 ? 'ไม่มีข้อมูล'
                 : AppFormatters.formatCurrency(amount),
-            style: TextStyle(color: color ?? Colors.black87),
+            style: TextStyle(color: color ?? context.appColors.textPrimary),
           ),
         ],
       ),

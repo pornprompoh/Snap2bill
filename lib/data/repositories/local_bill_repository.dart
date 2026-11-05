@@ -53,6 +53,12 @@ class LocalBillRepository {
             b['local_image_path']?.toString() ?? existing?.localImagePath,
           ),
           syncStatus: const Value('synced'),
+          createdAt: Value(
+            _parseCreatedAt(
+              b['created_at'] ?? b['receipt_date'],
+              fallback: existing?.createdAt,
+            ),
+          ),
           cachedAt: Value(DateTime.now()),
         ),
       );
@@ -111,6 +117,7 @@ class LocalBillRepository {
         payloadJson: Value(jsonEncode(payload)),
         localImagePath: Value(localImagePath),
         syncStatus: Value(syncStatus),
+        createdAt: Value(_parseCreatedAt(bill['created_at'])),
         cachedAt: Value(DateTime.now()),
       ),
     ]);
@@ -132,6 +139,7 @@ class LocalBillRepository {
         payloadJson: Value(jsonEncode(bill)),
         localImagePath: Value(row.localImagePath),
         syncStatus: const Value('synced'),
+        createdAt: Value(row.createdAt),
         cachedAt: Value(DateTime.now()),
       ),
     ]);
@@ -160,6 +168,7 @@ class LocalBillRepository {
           payloadJson: Value(jsonEncode(updated)),
           localImagePath: Value(oldRow.localImagePath),
           syncStatus: const Value('synced'),
+          createdAt: Value(oldRow.createdAt),
           cachedAt: Value(DateTime.now()),
         ),
       ]);
@@ -324,7 +333,7 @@ class LocalBillRepository {
       'id': row.id,
       'shop_name': row.shopName ?? 'ไม่ระบุชื่อร้าน',
       'total_amount': row.totalAmount,
-      'created_at': row.receiptDate ?? row.cachedAt.toIso8601String(),
+      'created_at': row.createdAt.toIso8601String(),
       'status': row.status,
       'receipt_json': _decodeJson(row.receiptJson),
       'sharers_json': _decodeJson(row.sharersJson),
@@ -332,6 +341,12 @@ class LocalBillRepository {
       'sync_status': row.syncStatus,
       'is_cached': true,
     };
+  }
+
+  DateTime _parseCreatedAt(Object? value, {DateTime? fallback}) {
+    return DateTime.tryParse(value?.toString() ?? '') ??
+        fallback ??
+        DateTime.now();
   }
 
   dynamic _decodeJson(String? value) {

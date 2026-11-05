@@ -11,6 +11,7 @@ class CachedBills extends Table {
   TextColumn get payloadJson => text().nullable()();
   TextColumn get localImagePath => text().nullable()();
   TextColumn get syncStatus => text().withDefault(const Constant('synced'))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get cachedAt => dateTime().withDefault(currentDateAndTime)();
 
   @override

@@ -72,6 +72,15 @@ void main() {
     },
   );
 
+  test('network failures transition service to offline', () async {
+    final service = OfflineService();
+    service.reportNetworkFailure(const SocketException('Failed host lookup'));
+
+    expect(service.isOffline, isTrue);
+
+    await service.disposeService();
+  });
+
   test(
     'service reports offline state and does not flush while offline',
     () async {
@@ -144,5 +153,4 @@ void main() {
     expect(find.text('content'), findsOneWidget);
     await service.disposeService();
   });
-
 }

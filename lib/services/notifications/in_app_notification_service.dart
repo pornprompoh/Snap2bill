@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../offline/offline_service.dart';
 
 import '../../utils/bill_progress_helper.dart';
 import '../../utils/formatters.dart';
@@ -66,6 +70,7 @@ class InAppNotificationService {
   Future<void> listenToUser(
     String userId, {
     required ValueChanged<InAppNotificationItem> onNotification,
+    ValueChanged<Object>? onConnectionError,
   }) async {
     if (_subscribedUserId == userId && _notificationsChannel != null) return;
 
@@ -100,6 +105,10 @@ class InAppNotificationService {
     channel.subscribe((status, error) {
       if (error != null) {
         debugPrint('In-app notification subscription error: $error');
+        if (OfflineService.isLikelyNetworkError(error)) {
+          onConnectionError?.call(error);
+          unawaited(stopListening());
+        }
       }
       if (status == RealtimeSubscribeStatus.channelError ||
           status == RealtimeSubscribeStatus.timedOut) {
@@ -107,14 +116,29 @@ class InAppNotificationService {
       }
     });
 
-    await refreshNotifications(currentUserId: userId);
+    try {
+      await refreshNotifications(currentUserId: userId);
+    } catch (error) {
+      if (OfflineService.isLikelyNetworkError(error)) {
+        onConnectionError?.call(error);
+        await stopListening();
+      }
+      rethrow;
+    }
   }
 
   Future<void> stopListening() async {
     final channel = _notificationsChannel;
     _notificationsChannel = null;
     _subscribedUserId = null;
-    if (channel != null) await _supabase.removeChannel(channel);
+    if (channel != null) {
+      try {
+        await _supabase.removeChannel(channel);
+      } catch (error, stackTrace) {
+        debugPrint('Failed to stop in-app notification channel: $error');
+        debugPrintStack(stackTrace: stackTrace);
+      }
+    }
   }
 
   Future<List<InAppNotificationItem>> getNotifications({

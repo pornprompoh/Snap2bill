@@ -118,6 +118,18 @@ class $CachedBillsTable extends CachedBills
     requiredDuringInsert: false,
     defaultValue: const Constant('synced'),
   );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
   static const VerificationMeta _cachedAtMeta = const VerificationMeta(
     'cachedAt',
   );
@@ -142,6 +154,7 @@ class $CachedBillsTable extends CachedBills
     payloadJson,
     localImagePath,
     syncStatus,
+    createdAt,
     cachedAt,
   ];
   @override
@@ -233,6 +246,12 @@ class $CachedBillsTable extends CachedBills
         syncStatus.isAcceptableOrUnknown(data['sync_status']!, _syncStatusMeta),
       );
     }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
     if (data.containsKey('cached_at')) {
       context.handle(
         _cachedAtMeta,
@@ -288,6 +307,10 @@ class $CachedBillsTable extends CachedBills
         DriftSqlType.string,
         data['${effectivePrefix}sync_status'],
       )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
       cachedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}cached_at'],
@@ -312,6 +335,7 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
   final String? payloadJson;
   final String? localImagePath;
   final String syncStatus;
+  final DateTime createdAt;
   final DateTime cachedAt;
   const CachedBill({
     required this.id,
@@ -324,6 +348,7 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
     this.payloadJson,
     this.localImagePath,
     required this.syncStatus,
+    required this.createdAt,
     required this.cachedAt,
   });
   @override
@@ -351,6 +376,7 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
       map['local_image_path'] = Variable<String>(localImagePath);
     }
     map['sync_status'] = Variable<String>(syncStatus);
+    map['created_at'] = Variable<DateTime>(createdAt);
     map['cached_at'] = Variable<DateTime>(cachedAt);
     return map;
   }
@@ -379,6 +405,7 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
           ? const Value.absent()
           : Value(localImagePath),
       syncStatus: Value(syncStatus),
+      createdAt: Value(createdAt),
       cachedAt: Value(cachedAt),
     );
   }
@@ -399,6 +426,7 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
       payloadJson: serializer.fromJson<String?>(json['payloadJson']),
       localImagePath: serializer.fromJson<String?>(json['localImagePath']),
       syncStatus: serializer.fromJson<String>(json['syncStatus']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       cachedAt: serializer.fromJson<DateTime>(json['cachedAt']),
     );
   }
@@ -416,6 +444,7 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
       'payloadJson': serializer.toJson<String?>(payloadJson),
       'localImagePath': serializer.toJson<String?>(localImagePath),
       'syncStatus': serializer.toJson<String>(syncStatus),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
       'cachedAt': serializer.toJson<DateTime>(cachedAt),
     };
   }
@@ -431,6 +460,7 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
     Value<String?> payloadJson = const Value.absent(),
     Value<String?> localImagePath = const Value.absent(),
     String? syncStatus,
+    DateTime? createdAt,
     DateTime? cachedAt,
   }) => CachedBill(
     id: id ?? this.id,
@@ -445,6 +475,7 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
         ? localImagePath.value
         : this.localImagePath,
     syncStatus: syncStatus ?? this.syncStatus,
+    createdAt: createdAt ?? this.createdAt,
     cachedAt: cachedAt ?? this.cachedAt,
   );
   CachedBill copyWithCompanion(CachedBillsCompanion data) {
@@ -473,6 +504,7 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       cachedAt: data.cachedAt.present ? data.cachedAt.value : this.cachedAt,
     );
   }
@@ -490,6 +522,7 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
           ..write('payloadJson: $payloadJson, ')
           ..write('localImagePath: $localImagePath, ')
           ..write('syncStatus: $syncStatus, ')
+          ..write('createdAt: $createdAt, ')
           ..write('cachedAt: $cachedAt')
           ..write(')'))
         .toString();
@@ -507,6 +540,7 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
     payloadJson,
     localImagePath,
     syncStatus,
+    createdAt,
     cachedAt,
   );
   @override
@@ -523,6 +557,7 @@ class CachedBill extends DataClass implements Insertable<CachedBill> {
           other.payloadJson == this.payloadJson &&
           other.localImagePath == this.localImagePath &&
           other.syncStatus == this.syncStatus &&
+          other.createdAt == this.createdAt &&
           other.cachedAt == this.cachedAt);
 }
 
@@ -537,6 +572,7 @@ class CachedBillsCompanion extends UpdateCompanion<CachedBill> {
   final Value<String?> payloadJson;
   final Value<String?> localImagePath;
   final Value<String> syncStatus;
+  final Value<DateTime> createdAt;
   final Value<DateTime> cachedAt;
   final Value<int> rowid;
   const CachedBillsCompanion({
@@ -550,6 +586,7 @@ class CachedBillsCompanion extends UpdateCompanion<CachedBill> {
     this.payloadJson = const Value.absent(),
     this.localImagePath = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.createdAt = const Value.absent(),
     this.cachedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -564,6 +601,7 @@ class CachedBillsCompanion extends UpdateCompanion<CachedBill> {
     this.payloadJson = const Value.absent(),
     this.localImagePath = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.createdAt = const Value.absent(),
     this.cachedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id);
@@ -578,6 +616,7 @@ class CachedBillsCompanion extends UpdateCompanion<CachedBill> {
     Expression<String>? payloadJson,
     Expression<String>? localImagePath,
     Expression<String>? syncStatus,
+    Expression<DateTime>? createdAt,
     Expression<DateTime>? cachedAt,
     Expression<int>? rowid,
   }) {
@@ -592,6 +631,7 @@ class CachedBillsCompanion extends UpdateCompanion<CachedBill> {
       if (payloadJson != null) 'payload_json': payloadJson,
       if (localImagePath != null) 'local_image_path': localImagePath,
       if (syncStatus != null) 'sync_status': syncStatus,
+      if (createdAt != null) 'created_at': createdAt,
       if (cachedAt != null) 'cached_at': cachedAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -608,6 +648,7 @@ class CachedBillsCompanion extends UpdateCompanion<CachedBill> {
     Value<String?>? payloadJson,
     Value<String?>? localImagePath,
     Value<String>? syncStatus,
+    Value<DateTime>? createdAt,
     Value<DateTime>? cachedAt,
     Value<int>? rowid,
   }) {
@@ -622,6 +663,7 @@ class CachedBillsCompanion extends UpdateCompanion<CachedBill> {
       payloadJson: payloadJson ?? this.payloadJson,
       localImagePath: localImagePath ?? this.localImagePath,
       syncStatus: syncStatus ?? this.syncStatus,
+      createdAt: createdAt ?? this.createdAt,
       cachedAt: cachedAt ?? this.cachedAt,
       rowid: rowid ?? this.rowid,
     );
@@ -660,6 +702,9 @@ class CachedBillsCompanion extends UpdateCompanion<CachedBill> {
     if (syncStatus.present) {
       map['sync_status'] = Variable<String>(syncStatus.value);
     }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
     if (cachedAt.present) {
       map['cached_at'] = Variable<DateTime>(cachedAt.value);
     }
@@ -682,6 +727,7 @@ class CachedBillsCompanion extends UpdateCompanion<CachedBill> {
           ..write('payloadJson: $payloadJson, ')
           ..write('localImagePath: $localImagePath, ')
           ..write('syncStatus: $syncStatus, ')
+          ..write('createdAt: $createdAt, ')
           ..write('cachedAt: $cachedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -1615,6 +1661,7 @@ typedef $$CachedBillsTableCreateCompanionBuilder =
       Value<String?> payloadJson,
       Value<String?> localImagePath,
       Value<String> syncStatus,
+      Value<DateTime> createdAt,
       Value<DateTime> cachedAt,
       Value<int> rowid,
     });
@@ -1630,6 +1677,7 @@ typedef $$CachedBillsTableUpdateCompanionBuilder =
       Value<String?> payloadJson,
       Value<String?> localImagePath,
       Value<String> syncStatus,
+      Value<DateTime> createdAt,
       Value<DateTime> cachedAt,
       Value<int> rowid,
     });
@@ -1690,6 +1738,11 @@ class $$CachedBillsTableFilterComposer
 
   ColumnFilters<String> get syncStatus => $composableBuilder(
     column: $table.syncStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1758,6 +1811,11 @@ class $$CachedBillsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get cachedAt => $composableBuilder(
     column: $table.cachedAt,
     builder: (column) => ColumnOrderings(column),
@@ -1817,6 +1875,9 @@ class $$CachedBillsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
   GeneratedColumn<DateTime> get cachedAt =>
       $composableBuilder(column: $table.cachedAt, builder: (column) => column);
 }
@@ -1862,6 +1923,7 @@ class $$CachedBillsTableTableManager
                 Value<String?> payloadJson = const Value.absent(),
                 Value<String?> localImagePath = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> cachedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CachedBillsCompanion(
@@ -1875,6 +1937,7 @@ class $$CachedBillsTableTableManager
                 payloadJson: payloadJson,
                 localImagePath: localImagePath,
                 syncStatus: syncStatus,
+                createdAt: createdAt,
                 cachedAt: cachedAt,
                 rowid: rowid,
               ),
@@ -1890,6 +1953,7 @@ class $$CachedBillsTableTableManager
                 Value<String?> payloadJson = const Value.absent(),
                 Value<String?> localImagePath = const Value.absent(),
                 Value<String> syncStatus = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> cachedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CachedBillsCompanion.insert(
@@ -1903,6 +1967,7 @@ class $$CachedBillsTableTableManager
                 payloadJson: payloadJson,
                 localImagePath: localImagePath,
                 syncStatus: syncStatus,
+                createdAt: createdAt,
                 cachedAt: cachedAt,
                 rowid: rowid,
               ),

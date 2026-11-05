@@ -57,7 +57,7 @@ class _DetailScreenState extends State<DetailScreen>
     _membersFuture = _loadMemberSummary();
     final billId = widget.billData['id']?.toString();
     if (billId != null && billId.isNotEmpty) {
-      _isLoadingBill = false;
+      _isLoadingBill = true;
       if (!_offlineService.isOffline) _setupRealtimeBillSubscription();
       unawaited(_loadBillLocalFirst());
     } else {
@@ -79,12 +79,15 @@ class _DetailScreenState extends State<DetailScreen>
       }
     } catch (error, stackTrace) {
       debugPrint('Failed to read cached bill detail: $error\n$stackTrace');
-      if (mounted) setState(() => _isLoadingBill = false);
     }
 
     if (!mounted) return;
     unawaited(_fetchHostPromptPayInfo());
-    if (!mounted || context.read<OfflineService>().isOffline) return;
+    if (!mounted) return;
+    if (_offlineService.isOffline) {
+      if (_isLoadingBill) setState(() => _isLoadingBill = false);
+      return;
+    }
     unawaited(_loadBillFromSupabase());
   }
 
@@ -228,8 +231,10 @@ class _DetailScreenState extends State<DetailScreen>
     } catch (error, stackTrace) {
       debugPrint('Failed to load bill detail: $error\n$stackTrace');
       _offlineService.reportNetworkFailure(error);
-      if (!mounted) return;
-      setState(() => _isLoadingBill = false);
+    } finally {
+      if (mounted && _isLoadingBill) {
+        setState(() => _isLoadingBill = false);
+      }
     }
   }
 

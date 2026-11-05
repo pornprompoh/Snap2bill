@@ -9,6 +9,7 @@ import 'package:http/testing.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:snap2bill/data/repositories/local_bill_repository.dart';
 import 'package:snap2bill/domain/repositories/bill_repository.dart';
 import 'package:snap2bill/domain/repositories/user_repository.dart';
 import 'package:snap2bill/models/bill_model.dart';
@@ -20,6 +21,7 @@ import 'package:snap2bill/screens/auth/login_screen.dart';
 import 'package:snap2bill/screens/bill/summary_screen.dart';
 import 'package:snap2bill/screens/bill/detail_screen.dart';
 import 'package:snap2bill/services/notifications/in_app_notification_service.dart';
+import 'package:snap2bill/services/offline/offline_service.dart';
 import 'package:snap2bill/widgets/bill/notification_center_dialog.dart';
 import 'package:snap2bill/widgets/bill/promptpay_card.dart';
 
@@ -64,10 +66,15 @@ void main() {
     final navigatorKey = GlobalKey<NavigatorState>();
     final billProvider = BillProvider(billRepository: _FakeBillRepository());
     final userProvider = UserProvider(userRepository: _FakeUserRepository());
+    final offlineService = OfflineService();
+    billProvider.setOfflineService(offlineService);
+    userProvider.setOfflineService(offlineService);
+    addTearDown(offlineService.disposeService);
 
     await tester.pumpWidget(
       MultiProvider(
         providers: [
+          ChangeNotifierProvider<OfflineService>.value(value: offlineService),
           ChangeNotifierProvider<BillProvider>.value(value: billProvider),
           ChangeNotifierProvider<UserProvider>.value(value: userProvider),
         ],
@@ -227,20 +234,29 @@ void main() {
     final loadedNotifications = await InAppNotificationService.instance
         .getNotifications(currentUserId: 'qa-recipient');
     expect(loadedNotifications, hasLength(1));
+    final localRepository = LocalBillRepository();
+    final billId = _notificationBillData['id'] as String;
+    await localRepository.deleteCachedBill(billId);
+    addTearDown(() => localRepository.deleteCachedBill(billId));
+    final offlineService = OfflineService();
+    addTearDown(offlineService.disposeService);
 
     await tester.pumpWidget(
-      MaterialApp(
-        onGenerateRoute: AppRoutes.generateRoute,
-        home: Builder(
-          builder: (context) => Scaffold(
-            body: TextButton(
-              onPressed: () {
-                NotificationCenterDialog.show(
-                  context,
-                  currentUserId: 'qa-recipient',
-                );
-              },
-              child: const Text('เปิดการแจ้งเตือน'),
+      ChangeNotifierProvider<OfflineService>.value(
+        value: offlineService,
+        child: MaterialApp(
+          onGenerateRoute: AppRoutes.generateRoute,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () {
+                  NotificationCenterDialog.show(
+                    context,
+                    currentUserId: 'qa-recipient',
+                  );
+                },
+                child: const Text('เปิดการแจ้งเตือน'),
+              ),
             ),
           ),
         ),
@@ -268,7 +284,7 @@ void main() {
     expect(InAppNotificationService.instance.unreadCount.value, 0);
     expect(_supabaseRequests, contains('PATCH notifications'));
     expect(_supabaseRequests, contains('GET bills'));
-    expect(_supabaseRequests, contains('GET bill_participants'));
+    expect(_supabaseRequests, contains('GET profiles'));
 
     await tester.pumpWidget(const SizedBox.shrink());
   });

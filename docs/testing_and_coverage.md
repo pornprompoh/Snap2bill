@@ -8,7 +8,7 @@
 | ประเภท | ผลที่วัดได้ | สถานะ |
 |---|---:|---|
 | **Unit + Widget Tests** | Full suite ล่าสุด 290/290 ผ่าน; ชุดที่เปลี่ยนภายหลังผ่าน targeted runs แต่ไม่ได้ยืนยันยอดรวม full suite ล่าสุด | ผ่านตาม full run และ targeted runs |
-| **Integration Tests** | มี 2 flows ใน `integration_test/app_flow_test.dart`; ไม่ได้รันในรอบนี้ | ยังไม่ยืนยัน |
+| **Integration Tests** | `integration_test/app_flow_test.dart` ผ่าน 2/2 flows บน Windows desktop โดยใช้ Supabase HTTP mock | ผ่านในสภาพแวดล้อม mock |
 | **Security Tests / Controls** | 19 checks: 9 RLS/migration rule checks + 10 app/client checks ผ่าน; ตรวจพบ 15 PostgreSQL policies และ 4 Storage rules จาก README (static inspection ไม่ใช่การทดสอบกับ Supabase จริง) | ผ่านเฉพาะ local tests / static review |
 | **Line Coverage (filtered LCOV)** | **71.47% (6,415/8,976 lines)**; `test_cov_console` → “All files with unit testing” | **ยังไม่ถึงเกณฑ์ ≥ 75%** |
 | **Raw LCOV baseline** | 68.26% (7,114/10,422 lines) ก่อนกรอง | Baseline |
@@ -20,8 +20,8 @@
 flutter test --coverage
 ```
 
-ผล full run ล่าสุดที่สร้าง `coverage/lcov.info`: `All tests passed!` — 290 test cases. ตามคำขอปิดงาน ไม่มีการรัน full suite ใหม่; มีการรัน targeted tests ในไฟล์ที่เปลี่ยนภายหลังและผ่าน แต่ไม่อ้างว่า full suite ล่าสุดผ่านทั้งหมดหรือคำนวณยอดรวมใหม่ ตัวเลข coverage ในรายงานจึงอ้างอิง LCOV จาก full run 290 cases
-การรันครั้งนี้ไม่ได้รวม integration tests; การลองรัน `flutter test integration_test/app_flow_test.dart` ก่อนหน้านี้จบด้วยข้อผิดพลาดว่าไม่มี device เชื่อมต่อสำหรับ integration test จึงยังไม่มีผล pass ที่ยืนยันได้สำหรับ 2 flows ในโฟลเดอร์ `integration_test/`.
+ผล full run ล่าสุดที่สร้าง `coverage/lcov.info`: `All tests passed!` — 290 test cases. ไม่ได้รัน full unit/widget suite หรือสร้าง coverage ใหม่ในรอบแก้ integration นี้; ตัวเลข coverage ด้านล่างยังอ้างอิง LCOV snapshot เดิม
+หลังจากนั้นรัน `flutter test -d windows integration_test/app_flow_test.dart` และผ่าน 2/2 flows. Integration run ใช้ Supabase HTTP mock และ fake repositories; Realtime WebSocket ไปยัง `example.supabase.co` ไม่พร้อมใช้งานใน test environment และรายงาน channel error ที่ถูกจัดการโดยแอป แต่ไม่ทำให้ tests ล้ม
 
 ## 2. รายละเอียดการทดสอบ 4 ประเภท (Detailed Test Breakdown)
 
@@ -43,6 +43,8 @@ flutter test --coverage
 ### Integration Tests
 
 `integration_test/app_flow_test.dart` มี 2 widget-driven flows โดยใช้ fake repositories และ Supabase HTTP mock:
+
+- **ผลการรันล่าสุด:** ผ่าน 2/2 flows ด้วย `flutter test -d windows integration_test/app_flow_test.dart`
 
 1. **Create Bill, Claim Items & Payment Summary**
    - เปิด Login screen ด้วย repository ปลอมและข้อมูลผู้ใช้ทดสอบ

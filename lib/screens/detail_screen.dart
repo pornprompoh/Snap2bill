@@ -3,8 +3,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/bill_model.dart';
 import '../providers/bill_provider.dart';
+import '../theme/app_colors.dart';
 import '../utils/formatters.dart';
 import '../widgets/bill/member_summary_list.dart';
+import '../utils/bill_progress_helper.dart';
+import '../widgets/bill/poke_reminder_dialog.dart';
+import '../widgets/bill/shareable_receipt_preview_dialog.dart';
+import 'bill/personal_payment_details_screen.dart';
 
 class DetailScreen extends StatefulWidget {
   final Map<String, dynamic> billData;
@@ -17,11 +22,53 @@ class DetailScreen extends StatefulWidget {
 
 class _DetailScreenState extends State<DetailScreen> {
   late Future<List<MemberSummaryEntry>> _membersFuture;
+  final GlobalKey _receiptCaptureKey = GlobalKey();
+  String _hostPromptPay = '';
+  String? _hostPromptPayType;
+  String? _hostBankName;
+  String _hostBankAccountNumber = '';
+  String? _hostBankAccountName;
+  String _hostName = 'เจ้าของบิล';
 
   @override
   void initState() {
     super.initState();
     _membersFuture = _loadMemberSummary();
+    _fetchHostPromptPayInfo();
+  }
+
+  Future<void> _fetchHostPromptPayInfo() async {
+    try {
+      final ownerId = widget.billData['owner_id']?.toString() ??
+          Supabase.instance.client.auth.currentUser?.id;
+      if (ownerId != null) {
+        final profile = await Supabase.instance.client
+            .from('profiles')
+            .select()
+            .eq('id', ownerId)
+            .maybeSingle();
+        if (profile != null && mounted) {
+          final paymentInfo = profile['payment_info'] as Map<String, dynamic>?;
+          setState(() {
+            _hostPromptPay = profile['promptpay_number']?.toString() ??
+                paymentInfo?['number']?.toString() ??
+                '';
+            _hostPromptPayType = profile['promptpay_type']?.toString() ??
+                paymentInfo?['type']?.toString();
+            _hostBankName = paymentInfo?['bank_name']?.toString();
+            _hostBankAccountNumber =
+                paymentInfo?['bank_account_number']?.toString() ?? '';
+            _hostBankAccountName = paymentInfo?['bank_account_name']?.toString();
+            final name = profile['display_name']?.toString().trim();
+            _hostName = name?.isNotEmpty == true
+                ? name!
+                : profile['email']?.toString().split('@').first ?? 'เจ้าของบิล';
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching host promptpay: $e');
+    }
   }
 
   Future<List<MemberSummaryEntry>> _loadMemberSummary() async {
@@ -154,43 +201,172 @@ class _DetailScreenState extends State<DetailScreen> {
       participantIds: participantIds,
     );
 
+    final ownerId = widget.billData['owner_id']?.toString() ??
+        widget.billData['user_id']?.toString() ??
+        receipt['owner_id']?.toString() ??
+        '';
+    Map<String, dynamic>? ownerProfile;
+    if (ownerId.isNotEmpty) {
+      try {
+        ownerProfile = await Supabase.instance.client
+            .from('profiles')
+            .select('id, display_name, email')
+            .eq('id', ownerId)
+            .maybeSingle();
+      } catch (_) {}
+    }
+    final ownerDisplayName = ownerProfile?['display_name']?.toString().trim();
+    final ownerEmail = ownerProfile?['email']?.toString();
+    final ownerEmailPrefix = ownerEmail?.split('@').first;
+
+    String currentUserId = '';
+    String currentEmailPrefix = '';
+    try {
+      final currentAuthUser = Supabase.instance.client.auth.currentUser;
+      currentUserId = currentAuthUser?.id ?? '';
+      currentEmailPrefix = currentAuthUser?.email?.split('@').first ?? '';
+    } catch (_) {}
+
+    bool checkIsOwner(String mid, String mName) {
+      if (ownerId.isNotEmpty && (mid == ownerId || mName == ownerId)) return true;
+      if (ownerDisplayName != null && ownerDisplayName.isNotEmpty && (mid == ownerDisplayName || mName == ownerDisplayName)) return true;
+      if (ownerEmailPrefix != null && ownerEmailPrefix.isNotEmpty && (mid == ownerEmailPrefix || mName == ownerEmailPrefix)) return true;
+      if (currentUserId.isNotEmpty && (mid == currentUserId || mName == currentUserId)) return true;
+      if (currentEmailPrefix.isNotEmpty && (mid == currentEmailPrefix || mName == currentEmailPrefix)) return true;
+      if (_hostName.isNotEmpty && (mName == _hostName || mid == _hostName)) return true;
+      return false;
+    }
+
+    final receiptPaidStatuses = _asMap(receipt['paid_statuses']);
+    final paymentSlips = _asMap(receipt['payment_slips']);
+
     final entriesById = <String, MemberSummaryEntry>{};
     for (final id in participantIds) {
       final profile = profilesById[id];
+      final profileEmail = profile?['email']?.toString() ?? '';
+      final profileEmailPrefix = profileEmail.split('@').first;
       final name =
           namesById[id] ??
           profile?['display_name']?.toString() ??
           (id.startsWith('guest_') ? 'Guest' : 'เพื่อน');
+      final isOwner = checkIsOwner(id, name) ||
+          (ownerId.isNotEmpty && (id == ownerId || profileEmailPrefix == ownerId || profile?['id'] == ownerId)) ||
+          (currentUserId.isNotEmpty && (id == currentUserId || profile?['id'] == currentUserId)) ||
+          (currentEmailPrefix.isNotEmpty && (id == currentEmailPrefix || name == currentEmailPrefix || profileEmailPrefix == currentEmailPrefix));
+
+      // Extract this member's dishes
+      final memberDishes = <MemberDishItem>[];
+      for (final item in items) {
+        final personalQty = item.userQuantities[id] ?? 0;
+        if (personalQty > 0) {
+          memberDishes.add(
+            MemberDishItem(
+              itemName: item.itemName,
+              quantity: personalQty,
+              isShared: false,
+              totalSharers: 1,
+              unitPrice: item.price,
+              totalPrice: (personalQty * item.price).ceilToDouble(),
+            ),
+          );
+        }
+        if (item.sharedUsers.contains(id)) {
+          final personalClaimsCount =
+              item.userQuantities.values.fold<int>(0, (a, b) => a + b);
+          final sharedQuantity =
+              (item.quantity - personalClaimsCount).clamp(0, item.quantity);
+          final sharersCount = item.sharedUsers.length;
+          if (sharedQuantity > 0 && sharersCount > 0) {
+            final sharePrice =
+                (item.price * sharedQuantity / sharersCount).ceilToDouble();
+            memberDishes.add(
+              MemberDishItem(
+                itemName: item.itemName,
+                quantity: sharedQuantity,
+                isShared: true,
+                totalSharers: sharersCount,
+                unitPrice: item.price,
+                totalPrice: sharePrice,
+              ),
+            );
+          }
+        }
+      }
+
+      final rawStatus =
+          receiptPaidStatuses[id]?.toString().toLowerCase() ?? 'pending';
+      final slipUrl = paymentSlips[id]?.toString();
+      final effectiveStatus = isOwner
+          ? 'owner'
+          : (rawStatus == 'paid'
+              ? 'paid'
+              : (rawStatus == 'reviewing' ||
+                      (slipUrl != null && slipUrl.isNotEmpty)
+                  ? 'reviewing'
+                  : 'pending'));
+
       entriesById[id] = MemberSummaryEntry(
         id: id,
         name: name,
         amount: calculatedShares[id] ?? 0,
+        status: effectiveStatus,
         isGuest: id.startsWith('guest_'),
+        isOwner: isOwner,
+        isPaid: isOwner ? true : (effectiveStatus == 'paid'),
+        itemsCount: memberDishes.length,
+        dishes: memberDishes,
+        slipUrl: slipUrl,
       );
     }
 
     for (final row in participantRows) {
       final id = row['profile_id']?.toString() ?? '';
       if (id.isEmpty) continue;
-      final status = row['status']?.toString().toLowerCase();
+      final rowStatus = row['status']?.toString().toLowerCase() ?? '';
       final existing = entriesById[id];
-      entriesById[id] = MemberSummaryEntry(
-        id: id,
-        name: existing?.name ?? namesById[id] ?? 'เพื่อน',
+      if (existing == null) continue;
+      final isOwner = existing.isOwner;
+      final slipUrl = existing.slipUrl ?? paymentSlips[id]?.toString();
+
+      final effectiveStatus = isOwner
+          ? 'owner'
+          : (rowStatus == 'paid' ||
+                  rowStatus == 'cleared' ||
+                  rowStatus == 'settled' ||
+                  existing.status == 'paid'
+              ? 'paid'
+              : (rowStatus == 'reviewing' ||
+                      rowStatus == 'pending_verification' ||
+                      existing.status == 'reviewing' ||
+                      (slipUrl != null && slipUrl.isNotEmpty)
+                  ? 'reviewing'
+                  : 'pending'));
+
+      entriesById[id] = existing.copyWith(
         amount:
             double.tryParse(row['amount_owed']?.toString() ?? '') ??
-            existing?.amount ??
-            0,
-        isPaid:
-            status == 'paid' ||
-            status == 'cleared' ||
-            status == 'settled',
-        isGuest: false,
+            existing.amount,
+        status: effectiveStatus,
+        isPaid: isOwner ? true : (effectiveStatus == 'paid'),
+        isReviewing: isOwner ? false : (effectiveStatus == 'reviewing'),
+        slipUrl: slipUrl,
       );
     }
 
     return entriesById.values.toList()
-      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      ..sort((a, b) {
+        if (a.isOwner) return -1;
+        if (b.isOwner) return 1;
+        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
+  }
+
+  bool get _isCurrentUserOwner {
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    final ownerId = widget.billData['owner_id']?.toString() ??
+        widget.billData['user_id']?.toString() ??
+        _asMap(widget.billData['receipt_json'])['owner_id']?.toString();
+    return currentUserId != null && ownerId != null && currentUserId == ownerId;
   }
 
   Map<String, dynamic> _asMap(Object? value) {
@@ -199,8 +375,111 @@ class _DetailScreenState extends State<DetailScreen> {
     return {};
   }
 
+  // 💳 สลับสถานะชำระเงิน (Paid / Pending) และอัปเดตลง Supabase (Week 9 Cloud)
+  Future<void> _handleStatusToggle(MemberSummaryEntry member) async {
+    if (member.isOwner) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('เจ้าของรายการไม่ต้องชำระเงินให้ตนเอง')),
+      );
+      return;
+    }
+
+    if (!_isCurrentUserOwner) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('เฉพาะเจ้าของรายการเท่านั้นที่มีสิทธิ์เปลี่ยนสถานะการชำระเงิน'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final billId = widget.billData['id']?.toString();
+    if (billId == null) return;
+
+    final newStatus = member.isPaid ? 'pending' : 'paid';
+    try {
+      if (member.isGuest) {
+        final receipt = _asMap(widget.billData['receipt_json']);
+        final paidStatuses = _asMap(receipt['paid_statuses']);
+        paidStatuses[member.id] = newStatus;
+        receipt['paid_statuses'] = paidStatuses;
+        await Supabase.instance.client
+            .from('bills')
+            .update({'receipt_json': receipt})
+            .eq('id', billId);
+        widget.billData['receipt_json'] = receipt;
+      } else {
+        await Supabase.instance.client
+            .from('bill_participants')
+            .update({'status': newStatus})
+            .eq('bill_id', billId)
+            .eq('profile_id', member.id);
+      }
+
+      final updatedMembers = await _loadMemberSummary();
+      final nonOwnerPaying = updatedMembers.where((m) => !m.isOwner).toList();
+      final allPayingSettled = nonOwnerPaying.isNotEmpty && nonOwnerPaying.every((m) => m.isPaid);
+      final newBillStatus = allPayingSettled ? 'completed' : 'pending';
+
+      try {
+        await Supabase.instance.client
+            .from('bills')
+            .update({'status': newBillStatus})
+            .eq('id', billId);
+        widget.billData['status'] = newBillStatus;
+      } catch (e) {
+        debugPrint('Error updating bill status: $e');
+      }
+
+      setState(() {
+        _membersFuture = Future.value(updatedMembers);
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              newStatus == 'paid'
+                  ? 'อัปเดต: ${member.name} ชำระเงินแล้ว ✅'
+                  : 'อัปเดต: ${member.name} รอจ่าย ⏳',
+            ),
+            duration: const Duration(seconds: 2),
+            backgroundColor: newStatus == 'paid' ? AppColors.success : AppColors.warning,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error updating payment status: $e');
+    }
+  }
+
+  // 📤 เปิดหน้าต่างสร้างและแชร์บิลสรุปสำเร็จรูป (Shareable Bill Summary)
+  void _openShareableReceiptDialog() {
+    ShareableReceiptPreviewDialog.show(
+      context,
+      bill: widget.billData,
+      hostPromptPay: _hostPromptPay,
+      hostPromptPayType: _hostPromptPayType,
+      hostBankAccount: _hostBankAccountNumber,
+      hostBankName: _hostBankName,
+      hostName: _hostName,
+      isCurrentViewerOwner: _isCurrentUserOwner,
+      onPromptPayUpdated: (promptPay, promptPayType, hostName) {
+        setState(() {
+          _hostPromptPay = promptPay;
+          _hostPromptPayType = promptPayType;
+          if (hostName != null && hostName.isNotEmpty) {
+            _hostName = hostName;
+          }
+        });
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final billSummary = BillProgressHelper.calculate(widget.billData);
     final shopName = widget.billData['shop_name'] ?? 'ไม่ระบุชื่อร้าน';
     final createdAt =
         widget.billData['created_at']?.toString().split('T')[0] ?? '';
@@ -228,24 +507,58 @@ class _DetailScreenState extends State<DetailScreen> {
         0;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('รายละเอียดบิลย้อนหลัง')),
+      appBar: AppBar(
+        title: const Text('รายละเอียดบิลย้อนหลัง'),
+        actions: [
+          if (_isCurrentUserOwner)
+            IconButton(
+              icon: const Icon(Icons.notifications_active_outlined, color: AppColors.primaryOrange),
+              tooltip: 'สะกิดเตือนเพื่อน',
+              onPressed: () {
+                PokeReminderDialog.show(
+                  context,
+                  bill: widget.billData,
+                  hostPromptPay: _hostPromptPay,
+                  hostBankAccount: _hostBankAccountNumber,
+                  hostBankName: _hostBankName,
+                  hostName: _hostName,
+                );
+              },
+            ),
+          IconButton(
+            icon: const Icon(Icons.share_rounded),
+            tooltip: 'แชร์บิลสรุปสำเร็จรูป',
+            onPressed: _openShareableReceiptDialog,
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (imageUrl != null && imageUrl.toString().isNotEmpty)
-              Center(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.network(imageUrl, height: 300, fit: BoxFit.cover),
+        child: RepaintBoundary(
+          key: _receiptCaptureKey,
+          child: Container(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (imageUrl != null && imageUrl.toString().isNotEmpty)
+                  Center(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(imageUrl, height: 300, fit: BoxFit.cover),
+                    ),
+                  ),
+                const SizedBox(height: 16),
+                Hero(
+                  tag: 'bill_${widget.billData['id']}',
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: Text(
+                      shopName.toString(),
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    ),
+                  ),
                 ),
-              ),
-            const SizedBox(height: 16),
-            Text(
-              shopName.toString(),
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
             if (createdAt.isNotEmpty)
               Text(
                 'วันที่: $createdAt',
@@ -255,8 +568,15 @@ class _DetailScreenState extends State<DetailScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(12),
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? AppColors.darkCardBackground
+                    : AppColors.paleYellow,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? AppColors.darkBorder
+                      : AppColors.primaryOrange.withValues(alpha: 0.3),
+                ),
               ),
               child: Column(
                 children: [
@@ -265,7 +585,7 @@ class _DetailScreenState extends State<DetailScreen> {
                     _buildSummaryRow('Service Charge', serviceCharge),
                   if (vatAmount > 0) _buildSummaryRow('VAT', vatAmount),
                   if (discount > 0)
-                    _buildSummaryRow('ส่วนลด', -discount, color: Colors.red),
+                    _buildSummaryRow('ส่วนลด', -discount, color: AppColors.error),
                   const Divider(),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -277,20 +597,54 @@ class _DetailScreenState extends State<DetailScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      Text(
-                        AppFormatters.formatCurrency(totalAmount),
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green,
-                        ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            totalAmount > 0
+                                ? AppFormatters.formatCurrency(totalAmount)
+                                : 'ยังไม่มีข้อมูลยอดบิล',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.tealGreen,
+                            ),
+                          ),
+                          if (totalAmount > 0 && billSummary.averagePerPerson > 0) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              'ตกคนละ ${AppFormatters.formatCurrency(billSummary.averagePerPerson)}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.tealGreen,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 48),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                elevation: 0,
+              ),
+              icon: const Icon(Icons.receipt_long_rounded, size: 20),
+              label: const Text(
+                'สร้างและแชร์บิลสรุปสำเร็จรูป (รูปบิลใบเสร็จ)',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              onPressed: _openShareableReceiptDialog,
+            ),
+            const SizedBox(height: 20),
             const Text(
               'รายการที่สั่ง (รายละเอียด)',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -471,13 +825,55 @@ class _DetailScreenState extends State<DetailScreen> {
                     child: Text('ไม่มีข้อมูลยอดชำระรายบุคคล'),
                   );
                 }
-                return MemberSummaryList(members: snapshot.data!);
+                return MemberSummaryList(
+                  members: snapshot.data!,
+                  isCurrentViewerOwner: _isCurrentUserOwner,
+                  onMemberTap: (memberId) async {
+                    final member = snapshot.data!.firstWhere(
+                      (m) => m.id == memberId,
+                    );
+                    final receipt = _asMap(widget.billData['receipt_json']);
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => PersonalPaymentDetailsScreen(
+                          billData: widget.billData,
+                          member: member,
+                          hostPromptPay: _hostPromptPay,
+                          hostPromptPayType: _hostPromptPayType,
+                          hostBankName: _hostBankName,
+                          hostBankAccountNumber: _hostBankAccountNumber,
+                          hostBankAccountName: _hostBankAccountName,
+                          hostName: _hostName,
+                          isCurrentViewerOwner: _isCurrentUserOwner,
+                          receiptSubTotal: double.tryParse(receipt['sub_total']?.toString() ?? '0') ?? 0.0,
+                          receiptVat: double.tryParse(receipt['vat_amount']?.toString() ?? '0') ?? 0.0,
+                          receiptServiceCharge: double.tryParse(receipt['service_charge']?.toString() ?? '0') ?? 0.0,
+                          receiptDiscount: double.tryParse(receipt['discount']?.toString() ?? '0') ?? 0.0,
+                          onStatusChanged: (newStatus, slipUrl) {
+                            setState(() {
+                              _membersFuture = _loadMemberSummary();
+                            });
+                          },
+                        ),
+                      ),
+                    );
+                    if (mounted) {
+                      setState(() {
+                        _membersFuture = _loadMemberSummary();
+                      });
+                    }
+                  },
+                  onStatusToggle: _handleStatusToggle,
+                );
               },
             ),
           ],
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 
   Widget _buildSummaryRow(String label, double amount, {Color? color}) {

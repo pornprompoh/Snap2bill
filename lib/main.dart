@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // 🚀 นำเข้า dotenv
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
-import 'services/cache_service.dart';
 import 'routes/app_routes.dart';
 import 'providers/bill_provider.dart';
 import 'providers/contact_provider.dart';
+import 'providers/theme_provider.dart';
 import 'providers/user_provider.dart';
 import 'theme/app_colors.dart';
+import 'theme/app_design_system.dart';
 import 'theme/app_text_styles.dart';
 import 'package:snap2bill/widgets/deep_link_handler.dart';
 
@@ -17,8 +17,6 @@ final _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Hive.initFlutter();
-  await CacheService.instance.init();
 
   // 🚀 โหลดไฟล์ .env ก่อนเรียกใช้ตัวแปร
   await dotenv.load(fileName: ".env");
@@ -33,6 +31,7 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => ContactProvider()),
         ChangeNotifierProxyProvider<ContactProvider, BillProvider>(
@@ -55,32 +54,62 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme =
-        ColorScheme.fromSeed(
-          seedColor: AppColors.primary,
-          brightness: Brightness.light,
-        ).copyWith(
-          primary: AppColors.primary,
-          onPrimary: AppColors.surface,
-          primaryContainer: AppColors.secondary,
-          onPrimaryContainer: AppColors.primaryDark,
-          secondary: AppColors.secondary,
-          onSecondary: AppColors.primaryDark,
-          tertiary: AppColors.accent,
-          onTertiary: AppColors.textPrimary,
-          surface: AppColors.surface,
-          onSurface: AppColors.textPrimary,
-          outline: AppColors.border,
-          error: AppColors.error,
-          onError: AppColors.surface,
-        );
+    final themeProvider = context.watch<ThemeProvider>();
+
+    final lightColorScheme = ColorScheme.fromSeed(
+      seedColor: AppColors.primary,
+      brightness: Brightness.light,
+    ).copyWith(
+      primary: AppColors.primary,
+      onPrimary: AppColors.surface,
+      primaryContainer: AppColors.secondary,
+      onPrimaryContainer: AppColors.primaryDark,
+      secondary: AppColors.secondary,
+      onSecondary: AppColors.primaryDark,
+      tertiary: AppColors.accent,
+      onTertiary: AppColors.textPrimary,
+      surface: AppColors.surface,
+      onSurface: AppColors.textPrimary,
+      outline: AppColors.border,
+      error: AppColors.error,
+      onError: AppColors.surface,
+    );
+
+    final darkColorScheme = ColorScheme.fromSeed(
+      seedColor: AppColors.primary,
+      brightness: Brightness.dark,
+    ).copyWith(
+      primary: AppColors.secondary,
+      onPrimary: AppColors.primaryDark,
+      primaryContainer: AppColors.primaryDark,
+      onPrimaryContainer: AppColors.secondary,
+      secondary: AppColors.secondary,
+      onSecondary: AppColors.primaryDark,
+      tertiary: AppColors.accent,
+      onTertiary: Colors.white,
+      surface: AppColors.darkSurface,
+      onSurface: AppColors.darkTextPrimary,
+      outline: AppColors.darkBorder,
+      error: AppColors.error,
+      onError: Colors.white,
+    );
 
     return MaterialApp(
       title: 'Snap2Bill',
+      onGenerateTitle: (context) => 'Snap2Bill',
+      builder: (context, child) {
+        return Title(
+          title: 'Snap2Bill',
+          color: AppColors.primary,
+          child: child ?? const SizedBox(),
+        );
+      },
       navigatorKey: _navigatorKey,
       scaffoldMessengerKey: _scaffoldMessengerKey,
-      theme: ThemeData(
-        colorScheme: colorScheme,
+      themeMode: themeProvider.themeMode,
+      theme: AppDesignSystem.apply(ThemeData(
+        fontFamily: AppTextStyles.fontFamily,
+        colorScheme: lightColorScheme,
         textTheme: AppTextStyles.textTheme,
         scaffoldBackgroundColor: AppColors.background,
         appBarTheme: const AppBarTheme(
@@ -108,7 +137,36 @@ class MyApp extends StatelessWidget {
           hintStyle: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
         ),
         useMaterial3: true,
-      ),
+      )),
+      darkTheme: AppDesignSystem.apply(ThemeData(
+        fontFamily: AppTextStyles.fontFamily,
+        colorScheme: darkColorScheme,
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: AppColors.darkBackground,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: AppColors.darkBackground,
+          foregroundColor: AppColors.darkTextPrimary,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: AppColors.darkSurface,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: AppColors.darkBorder),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: AppColors.darkBorder),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: AppColors.secondary, width: 1.5),
+          ),
+        ),
+        useMaterial3: true,
+      )),
       // OAuth returns to the app after Supabase has restored the session.
       initialRoute: Supabase.instance.client.auth.currentSession == null
           ? '/'

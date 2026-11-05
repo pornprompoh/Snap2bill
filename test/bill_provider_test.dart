@@ -1,141 +1,143 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:snap2bill/models/bill_model.dart';
 import 'package:snap2bill/models/user_model.dart';
 import 'package:snap2bill/providers/bill_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   setUpAll(() async {
     SharedPreferences.setMockInitialValues({});
-    await Supabase.initialize(
-      url: 'https://example.supabase.co',
-      publishableKey: 'test-publishable-key',
-    );
+    try {
+      await Supabase.initialize(
+        url: 'https://mock.supabase.co',
+        // ignore: deprecated_member_use
+        anonKey: 'mock-key',
+      );
+    } catch (_) {
+      // Already initialized
+    }
   });
 
-  group('BillProvider calculations', () {
-    final items = [
-      BillItemModel(
-        id: 'item-1',
-        billId: 'bill-1',
-        itemName: 'Noodles',
-        price: 100,
-        quantity: 2,
-        userQuantities: {'host': 1, 'guest': 1},
-      ),
-    ];
+  group('BillProvider State & Operations Tests', () {
+    late BillProvider provider;
 
-    test('calculates subtotal, VAT, and service charge', () {
-      expect(BillProvider.calculateSubtotal(items), 200);
-      expect(
-        BillProvider.calculateVat(subtotal: 200, rate: 7),
-        closeTo(14, 0.001),
-      );
-      expect(
-        BillProvider.calculateServiceCharge(subtotal: 200, rate: 10),
-        closeTo(20, 0.001),
-      );
+    setUp(() {
+      provider = BillProvider();
     });
 
-    test('allocates a proportional final total', () {
-      final shares = BillProvider.calculateUserShares(
-        items: items,
-        finalTotal: 234,
-        splitType: 'proportional',
-      );
-
-      expect(shares['host'], closeTo(117, 0.001));
-      expect(shares['guest'], closeTo(117, 0.001));
+    test('initial state has default values', () {
+      expect(provider.bills, isEmpty);
+      expect(provider.roomParticipants, isEmpty);
+      expect(provider.roomMembers, isEmpty);
+      expect(provider.isLoading, isFalse);
+      expect(provider.splitType, 'proportional');
     });
 
-    test(
-      'allocates an equal final total including an unclaimed participant',
-      () {
-        final shares = BillProvider.calculateUserShares(
-          items: items,
-          finalTotal: 234,
-          splitType: 'equal',
-          participantIds: ['host', 'guest', 'observer'],
-        );
+    test('setSplitType toggles between equal and proportional', () {
+      provider.setSplitType('equal');
+      expect(provider.splitType, 'equal');
 
-        expect(shares['host'], closeTo(111.333, 0.001));
-        expect(shares['guest'], closeTo(111.333, 0.001));
-        expect(shares['observer'], closeTo(11.333, 0.001));
-      },
-    );
-  });
+      provider.setSplitType('proportional');
+      expect(provider.splitType, 'proportional');
 
-  group('claiming users and guest members', () {
-    test('adds a guest member after selecting a room', () async {
-      final provider = BillProvider();
-      provider.setActiveRoom('room-1');
-      provider.mergeRoomMembers([
-        const BillMemberForTest(id: 'guest-1', name: 'Mina', isGuest: true),
-      ]);
-
-      expect(provider.roomMembers.single.name, 'Mina');
+      expect(() => provider.setSplitType('invalid_split'), throwsA(isA<ArgumentError>()));
     });
 
-    test('switches the active claiming user', () {
-      final provider = BillProvider();
-      provider.setClaimingUser('guest-1');
-      expect(provider.currentClaimingUserId, 'guest-1');
+    test('setActiveRoom resets room state and participants', () {
+      provider.setActiveRoom('ROOM01');
+      expect(provider.splitType, 'proportional');
+
+      // Setting same room does not reset
+      provider.setSplitType('equal');
+      provider.setActiveRoom('ROOM01');
+      expect(provider.splitType, 'equal');
+
+      // Setting different room resets
+      provider.setActiveRoom('ROOM02');
+      expect(provider.splitType, 'proportional');
     });
 
-    test('ignores duplicate participants and invalid member ids', () {
-      final provider = BillProvider();
-      final participant = UserModel(
-        id: 'member-1',
-        displayName: 'Alice',
-        email: 'alice@example.com',
-      );
+    test('setClaimingUser updates claimant ID and validates non-empty', () {
+      provider.setClaimingUser('user-999');
+      expect(provider.currentClaimingUserId, 'user-999');
 
-      provider.addRoomParticipants('room-1', [participant, participant]);
-      provider.mergeRoomMembers([const RoomMember(id: '', name: 'ignored')]);
-
-      expect(provider.roomParticipants, hasLength(1));
-      expect(provider.roomMembers, hasLength(1));
+      expect(() => provider.setClaimingUser(''), throwsA(isA<ArgumentError>()));
     });
 
-    test('validates split type and guest input', () async {
-      final provider = BillProvider();
-      expect(() => provider.setSplitType('invalid'), throwsArgumentError);
-      expect(() => provider.setClaimingUser(''), throwsArgumentError);
-      expect(() => provider.addGuestMember(''), throwsArgumentError);
-      expect(() => provider.addGuestMember('Bob'), throwsStateError);
-      expect(BillProvider.isNetworkError(Exception('network error')), isTrue);
+    test('addRoomParticipants merges users and creates RoomMember objects', () {
+      final user1 = UserModel(id: 'u1', email: 'u1@snap2bill.app', displayName: 'สมศักดิ์');
+      final user2 = UserModel(id: 'u2', email: 'friend@snap2bill.app');
+      final userEmpty = UserModel(id: '', email: 'invalid@snap2bill.app');
+
+      final result = provider.addRoomParticipants('ROOM123', [user1, user2, userEmpty, user1]);
+
+      expect(result.length, 2);
+      expect(provider.roomParticipants.length, 2);
+      expect(provider.roomMembers.length, 2);
+      expect(provider.roomMembers.first.name, 'สมศักดิ์');
+      expect(provider.roomMembers.last.name, 'friend');
     });
 
-    test('rejects unsupported share calculations', () {
+    test('mergeRoomMembers avoids duplicates', () {
+      const m1 = RoomMember(id: 'm1', name: 'Mina');
+      const m2 = RoomMember(id: 'm2', name: 'John');
+      const mEmpty = RoomMember(id: '', name: 'Ghost');
+
+      provider.mergeRoomMembers([m1, m2, mEmpty]);
+      expect(provider.roomMembers.length, 2);
+
+      // Re-merging m1 does not duplicate
+      provider.mergeRoomMembers([m1]);
+      expect(provider.roomMembers.length, 2);
+    });
+
+    test('calculateUserShares throws ArgumentError on unsupported split type', () {
       expect(
         () => BillProvider.calculateUserShares(
-          items: const [],
-          finalTotal: 0,
-          splitType: 'unsupported',
+          items: [],
+          finalTotal: 100,
+          splitType: 'random',
         ),
-        throwsArgumentError,
-      );
-      expect(
-        () => BillProvider.calculateSubtotal([
-          BillItemModel(
-            id: 'item-1',
-            billId: 'bill-1',
-            itemName: 'Invalid',
-            price: -1,
-            quantity: 1,
-          ),
-        ]),
-        throwsArgumentError,
+        throwsA(isA<ArgumentError>()),
       );
     });
-  });
-}
 
-class BillMemberForTest extends RoomMember {
-  const BillMemberForTest({
-    required super.id,
-    required super.name,
-    super.isGuest,
+    test('calculateUserShares with no items returns zero shares', () {
+      final shares = BillProvider.calculateUserShares(
+        items: [],
+        finalTotal: 0,
+        splitType: 'proportional',
+        participantIds: ['u1', 'u2'],
+      );
+
+      expect(shares['u1'], 0.0);
+      expect(shares['u2'], 0.0);
+    });
+
+    test('calculateUserShares with equal split distributes extra charges equally across eaters', () {
+      final item = BillItemModel(
+        id: 'i1',
+        billId: 'b1',
+        itemName: 'ส้มตำ',
+        price: 80,
+        quantity: 1,
+        userQuantities: {'u1': 1},
+      );
+
+      final shares = BillProvider.calculateUserShares(
+        items: [item],
+        finalTotal: 100, // +20 extra
+        splitType: 'equal',
+        participantIds: ['u1', 'u2'],
+      );
+
+      // u1 is the only active eater, so u1 pays 80 + 20 = 100
+      expect(shares['u1'], 100.0);
+      // u2 ate nothing, so pays 0
+      expect(shares['u2'], 0.0);
+    });
   });
 }

@@ -1,13 +1,17 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../providers/bill_provider.dart';
+import '../repositories/local_bill_repository.dart';
 import '../routes/app_routes.dart';
-import '../services/cache_service.dart';
+import '../services/camera_service.dart';
 import '../theme/app_colors.dart';
-import '../theme/app_text_styles.dart';
+import '../utils/formatters.dart';
 import '../widgets/bill_card.dart';
-import '../widgets/custom_button.dart';
+import '../utils/bill_progress_helper.dart';
+import '../services/in_app_notification_service.dart';
+import '../widgets/bill/poke_reminder_dialog.dart';
+import '../widgets/bill/notification_center_dialog.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,52 +22,122 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _supabase = Supabase.instance.client;
+  final LocalBillRepository _localRepo = LocalBillRepository();
 
   late Future<List<Map<String, dynamic>>> _billsFuture;
   bool _isCheckingRoom = false;
+  String _historyFilter = 'unpaid'; // 'unpaid', 'completed', 'all'
+  RealtimeChannel? _realtimeBillsChannel;
 
   @override
   void initState() {
     super.initState();
     _billsFuture = _fetchMyBills();
+    _setupRealtimeBillsSubscription();
   }
 
-  // 🚀 ดึงข้อมูลทั้งบิลที่ตัวเองเป็นเจ้าของ และบิลที่ไปร่วมหาร
-  Future<List<Map<String, dynamic>>> _fetchMyBills() async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) return [];
-    final billProvider = context.read<BillProvider>();
-
+  void _setupRealtimeBillsSubscription() {
     try {
-      // 1. ดึงบิลที่ฉันเป็นเจ้าของ (Host)
+      _realtimeBillsChannel = _supabase.channel('public:realtime_bills_home')
+        ..onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'bills',
+          callback: (_) {
+            if (mounted) _refreshBills();
+          },
+        )
+        ..onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'bill_participants',
+          callback: (_) {
+            if (mounted) _refreshBills();
+          },
+        )
+        ..subscribe();
+    } catch (e) {
+      debugPrint('Realtime bills subscription error: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_realtimeBillsChannel != null) {
+      _supabase.removeChannel(_realtimeBillsChannel!);
+    }
+    super.dispose();
+  }
+
+  Future<void> _refreshBills() async {
+    setState(() {
+      _billsFuture = _fetchMyBills();
+    });
+    await _billsFuture;
+  }
+
+  Future<void> _pickImageAndScan(ImageSource source) async {
+    try {
+      Uint8List? bytes;
+      if (source == ImageSource.camera) {
+        bytes = await CameraService.captureReceiptPhoto(context);
+      } else {
+        final picker = ImagePicker();
+        final picked = await picker.pickImage(source: ImageSource.gallery);
+        if (picked != null) {
+          bytes = await picked.readAsBytes();
+        }
+      }
+      if (bytes != null) {
+        if (!mounted) return;
+        Navigator.pushNamed(context, AppRoutes.loading, arguments: bytes);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('เกิดข้อผิดพลาดในการเปิดกล้อง/ภาพ: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _pokeFriends(Map<String, dynamic>? bill) async {
+    if (bill == null) return;
+    await PokeReminderDialog.show(context, bill: bill);
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchMyBills() async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) {
+        return await _localRepo.getCachedBills();
+      }
+
       final ownedBills = await _supabase
           .from('bills')
-          .select()
+          .select('*, bill_participants(*)')
           .eq('owner_id', userId);
 
-      // 2. ดึงบิลที่ฉันเป็นผู้ร่วมหาร (Guest) ผ่านตาราง bill_participants
       final participated = await _supabase
           .from('bill_participants')
-          .select('bills(*)') // ดึงข้อมูลบิลที่เชื่อมอยู่มาด้วย
+          .select('bills(*, bill_participants(*))')
           .eq('profile_id', userId);
 
-      // ใช้ Map เพื่อรวมบิลและป้องกันการแสดงบิลซ้ำ (กรณีเป็นทั้ง Host และควบตำแหน่งคนหารด้วย)
       final Map<String, Map<String, dynamic>> uniqueBills = {};
 
       for (var b in ownedBills) {
-        uniqueBills[b['id'].toString()] = b;
+        uniqueBills[b['id'].toString()] = Map<String, dynamic>.from(b);
       }
 
       for (var p in participated) {
         if (p['bills'] != null) {
           final b = p['bills'] as Map<String, dynamic>;
-          uniqueBills[b['id'].toString()] = b;
+          uniqueBills[b['id'].toString()] = Map<String, dynamic>.from(b);
         }
       }
 
       final result = uniqueBills.values.toList();
 
-      // เรียงลำดับจากวันที่ใหม่สุดไปเก่าสุด
       result.sort((a, b) {
         final dateA =
             DateTime.tryParse(a['created_at'].toString()) ??
@@ -74,16 +148,13 @@ class _HomeScreenState extends State<HomeScreen> {
         return dateB.compareTo(dateA);
       });
 
-      billProvider.setOffline(false);
-      await CacheService.instance.saveBills(result);
+      await _localRepo.cacheSupabaseBills(result);
       return result;
-    } catch (error, stackTrace) {
-      if (BillProvider.isNetworkError(error)) {
-        billProvider.setOffline(true);
-        return CacheService.instance.getCachedBills();
-      }
-      debugPrint('Error fetching bills: $error\n$stackTrace');
-      rethrow;
+    } catch (e) {
+      debugPrint('Error fetching bills from Supabase: $e');
+      final cached = await _localRepo.getCachedBills();
+      if (cached.isNotEmpty) return cached;
+      return [];
     }
   }
 
@@ -125,14 +196,17 @@ class _HomeScreenState extends State<HomeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('รหัสไม่ถูกต้อง หรือไม่มีห้องนี้อยู่จริง'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.primaryOrange,
           ),
         );
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('เกิดข้อผิดพลาดในการตรวจสอบห้อง: $e')),
+        SnackBar(
+          content: Text('เกิดข้อผิดพลาดในการค้นหาห้อง: $e'),
+          backgroundColor: AppColors.primaryOrange,
+        ),
       );
     } finally {
       if (mounted) setState(() => _isCheckingRoom = false);
@@ -144,261 +218,851 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('เข้าร่วมห้องหารบิล'),
-        content: TextField(
-          controller: codeController,
-          keyboardType: TextInputType.number,
-          maxLength: 6,
-          decoration: const InputDecoration(
-            hintText: 'กรอกรหัส 6 หลัก',
-            filled: true,
-          ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('เข้าร่วมห้องหารบิล', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('กรอกรหัส 6 หลักที่เพื่อนแชร์มาให้', style: TextStyle(fontSize: 13, color: AppColors.gray)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: codeController,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 4),
+              decoration: InputDecoration(
+                hintText: '123456',
+                filled: true,
+                fillColor: AppColors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+                ),
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('ยกเลิก'),
+            child: const Text('ยกเลิก', style: TextStyle(color: AppColors.gray)),
           ),
           ElevatedButton(
             onPressed: _isCheckingRoom
                 ? null
                 : () {
+                    final code = codeController.text.trim();
                     Navigator.pop(dialogContext);
-                    _joinRoom(codeController.text);
+                    _joinRoom(code);
                   },
-            child: _isCheckingRoom
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('เข้าร่วม'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.pink,
+              foregroundColor: AppColors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('เข้าร่วมเลย'),
           ),
         ],
       ),
     );
   }
 
-  // 🚀 ฟังก์ชันรีเฟรชหน้าจอเมื่อดึงหน้าจอลง
-  Future<void> _refreshBills() async {
-    setState(() {
-      _billsFuture = _fetchMyBills();
-    });
+  bool _isBillSettled(Map<String, dynamic> bill) {
+    final summary = BillProgressHelper.calculate(bill);
+    if (summary.isSettled && bill['status'] != 'completed' && bill['id'] != null) {
+      // Auto-sync status to completed in background if all members paid
+      () async {
+        try {
+          await _supabase
+              .from('bills')
+              .update({'status': 'completed'})
+              .eq('id', bill['id']);
+          bill['status'] = 'completed';
+        } catch (_) {}
+      }();
+    }
+    return summary.isSettled;
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.black;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.gray;
+    final scaffoldBg = isDark ? AppColors.darkBackground : AppColors.white;
+
     return Scaffold(
+      backgroundColor: scaffoldBg,
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: const Text('Snap2Bill'),
+        backgroundColor: scaffoldBg,
+        elevation: 0,
+        title: Text(
+          'Snap2Bill',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
+            color: textPrimary,
+            letterSpacing: -0.4,
+          ),
+        ),
         actions: [
+          // Notification Bell
+          ValueListenableBuilder<int>(
+            valueListenable: InAppNotificationService.instance.unreadCount,
+            builder: (context, unread, child) {
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.notifications_none_rounded, color: textPrimary, size: 26),
+                    tooltip: 'การแจ้งเตือน',
+                    onPressed: () async {
+                      await NotificationCenterDialog.show(
+                        context,
+                        currentUserId: _supabase.auth.currentUser?.id,
+                      );
+                      _refreshBills();
+                    },
+                  ),
+                  if (unread > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: AppColors.pink,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                        child: Text(
+                          '$unread',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+          // Friends button (Matching mockup top right)
           IconButton(
-            icon: const Icon(Icons.people_outline),
-            tooltip: 'สมุดรายชื่อเพื่อน',
+            icon: Icon(Icons.people_alt_outlined, color: textPrimary, size: 26),
+            tooltip: 'เพื่อนในตี้',
             onPressed: () => Navigator.pushNamed(context, AppRoutes.friends),
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: RefreshIndicator(
+        color: AppColors.pink,
         onRefresh: _refreshBills,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Consumer<BillProvider>(
-                builder: (context, billProvider, _) {
-                  if (!billProvider.isOffline) {
-                    return const SizedBox.shrink();
-                  }
-                  return Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.secondary.withValues(alpha: 0.45),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Text(
-                      'กำลังแสดงข้อมูลออฟไลน์จากแคช',
-                      style: TextStyle(color: AppColors.textPrimary),
-                    ),
-                  );
-                },
-              ),
-              InkWell(
-                onTap: () => _showJoinRoomDialog(context),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.primary.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          Icons.login,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
+        child: FutureBuilder<List<Map<String, dynamic>>>(
+          future: _billsFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: _BillsLoadingSkeleton(),
+              );
+            }
+
+            final bills = snapshot.data ?? [];
+
+            // Calculate active and completed sums
+            double unpaidTotal = 0.0;
+            int unpaidCount = 0;
+            double recoveredMonthlyTotal = 0.0;
+            int recoveredMonthlyCount = 0;
+
+            final now = DateTime.now();
+            final currentMonthPrefix = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+
+            final completedCount = bills.where((b) => _isBillSettled(b)).length;
+
+            for (final b in bills) {
+              final amount = BillProgressHelper.extractBillTotal(b);
+              final isSettled = _isBillSettled(b);
+              final createdAt = b['created_at']?.toString() ?? '';
+
+              if (isSettled) {
+                if (createdAt.startsWith(currentMonthPrefix)) {
+                  recoveredMonthlyTotal += amount;
+                  recoveredMonthlyCount++;
+                }
+              } else {
+                unpaidTotal += amount;
+                unpaidCount++;
+              }
+            }
+
+            // Filter bills according to active segment
+            final filteredBills = bills.where((b) {
+              final settled = _isBillSettled(b);
+              if (_historyFilter == 'unpaid') return !settled;
+              if (_historyFilter == 'completed') return settled;
+              return true;
+            }).toList();
+
+            // --- VIEW A: EMPTY STATE (Matching Image 3 Left) ---
+            if (bills.isEmpty) {
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Join Room Card
+                    _buildJoinRoomCard(isDark, textPrimary, textSecondary),
+                    const SizedBox(height: 20),
+
+                    // Section Heading
+                    Text(
+                      'ประวัติการหารบิล',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: textPrimary,
                       ),
-                      const SizedBox(width: 16),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'มีเพื่อนสร้างห้องไว้แล้ว?',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                    ),
+                    const SizedBox(height: 36),
+
+                    // Center Empty State
+                    Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 120,
+                            height: 120,
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: isDark ? AppColors.darkCardBackground : AppColors.white,
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: isDark ? AppColors.darkBorder : const Color(0xFFEEEEEE),
+                                width: 1.2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(18),
+                              child: Image.asset(
+                                'assets/images/bunny_mascot.png',
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) => const Icon(
+                                  Icons.receipt_long_rounded,
+                                  size: 48,
+                                  color: AppColors.pink,
+                                ),
                               ),
                             ),
-                            Text(
-                              'กรอกรหัส 6 หลักเพื่อเข้าร่วม',
-                              style: TextStyle(color: Colors.grey),
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            'บิลแรกของคุณเริ่มได้ที่นี่',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: textPrimary,
                             ),
-                          ],
-                        ),
-                      ),
-                      const Icon(Icons.chevron_right, color: Colors.grey),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              Text('ประวัติการหารบิล', style: AppTextStyles.title),
-              const SizedBox(height: 12),
-
-              Expanded(
-                child: FutureBuilder<List<Map<String, dynamic>>>(
-                  future: _billsFuture,
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const _BillsLoadingSkeleton();
-                    }
-
-                    if (snapshot.hasError) {
-                      return Center(
-                        child: Text(
-                          'เกิดข้อผิดพลาด: ${snapshot.error}',
-                          style: const TextStyle(color: Colors.red),
-                        ),
-                      );
-                    }
-
-                    final bills = snapshot.data ?? [];
-
-                    if (bills.isEmpty) {
-                      return ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        children: [
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'สแกนใบเสร็จเพื่อสร้างบิลและแบ่งรายการกับเพื่อน',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
                           SizedBox(
-                            height: 300,
-                            child: Center(
-                              child: Padding(
-                                padding: const EdgeInsets.all(24),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Container(
-                                      width: 88,
-                                      height: 88,
-                                      decoration: BoxDecoration(
-                                        color: AppColors.secondary.withValues(
-                                          alpha: 0.5,
-                                        ),
-                                        borderRadius: BorderRadius.circular(28),
-                                      ),
-                                      child: const Icon(
-                                        Icons.receipt_long_outlined,
-                                        size: 42,
-                                        color: AppColors.primary,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 20),
-                                    Text(
-                                      'บิลแรกของคุณเริ่มได้ที่นี่',
-                                      style: AppTextStyles.title,
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'สแกนใบเสร็จเพื่อสร้างบิลและแบ่งรายการกับเพื่อน',
-                                      style: AppTextStyles.body.copyWith(
-                                        color: AppColors.textSecondary,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    const SizedBox(height: 20),
-                                    SizedBox(
-                                      width: 240,
-                                      child: CustomButton(
-                                        text: 'สแกนบิลใหม่',
-                                        onPressed: () => Navigator.pushNamed(
-                                          context,
-                                          AppRoutes.scan,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                            width: 160,
+                            height: 44,
+                            child: ElevatedButton(
+                              onPressed: () => _pickImageAndScan(ImageSource.camera),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.pink,
+                                foregroundColor: AppColors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: const Text(
+                                'สแกนบิลใหม่',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.white,
                                 ),
                               ),
                             ),
                           ),
                         ],
-                      );
-                    }
+                      ),
+                    ),
+                    const SizedBox(height: 60),
+                  ],
+                ),
+              );
+            }
 
-                    return ListView.builder(
-                      itemCount: bills.length,
+            // --- VIEW B: ACTIVE CONTENT (Matching Image 3 Right & Image 4) ---
+            return SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 1. Two Top Stat Cards Side-by-Side (Pale Yellow & Light Green)
+                  Row(
+                    children: [
+                      // Card 1: Unpaid Amount (Pale Yellow)
+                      Expanded(
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () => setState(() => _historyFilter = 'unpaid'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF2C281E) : AppColors.paleYellow,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isDark ? const Color(0xFF4A402A) : const Color(0xFFFFEEA8),
+                                width: 1.2,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'ยอดค้างชำระ',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark ? AppColors.white : AppColors.black,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  AppFormatters.formatCurrency(unpaidTotal),
+                                  style: TextStyle(
+                                    fontSize: 19.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: isDark ? AppColors.white : AppColors.black,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'รอเก็บ $unpaidCount บิล',
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    color: isDark ? AppColors.darkTextSecondary : AppColors.gray,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+
+                      // Card 2: Recovered / Settled Amount (Light Green)
+                      Expanded(
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () => setState(() => _historyFilter = 'completed'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF1E2C22) : AppColors.lightGreen,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isDark ? const Color(0xFF2E4D36) : const Color(0xFFA2EDB0),
+                                width: 1.2,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'ทวงคืนสำเร็จเดือนนี้',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark ? AppColors.white : AppColors.black,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  AppFormatters.formatCurrency(recoveredMonthlyTotal),
+                                  style: TextStyle(
+                                    fontSize: 19.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: isDark ? AppColors.white : AppColors.black,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'ปิดยอด $recoveredMonthlyCount บิล',
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    color: isDark ? AppColors.darkTextSecondary : AppColors.gray,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 2. Hero Scan Card (Teal Green Linear Gradient)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: AppColors.tealGradient,
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.tealGreen.withValues(alpha: 0.25),
+                          blurRadius: 14,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.16),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                              ),
+                              child: const Icon(
+                                Icons.document_scanner_outlined,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'สร้างบิลใหม่ (สแกนใบเสร็จ)',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    'AI อ่านข้อมูลถอดเมนูและราคาใน 2-3 นาที',
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+
+                        // Action Buttons in Hero Card
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () => _pickImageAndScan(ImageSource.camera),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.white,
+                                  foregroundColor: AppColors.tealGreen,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(vertical: 11),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'เปิดกล้องถ่าย',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.tealGreen,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => _pickImageAndScan(ImageSource.gallery),
+                                style: OutlinedButton.styleFrom(
+                                  backgroundColor: AppColors.whiteOverlay24,
+                                  foregroundColor: Colors.white,
+                                  side: BorderSide(color: Colors.white.withValues(alpha: 0.6)),
+                                  padding: const EdgeInsets.symmetric(vertical: 11),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'เลือกจากอัลบั้ม',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // 3. Tip Card (Pale Yellow)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF2C281E) : AppColors.paleYellow,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF4A402A) : const Color(0xFFFFEEA8),
+                      ),
+                    ),
+                    child: Text(
+                      'คำแนะนำ: เพื่อให้ AI สแกนแม่นยำที่สุด ถ่ายในที่แสงสว่างเพียงพอ วางใบเสร็จให้เรียบแบน และถ่ายให้เห็นยอดรวมชัดเจน',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? const Color(0xFFF0D58C) : const Color(0xFF8A6200),
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // 4. Join Room Card (Light Pink)
+                  _buildJoinRoomCard(isDark, textPrimary, textSecondary),
+                  const SizedBox(height: 18),
+
+                  // 5. Section Header & Total Count
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'ประวัติการหารบิล',
+                        style: TextStyle(
+                          fontSize: 18.5,
+                          fontWeight: FontWeight.w800,
+                          color: textPrimary,
+                        ),
+                      ),
+                      Text(
+                        'ทั้งหมด ${bills.length} บิล',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  // 6. Segmented Filter Tabs
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.darkSurface : AppColors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: isDark ? AppColors.darkBorder : const Color(0xFFD6D6D6)),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _buildFilterTab(
+                            key: 'unpaid',
+                            title: 'ยังไม่ครบ ($unpaidCount)',
+                            icon: Icons.access_time_rounded,
+                            isDark: isDark,
+                          ),
+                        ),
+                        Expanded(
+                          child: _buildFilterTab(
+                            key: 'completed',
+                            title: 'สำเร็จ ($completedCount)',
+                            icon: Icons.check_circle_outline_rounded,
+                            isDark: isDark,
+                          ),
+                        ),
+                        Expanded(
+                          child: _buildFilterTab(
+                            key: 'all',
+                            title: 'ทั้งหมด (${bills.length})',
+                            icon: Icons.check_rounded,
+                            isDark: isDark,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 7. Poke Friend Reminder Button (Only shows on "unpaid" tab as in mockup)
+                  if (_historyFilter == 'unpaid' && unpaidCount > 0)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: () => _pokeFriends(filteredBills.isNotEmpty ? filteredBills.first : null),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.darkSurface : AppColors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isDark ? AppColors.darkBorder : const Color(0xFFD6D6D6),
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'สะกิดเตือนเพื่อน',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  color: AppColors.gray,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              SizedBox(width: 4),
+                              Icon(
+                                Icons.notifications_active_rounded,
+                                size: 16,
+                                color: AppColors.yellow,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  const SizedBox(height: 8),
+
+                  // 8. Bill Card List
+                  if (filteredBills.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 36),
+                      alignment: Alignment.center,
+                      child: Column(
+                        children: [
+                          Icon(Icons.receipt_outlined, size: 44, color: textSecondary.withValues(alpha: 0.5)),
+                          const SizedBox(height: 8),
+                          Text(
+                            _historyFilter == 'unpaid'
+                                ? 'ไม่มีบิลที่ค้างชำระ ยอดเคลียร์ครบแล้ว! 🎉'
+                                : _historyFilter == 'completed'
+                                ? 'ยังไม่มีบิลที่ปิดยอดสำเร็จ'
+                                : 'ยังไม่มีประวัติบิล',
+                            style: TextStyle(color: textSecondary, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: filteredBills.length,
                       itemBuilder: (context, index) {
-                        final bill = bills[index];
-                        final shopName = bill['shop_name'] ?? 'ไม่ระบุชื่อร้าน';
-                        final totalAmount =
-                            double.tryParse(
-                              (bill['total_amount'] ?? bill['sub_total'])
-                                      ?.toString() ??
-                                  '0',
-                            ) ??
-                            0.0;
-                        final date =
-                            bill['created_at']?.toString().split('T')[0] ?? '';
+                        final bill = filteredBills[index];
+                        final summary = BillProgressHelper.calculate(bill);
+                        final date = bill['created_at']?.toString().split('T')[0] ?? '';
 
                         return BillCard(
-                          shopName: shopName,
-                          totalAmount: totalAmount,
+                          shopName: summary.shopName,
+                          totalAmount: summary.totalAmount,
                           dateText: date,
-                          status: bill['status']?.toString() ?? 'pending',
-                          onTap: () => Navigator.pushNamed(
-                            context,
-                            AppRoutes.detail,
-                            arguments: bill,
-                          ),
+                          status: summary.isSettled ? 'completed' : 'pending',
+                          memberCount: summary.totalMembers,
+                          totalPayingCount: summary.totalPayingCount,
+                          paidCount: summary.paidCount,
+                          unpaidCount: summary.unpaidCount,
+                          averagePerPerson: summary.equalPerPerson,
+                          isEqualSplit: summary.isEqualSplit,
+                          onTap: () async {
+                            await Navigator.pushNamed(
+                              context,
+                              AppRoutes.detail,
+                              arguments: bill,
+                            );
+                            _refreshBills();
+                          },
+                          onRemind: !summary.isSettled
+                              ? () => PokeReminderDialog.show(
+                                    context,
+                                    bill: bill,
+                                    summary: summary,
+                                  )
+                              : null,
                         );
                       },
-                    );
-                  },
+                    ),
+
+                  const SizedBox(height: 80),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildJoinRoomCard(bool isDark, Color textPrimary, Color textSecondary) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () => _showJoinRoomDialog(context),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF2E2028) : AppColors.lightPink,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? const Color(0xFF4A3340) : const Color(0xFFFFBCE3),
+            width: 1.2,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkSurface : AppColors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.login_rounded,
+                color: AppColors.pink,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'มีเพื่อนสร้างห้องไว้แล้ว',
+                    style: TextStyle(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w700,
+                      color: textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'กรอกรหัส 6 หลักเพื่อเข้าร่วม',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: textSecondary,
+              size: 24,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterTab({
+    required String key,
+    required String title,
+    required IconData icon,
+    required bool isDark,
+  }) {
+    final isSelected = _historyFilter == key;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => setState(() => _historyFilter = key),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (isDark ? const Color(0xFF382330) : AppColors.lightPink)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: isSelected
+              ? Border.all(color: AppColors.pink, width: 1.5)
+              : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 14,
+              color: isSelected
+                  ? AppColors.pink
+                  : (isDark ? AppColors.darkTextSecondary : AppColors.gray),
+            ),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected
+                      ? AppColors.pink
+                      : (isDark ? AppColors.darkTextPrimary : AppColors.black),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -436,73 +1100,20 @@ class _BillsLoadingSkeletonState extends State<_BillsLoadingSkeleton>
     return AnimatedBuilder(
       animation: _pulseController,
       builder: (context, _) {
-        final pulseColor = Color.lerp(
-          AppColors.border,
-          AppColors.secondary.withValues(alpha: 0.65),
-          _pulseController.value,
-        )!;
-
-        return ListView.separated(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.only(top: 4, bottom: 12),
-          itemCount: 4,
-          separatorBuilder: (context, index) => const SizedBox(height: 10),
-          itemBuilder: (context, index) => Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Row(
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: pulseColor,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
+        final opacity = 0.45 + (_pulseController.value * 0.4);
+        return Opacity(
+          opacity: opacity,
+          child: Column(
+            children: List.generate(
+              3,
+              (index) => Container(
+                height: 76,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEEEEEE),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        width: index.isEven ? 148 : 118,
-                        height: 14,
-                        decoration: BoxDecoration(
-                          color: pulseColor,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      const SizedBox(height: 9),
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        width: 84,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: pulseColor,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  width: 68,
-                  height: 15,
-                  decoration: BoxDecoration(
-                    color: pulseColor,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         );

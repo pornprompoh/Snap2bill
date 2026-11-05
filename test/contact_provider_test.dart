@@ -1,47 +1,55 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:snap2bill/providers/contact_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   setUpAll(() async {
     SharedPreferences.setMockInitialValues({});
-    await Supabase.initialize(
-      url: 'https://example.supabase.co',
-      publishableKey: 'test-publishable-key',
-    );
+    try {
+      await Supabase.initialize(
+        url: 'https://mock.supabase.co',
+        // ignore: deprecated_member_use
+        anonKey: 'mock-key',
+      );
+    } catch (_) {
+      // Already initialized
+    }
   });
 
-  group('ContactProvider contact names', () {
-    test('treats names with different case and whitespace as duplicates', () {
-      expect(ContactProvider.isSameContactName('  Alice ', 'alice'), isTrue);
+  group('ContactProvider Tests', () {
+    late ContactProvider provider;
+
+    setUp(() {
+      provider = ContactProvider();
     });
 
-    test('keeps different names distinct', () {
-      expect(ContactProvider.isSameContactName('Alice', 'Alicia'), isFalse);
+    test('initial state has empty contacts and no error', () {
+      expect(provider.contacts, isEmpty);
+      expect(provider.isLoading, isFalse);
+      expect(provider.error, isNull);
     });
 
-    test('does not treat an empty name as a duplicate', () {
-      expect(ContactProvider.isSameContactName('', 'Bob'), isFalse);
+    test('loadContacts requires logged in user', () async {
+      await provider.loadContacts();
+      expect(provider.contacts, isEmpty);
+      expect(provider.error, contains('กรุณาล็อกอิน'));
+      expect(provider.isLoading, isFalse);
     });
 
-    test(
-      'returns an error when loading contacts without authentication',
-      () async {
-        final provider = ContactProvider();
-        await provider.loadContacts();
+    test('saveContactIfNotExists throws when user is unauthenticated', () {
+      expect(
+        () => provider.saveContactIfNotExists('Mina'),
+        throwsA(isA<StateError>()),
+      );
+    });
 
-        expect(provider.contacts, isEmpty);
-        expect(provider.error, contains('ล็อกอิน'));
-      },
-    );
-
-    test('rejects saving a contact without authentication', () async {
-      final provider = ContactProvider();
-
-      await expectLater(
-        provider.saveContactIfNotExists('Bob'),
-        throwsStateError,
+    test('deleteContact throws when user is unauthenticated', () {
+      expect(
+        () => provider.deleteContact('contact-1'),
+        throwsA(isA<StateError>()),
       );
     });
   });

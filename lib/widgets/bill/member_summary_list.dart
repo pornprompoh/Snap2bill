@@ -3,34 +3,107 @@ import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/formatters.dart';
 
+class MemberDishItem {
+  final String itemName;
+  final int quantity;
+  final bool isShared;
+  final int totalSharers;
+  final double unitPrice;
+  final double totalPrice;
+
+  const MemberDishItem({
+    required this.itemName,
+    required this.quantity,
+    this.isShared = false,
+    this.totalSharers = 1,
+    required this.unitPrice,
+    required this.totalPrice,
+  });
+}
+
 class MemberSummaryEntry {
   final String id;
   final String name;
   final double amount;
+  final String status; // 'pending', 'reviewing', 'paid'
   final bool isPaid;
+  final bool isReviewing;
   final bool isGuest;
+  final bool isOwner;
   final String? subtitle;
+  final int itemsCount;
+  final String? slipUrl;
+  final String? avatarUrl;
+  final List<MemberDishItem> dishes;
 
   const MemberSummaryEntry({
     required this.id,
     required this.name,
     required this.amount,
-    this.isPaid = false,
+    this.status = 'pending',
+    bool? isPaid,
+    bool? isReviewing,
     this.isGuest = false,
+    this.isOwner = false,
     this.subtitle,
-  });
+    this.itemsCount = 0,
+    this.slipUrl,
+    this.avatarUrl,
+    this.dishes = const [],
+  })  : isPaid = isPaid ?? (status == 'paid'),
+        isReviewing = isReviewing ??
+            (status == 'reviewing' || status == 'pending_verification');
+
+  MemberSummaryEntry copyWith({
+    String? id,
+    String? name,
+    double? amount,
+    String? status,
+    bool? isPaid,
+    bool? isReviewing,
+    bool? isGuest,
+    bool? isOwner,
+    String? subtitle,
+    int? itemsCount,
+    String? slipUrl,
+    String? avatarUrl,
+    List<MemberDishItem>? dishes,
+  }) {
+    return MemberSummaryEntry(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      amount: amount ?? this.amount,
+      status: status ?? this.status,
+      isPaid: isPaid ?? (status != null ? (status == 'paid') : this.isPaid),
+      isReviewing: isReviewing ??
+          (status != null
+              ? (status == 'reviewing' || status == 'pending_verification')
+              : this.isReviewing),
+      isGuest: isGuest ?? this.isGuest,
+      isOwner: isOwner ?? this.isOwner,
+      subtitle: subtitle ?? this.subtitle,
+      itemsCount: itemsCount ?? this.itemsCount,
+      slipUrl: slipUrl ?? this.slipUrl,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      dishes: dishes ?? this.dishes,
+    );
+  }
 }
 
 class MemberSummaryList extends StatelessWidget {
   final List<MemberSummaryEntry> members;
   final String? selectedMemberId;
   final ValueChanged<String>? onMemberTap;
+  final ValueChanged<MemberSummaryEntry>? onStatusToggle;
+  final bool isCurrentViewerOwner;
 
   const MemberSummaryList({
     super.key,
     required this.members,
     this.selectedMemberId,
     this.onMemberTap,
+    this.onStatusToggle,
+    this.isCurrentViewerOwner = true,
   });
 
   @override
@@ -43,7 +116,7 @@ class MemberSummaryList extends StatelessWidget {
         final member = members[index];
         final isSelected = member.id == selectedMemberId;
         return ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           selected: isSelected,
           selectedTileColor: AppColors.primary.withValues(alpha: 0.08),
           shape: RoundedRectangleBorder(
@@ -54,32 +127,228 @@ class MemberSummaryList extends StatelessWidget {
           ),
           onTap: onMemberTap == null ? null : () => onMemberTap!(member.id),
           leading: CircleAvatar(
-            backgroundColor: member.isPaid
-                ? Colors.green.shade50
-                : Colors.orange.shade50,
-            child: Icon(
-              member.isPaid
-                  ? Icons.check_circle_outline
-                  : Icons.pending_outlined,
-              color: member.isPaid
-                  ? Colors.green.shade700
-                  : Colors.orange.shade800,
-            ),
+            backgroundColor: member.isOwner
+                ? const Color(0xFFFEF3C7) // amber 100
+                : (member.isPaid
+                    ? Colors.green.shade50
+                    : (member.isReviewing
+                        ? Colors.blue.shade50
+                        : Colors.orange.shade50)),
+            child: member.avatarUrl != null && member.avatarUrl!.isNotEmpty
+                ? ClipOval(
+                    child: Image.network(
+                      member.avatarUrl!,
+                      width: 40,
+                      height: 40,
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                : (member.isOwner
+                    ? const Icon(
+                        Icons.star_rounded,
+                        color: Color(0xFFD97706),
+                        size: 22,
+                      )
+                    : Text(
+                        member.name.isNotEmpty
+                            ? member.name[0].toUpperCase()
+                            : '?',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: member.isPaid
+                              ? Colors.green.shade700
+                              : (member.isReviewing
+                                  ? Colors.blue.shade700
+                                  : Colors.orange.shade800),
+                        ),
+                      )),
           ),
           title: Text.rich(
             TextSpan(
               children: [
-                TextSpan(text: member.name),
-                if (member.isGuest)
+                TextSpan(
+                  text: member.name,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                if (member.isOwner)
+                  const TextSpan(
+                    text: ' (เจ้าของ)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFFD97706),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  )
+                else if (member.isGuest)
                   const TextSpan(
                     text: ' (Guest / จ่ายแทน)',
-                    style: TextStyle(fontSize: 12, color: Colors.deepOrange),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.deepOrange,
+                      fontWeight: FontWeight.normal,
+                    ),
                   ),
               ],
             ),
           ),
-          subtitle: member.subtitle == null ? null : Text(member.subtitle!),
-          trailing: Text(AppFormatters.formatCurrency(member.amount)),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (member.itemsCount > 0)
+                Text(
+                  '${member.itemsCount} รายการ',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w500,
+                  ),
+                )
+              else if (member.subtitle != null)
+                Text(member.subtitle!),
+            ],
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    AppFormatters.formatCurrency(member.amount),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+
+                  // 1. เจ้าของรายการ
+                  if (member.isOwner)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFBEB), // amber 50
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFFCD34D)), // amber 300
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.star_rounded, size: 13, color: Color(0xFFB45309)),
+                          SizedBox(width: 4),
+                          Text(
+                            'เจ้าของ',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFFB45309),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+
+                  // 2. จ่ายแล้ว
+                  else if (member.isPaid)
+                    InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: (isCurrentViewerOwner && onStatusToggle != null)
+                          ? () => onStatusToggle!(member)
+                          : null,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.green.shade300),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.check_circle, size: 13, color: Colors.green.shade700),
+                            const SizedBox(width: 4),
+                            Text(
+                              'จ่ายแล้ว',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.green.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+
+                  // 3. รอตรวจสอบ (แนบสลิปแล้ว)
+                  else if (member.isReviewing)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.blue.shade300),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.hourglass_top_rounded, size: 13, color: Colors.blue.shade700),
+                          const SizedBox(width: 4),
+                          Text(
+                            'รอตรวจสอบ',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blue.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+
+                  // 4. ยังไม่ชำระ / รอจ่าย
+                  else
+                    InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: (isCurrentViewerOwner && onStatusToggle != null)
+                          ? () => onStatusToggle!(member)
+                          : null,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.orange.shade300),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.schedule, size: 13, color: Colors.orange.shade800),
+                            const SizedBox(width: 4),
+                            Text(
+                              'รอจ่าย',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.orange.shade800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 6),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textSecondary,
+                size: 20,
+              ),
+            ],
+          ),
         );
       },
     );

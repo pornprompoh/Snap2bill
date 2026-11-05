@@ -19,6 +19,15 @@ class UserModel {
 
   String? get promptPayType => paymentInfo?['type']?.toString();
 
+  String? get bankName => paymentInfo?['bank_name']?.toString();
+
+  String? get bankAccountNumber => paymentInfo?['bank_account_number']?.toString();
+
+  String? get bankAccountName => paymentInfo?['bank_account_name']?.toString();
+
+  bool get hasBankTransfer =>
+      bankAccountNumber != null && bankAccountNumber!.trim().isNotEmpty;
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,

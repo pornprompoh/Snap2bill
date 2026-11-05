@@ -8,6 +8,7 @@ import '../../models/contact_model.dart';
 import '../../models/user_model.dart';
 import '../../providers/contact_provider.dart';
 import '../../services/supabase_db_service.dart';
+import '../../theme/app_colors.dart';
 import '../../utils/constants.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/friend_item.dart';
@@ -30,7 +31,11 @@ class _FriendListScreenState extends State<FriendListScreen> {
   @override
   void initState() {
     super.initState();
-    unawaited(context.read<ContactProvider>().loadContacts());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        unawaited(context.read<ContactProvider>().loadContacts());
+      }
+    });
     if (widget.selectionMode) _loadPastParticipants();
   }
 
@@ -79,6 +84,10 @@ class _FriendListScreenState extends State<FriendListScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('ลบ'),
           ),
         ],

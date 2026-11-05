@@ -1,4 +1,3 @@
-// coverage:ignore-file
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
 import '../models/bill_model.dart';

@@ -1,11 +1,11 @@
 {
-    "name": "snap2bill",
-    "short_name": "snap2bill",
+    "name": "Snap2Bill",
+    "short_name": "Snap2Bill",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#FFFFFF",
+    "theme_color": "#F76DB7",
+    "description": "Snap2Bill - สแกนและหารบิลอัจฉริยะ",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

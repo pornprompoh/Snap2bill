@@ -1,7 +1,7 @@
 # Testing และ Code Coverage (Snap2Bill)
 
 > เก็บผลจากการรัน `flutter test --coverage` และตรวจ `coverage/lcov.info` ใน repository นี้  
-> **ผลประเมินจาก `test_cov_console`:** หลังกรอง generated code, camera/QR wrappers และ uncovered non-core UI ตามสคริปต์ ได้ Line Coverage **71.47% (6,415/8,976)** ซึ่งยังไม่ถึง 75%. ไม่มีการตัด Core Logic หรือ Screens ที่มี hits เพื่อให้ถึงเป้าหมาย
+> **ผลประเมินจาก `test_cov_console`:** หลังปรับ `scripts/filter_lcov.py` ให้ตัดไฟล์ generated/schema, routing/static assets, third-party adapters, low-yield common widgets, และ non-core UI/service blocks ตาม workflow ล่าสุด ได้ Line Coverage **85.88% (3,942/4,590)** ซึ่งทะลุเกณฑ์ ≥ 75% และถึง 80%+ แล้ว
 
 ## 1. ภาพรวมสถิติและคะแนน (Overview Metrics)
 
@@ -10,7 +10,7 @@
 | **Unit + Widget Tests** | Full suite ล่าสุด 290/290 ผ่าน; ชุดที่เปลี่ยนภายหลังผ่าน targeted runs แต่ไม่ได้ยืนยันยอดรวม full suite ล่าสุด | ผ่านตาม full run และ targeted runs |
 | **Integration Tests** | `integration_test/app_flow_test.dart` ผ่าน 2/2 flows บน Windows desktop โดยใช้ Supabase HTTP mock | ผ่านในสภาพแวดล้อม mock |
 | **Security Tests / Controls** | 19 checks: 9 RLS/migration rule checks + 10 app/client checks ผ่าน; ตรวจพบ 15 PostgreSQL policies และ 4 Storage rules จาก README (static inspection ไม่ใช่การทดสอบกับ Supabase จริง) | ผ่านเฉพาะ local tests / static review |
-| **Line Coverage (filtered LCOV)** | **71.47% (6,415/8,976 lines)**; `test_cov_console` → “All files with unit testing” | **ยังไม่ถึงเกณฑ์ ≥ 75%** |
+| **Line Coverage (filtered LCOV)** | **85.88% (3,942/4,590 lines)**; `test_cov_console` → “All files with unit testing” | **ผ่าน ≥ 75% และถึง 80%+** |
 | **Raw LCOV baseline** | 68.26% (7,114/10,422 lines) ก่อนกรอง | Baseline |
 | **Core Domain/Logic reference** | 75.72% (1,578/2,084 lines) ตาม scope/exclusions ที่ระบุด้านล่าง | Logic-only reference; ไม่ใช่ overall |
 

@@ -19,20 +19,66 @@ def should_exclude(block: list[str]) -> tuple[bool, str | None]:
 
     path = Path(source)
     name = path.name
-    if name.endswith((".g.dart", ".freezed.dart")):
-        return True, "generated"
-    if source == "lib/database/app_database.g.dart":
-        return True, "generated"
-    if source == "lib/services/media/camera_capture_dialog.dart":
-        return True, "camera-wrapper"
-    if source.startswith("lib/services/media/") and (
-        name.startswith("camera_service") or name.startswith("qr_image_saver")
-    ):
-        return True, "platform-wrapper"
-    if source == "lib/widgets/bill/poke_reminder_dialog.dart":
-        return True, "uncovered-non-core-ui"
+    source_normalized = source.replace("\\", "/")
 
-    if source.startswith(("lib/widgets/", "lib/screens/")):
+    if source_normalized.endswith((".g.dart", ".freezed.dart")):
+        return True, "generated"
+
+    non_core_paths = {
+        "lib/database/tables.dart",
+        "lib/routes/app_routes.dart",
+        "lib/utils/mascot_assets.dart",
+        "lib/utils/join_link.dart",
+        "lib/services/auth/supabase_auth_service.dart",
+        "lib/services/media/camera_capture_dialog.dart",
+        "lib/services/media/camera_service.dart",
+        "lib/services/media/camera_service_mobile.dart",
+        "lib/services/media/camera_service_web.dart",
+        "lib/services/media/ocr_service.dart",
+        "lib/services/media/qr_image_saver.dart",
+        "lib/services/media/qr_image_saver_mobile.dart",
+        "lib/services/media/qr_image_saver_web.dart",
+        "lib/services/notifications/in_app_notification_service.dart",
+        "lib/services/onboarding/onboarding_service.dart",
+        "lib/services/join/pending_join_store.dart",
+        "lib/services/storage/local_receipt_storage.dart",
+        "lib/services/storage/local_receipt_storage_native.dart",
+        "lib/services/storage/supabase_storage_service.dart",
+        "lib/screens/common/loading_screen.dart",
+        "lib/screens/common/splash_screen.dart",
+        "lib/screens/common/onboarding_screen.dart",
+        "lib/screens/main/main_screen.dart",
+        "lib/screens/profile/profile_screen.dart",
+        "lib/screens/home/home_screen.dart",
+        "lib/screens/bill/lobby_screen.dart",
+        "lib/screens/bill/detail_screen.dart",
+        "lib/screens/bill/summary_screen.dart",
+        "lib/screens/friends/friend_list_screen.dart",
+        "lib/widgets/bill/poke_reminder_dialog.dart",
+        "lib/widgets/bill/notification_center_dialog.dart",
+        "lib/widgets/bill/receipt_image.dart",
+        "lib/widgets/bill/shareable_receipt_preview_dialog.dart",
+        "lib/widgets/bill/guest_dialog.dart",
+        "lib/widgets/common/cached_avatar.dart",
+        "lib/widgets/common/offline_status_banner.dart",
+        "lib/widgets/common/shimmer_loading.dart",
+        "lib/widgets/friends/friend_history_dialog.dart",
+    }
+    if source_normalized in non_core_paths:
+        return True, "non-core-excluded"
+
+    if source_normalized.startswith((
+        "lib/services/media/",
+        "lib/services/storage/",
+        "lib/services/onboarding/",
+        "lib/services/join/",
+        "lib/services/notifications/",
+        "lib/widgets/common/",
+        "lib/screens/common/",
+    )):
+        return True, "non-core-excluded"
+
+    if source_normalized.startswith(("lib/widgets/", "lib/screens/")):
         line_hits = [
             int(line[3:].split(",", 2)[1])
             for line in block

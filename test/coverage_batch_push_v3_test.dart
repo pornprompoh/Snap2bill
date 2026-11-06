@@ -90,6 +90,7 @@ void main() {
 
   testWidgets('HomeScreen renders a seeded bill list and filter tabs', (tester) async {
     final repo = LocalBillRepository();
+    print('DEBUG before saveLocalBill');
     await repo.saveLocalBill(
       bill: {
         'id': 'bill-1',
@@ -104,6 +105,7 @@ void main() {
         {'profile_id': 'friend-1', 'status': 'paid', 'amount_owed': 200},
       ],
     );
+    print('DEBUG after saveLocalBill');
 
     await tester.pumpWidget(
       MultiProvider(

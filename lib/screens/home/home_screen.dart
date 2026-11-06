@@ -40,18 +40,22 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = true;
   bool _isCheckingRoom = false;
   bool _isDescending = true;
-  String _historyFilter = 'unpaid'; // 'unpaid', 'completed', 'all'
+  String _historyFilter = 'all'; // 'unpaid', 'completed', 'all'
   final Set<String> _completedStatusSyncs = {};
+  bool _isSyncingInBackground = false;
   RealtimeChannel? _realtimeBillsChannel;
   StreamSubscription<List<Map<String, dynamic>>>? _cachedBillsSubscription;
 
   @override
   void initState() {
     super.initState();
+    final effectiveUserId = _supabase.auth.currentUser?.id ?? 'all';
+    debugPrint('HOME initState start user=${_supabase.auth.currentUser?.id ?? 'null'}');
     _cachedBillsSubscription = _localRepo
-        .watchCachedBills(userId: _supabase.auth.currentUser?.id ?? '')
+        .watchCachedBills(userId: effectiveUserId)
         .listen(
           (cachedBills) {
+            debugPrint('HOME watch callback len=${cachedBills.length}');
             if (!mounted) return;
             final billsToDisplay = cachedBills.isNotEmpty || _bills.isEmpty
                 ? cachedBills
@@ -68,9 +72,13 @@ class _HomeScreenState extends State<HomeScreen> {
         );
     unawaited(_refreshBills());
     _setupRealtimeBillsSubscription();
+    debugPrint('HOME initState end');
   }
 
   void _setupRealtimeBillsSubscription() {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) return;
+
     try {
       _realtimeBillsChannel = _supabase.channel('public:realtime_bills_home')
         ..onPostgresChanges(
@@ -113,11 +121,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _refreshBills() async {
+    debugPrint('HOME _refreshBills start');
     try {
       final userId = _supabase.auth.currentUser?.id;
       final cachedBills = userId == null
           ? <Map<String, dynamic>>[]
           : await _localRepo.getCachedBills(userId: userId);
+      debugPrint('HOME cached bills loaded len=${cachedBills.length}');
       if (!mounted) return;
       final billsToDisplay = cachedBills.isNotEmpty || _bills.isEmpty
           ? cachedBills
@@ -132,15 +142,23 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) setState(() => _isLoading = false);
     }
 
+    debugPrint('HOME _refreshBills background check isOffline=${context.read<OfflineService>().isOffline} isSyncing=$_isSyncingInBackground');
     if (!mounted || context.read<OfflineService>().isOffline) return;
+    if (_isSyncingInBackground) return;
+    debugPrint('HOME starting background sync');
     unawaited(_syncBillsInBackground());
+    debugPrint('HOME _refreshBills end');
   }
 
   Future<void> _syncBillsInBackground() async {
+    debugPrint('HOME _syncBillsInBackground start isSyncing=$_isSyncingInBackground');
+    if (_isSyncingInBackground) return;
+    _isSyncingInBackground = true;
     try {
       final syncedBills = await _fetchMyBills().timeout(
         const Duration(seconds: 15),
       );
+      debugPrint('HOME _syncBillsInBackground fetched len=${syncedBills.length}');
       if (!mounted) return;
       setState(() {
         _bills = syncedBills;
@@ -159,6 +177,8 @@ class _HomeScreenState extends State<HomeScreen> {
         'Failed to sync bills; keeping cached bills: $error\n$stackTrace',
       );
     } finally {
+      _isSyncingInBackground = false;
+      debugPrint('HOME _syncBillsInBackground finally');
       if (mounted && _isLoading) setState(() => _isLoading = false);
     }
   }

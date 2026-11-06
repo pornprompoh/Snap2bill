@@ -69,22 +69,21 @@ class LocalBillRepository {
   Future<List<Map<String, dynamic>>> getCachedBills({
     required String userId,
   }) async {
-    final rows = await _db.getAllCachedBills();
-    return rows
-        .map(_billToMap)
-        .where((bill) => _billBelongsToUser(bill, userId))
-        .toList();
+    final bills = (await _db.getAllCachedBills()).map(_billToMap).toList();
+    if (userId.isEmpty) return const [];
+    if (userId == 'all') return bills;
+    return bills.where((bill) => _billBelongsToUser(bill, userId)).toList();
   }
 
   Stream<List<Map<String, dynamic>>> watchCachedBills({
     required String userId,
   }) {
-    return _db.watchAllCachedBills().map(
-      (rows) => rows
-          .map(_billToMap)
-          .where((bill) => _billBelongsToUser(bill, userId))
-          .toList(),
-    );
+    return _db.watchAllCachedBills().map((rows) {
+      final bills = rows.map(_billToMap).toList();
+      if (userId.isEmpty) return const <Map<String, dynamic>>[];
+      if (userId == 'all') return bills;
+      return bills.where((bill) => _billBelongsToUser(bill, userId)).toList();
+    });
   }
 
   Future<Map<String, dynamic>?> getCachedBillData(String id) async {
